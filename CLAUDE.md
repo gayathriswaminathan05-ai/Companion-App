@@ -132,6 +132,17 @@ session — it is the cross-session memory.**
   auto-silent when hidden. Chat composer: Claude-style — mic + circular ↑ send
   inside one rounded field.
 
+- **AI character pipeline** ✅ scripts/process-clip.cjs (ffmpeg-static extract
+  12fps no-audio) + scripts/clip-key.cjs (Electron worker: flood-fill chroma key
+  from border+top seeds, global magenta cleanup for enclosed pockets, petal-
+  resistant bbox crop, 340x400 bottom-anchor) → public/character/<state>/*.png +
+  src/generated/sprites.ts. Blob.tsx: SpriteAnim (12fps ping-pong, preloaded)
+  replaces procedural drawing per-state when frames exist. IDLE = her AI tree
+  character (root creature w/ creepers + flower, 120 frames, 7.4MB). Video note:
+  AI clip pans/morphs — union bbox means character size shifts between frames.
+  Remaining states still procedural blob. Usage: node scripts/process-clip.cjs
+  <video.mp4> <state>.
+
 ## Status: PAUSED for Figma design refinement (July 2026)
 Gayathri is refining all UI designs in Figma. When she returns with links, use
 the Figma connector (may need one-time auth) to read frames and implement

@@ -1,5 +1,50 @@
 import { useEffect, useRef, useState } from "react";
 import type { CharacterState, SproutStage } from "./types";
+import { SPRITES, SpriteAnim as SpriteAnimDef } from "../generated/sprites";
+
+// Plays AI-generated frame animations (ping-pong loop) for states that have
+// them; all other states fall back to the procedural drawing below.
+function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
+  const [idx, setIdx] = useState(0);
+  const dirRef = useRef(1);
+
+  useEffect(() => {
+    // Preload every frame once so playback never flickers.
+    for (const src of anim.frames) {
+      const img = new Image();
+      img.src = src;
+    }
+    const timer = window.setInterval(() => {
+      setIdx((i) => {
+        let next = i + dirRef.current;
+        if (anim.pingpong) {
+          if (next >= anim.frames.length) {
+            dirRef.current = -1;
+            next = anim.frames.length - 2;
+          } else if (next < 0) {
+            dirRef.current = 1;
+            next = 1;
+          }
+        } else {
+          next = next % anim.frames.length;
+        }
+        return Math.max(0, Math.min(anim.frames.length - 1, next));
+      });
+    }, 1000 / anim.fps);
+    return () => clearInterval(timer);
+  }, [anim]);
+
+  return (
+    <img
+      src={anim.frames[idx]}
+      width={170}
+      height={200}
+      draggable={false}
+      style={{ objectFit: "contain", objectPosition: "bottom center", display: "block" }}
+      alt=""
+    />
+  );
+}
 
 // Procedural placeholder character. The state machine + this component's
 // state->pose mapping survive when real sprite art replaces the drawing.
@@ -216,6 +261,12 @@ export default function Blob({
 
   const pose = yawning ? "yawning" : asleep ? "asleep" : state;
   const cls = `pose-${pose}${wiggle && state === "idle" ? " wiggling" : ""}${state === "noting" && scribbling ? " scribbling" : ""}`;
+
+  // AI-generated animation available for this state? Use it.
+  const sprite = SPRITES[state];
+  if (sprite && sprite.frames.length > 0) {
+    return <SpriteAnim anim={sprite} />;
+  }
 
   return (
     <svg ref={svgRef} viewBox="0 0 170 200" width="170" height="200" className={cls}>
