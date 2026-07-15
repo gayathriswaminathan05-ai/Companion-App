@@ -60,7 +60,7 @@ app.whenReady().then(async () => {
         while (queue.length) {
           const cur = queue.pop();
           const cx = cur % w, cy = (cur / w) | 0;
-          for (const [nx, ny] of [[cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]]) {
+          for (const [nx, ny] of [[cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1],[cx+1,cy+1],[cx-1,cy-1],[cx+1,cy-1],[cx-1,cy+1]]) {
             if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
             const ni = ny * w + nx;
             if (mask[ni]) continue;
@@ -79,12 +79,16 @@ app.whenReady().then(async () => {
         if (mask[i]) px[i*4 + 3] = 0;
       }
       // Second pass: enclosed background pockets (holes between vines) can't
-      // be reached by the flood — clear anything magenta-ish globally.
-      // (Magenta = high R & B, low G — nothing on the character is hot pink.)
+      // be reached by the flood — clear anything clearly-background globally:
+      // magenta-ish (border) and pure-white (card). The flower's petals carry
+      // shading/tint so the strict white threshold leaves them alone.
       for (let i = 0; i < mask.length; i++) {
         const pi = i * 4;
         const r = px[pi], g = px[pi+1], b = px[pi+2];
-        if (px[pi+3] > 0 && r > 140 && b > 120 && g < r - 70 && g < b - 50) {
+        if (px[pi+3] === 0) continue;
+        const magenta = r > 140 && b > 120 && g < r - 70 && g < b - 50;
+        const cardWhite = r > 246 && g > 244 && b > 244 && Math.max(r,g,b) - Math.min(r,g,b) < 8;
+        if (magenta || cardWhite) {
           px[pi+3] = 0;
           mask[i] = 1;
         }
@@ -142,42 +146,48 @@ app.whenReady().then(async () => {
         [Math.round(w0*0.85), Math.round(h0*0.1)],
       );
 
-      // Pass A: union bounding box across all frames.
-      let box = null;
+      // Pass A: per-frame bounding boxes (the source video may pan/zoom;
+      // per-frame cropping keeps the character steady and LARGE).
+      const boxes = [];
       for (const f of files) {
         const img = await loadImage(path.join(IN, f));
         const { data } = keyFrame(img, bg);
-        const bb = bboxOf(data, img.width, img.height);
-        if (bb) {
-          if (!box) box = bb;
-          else {
-            box.minX = Math.min(box.minX, bb.minX);
-            box.minY = Math.min(box.minY, bb.minY);
-            box.maxX = Math.max(box.maxX, bb.maxX);
-            box.maxY = Math.max(box.maxY, bb.maxY);
-          }
-        }
+        boxes.push(bboxOf(data, img.width, img.height));
       }
-      if (!box) throw new Error("no character found after keying");
-      const pad = Math.round((box.maxX - box.minX) * 0.04);
-      box.minX = Math.max(0, box.minX - pad);
-      box.maxX = box.maxX + pad;
-      box.minY = Math.max(0, box.minY - pad);
-      box.maxY = box.maxY + pad;
-      const bw = box.maxX - box.minX, bh = box.maxY - box.minY;
+      if (!boxes.some(Boolean)) throw new Error("no character found after keying");
+      // Fill gaps, then temporally smooth each edge (moving average, ±4).
+      let lastGood = boxes.find(Boolean);
+      for (let i = 0; i < boxes.length; i++) {
+        if (!boxes[i]) boxes[i] = { ...lastGood };
+        else lastGood = boxes[i];
+      }
+      const smooth = boxes.map((_, i) => {
+        const win = [];
+        for (let j = Math.max(0, i - 4); j <= Math.min(boxes.length - 1, i + 4); j++) win.push(boxes[j]);
+        const avg = (k) => win.reduce((s, b) => s + b[k], 0) / win.length;
+        return { minX: avg("minX"), minY: avg("minY"), maxX: avg("maxX"), maxY: avg("maxY") };
+      });
 
-      // Pass B: crop + scale into 340x400, anchored bottom-center; save.
+      // Pass B: crop each frame to its smoothed box, scale to fill 340x400
+      // (bottom-center anchored), save.
       fs.mkdirSync(OUT, { recursive: true });
-      const scale = Math.min(W / bw, H / bh);
-      const dw = bw * scale, dh = bh * scale;
       let n = 0;
-      for (const f of files) {
-        const img = await loadImage(path.join(IN, f));
+      for (let i = 0; i < files.length; i++) {
+        const img = await loadImage(path.join(IN, files[i]));
         const { canvas } = keyFrame(img, bg);
+        const b = smooth[i];
+        const padX = (b.maxX - b.minX) * 0.03;
+        const padY = (b.maxY - b.minY) * 0.03;
+        const sx = Math.max(0, b.minX - padX);
+        const sy = Math.max(0, b.minY - padY);
+        const sw = Math.min(canvas.width, b.maxX + padX) - sx;
+        const sh = Math.min(canvas.height, b.maxY + padY) - sy;
+        const scale = Math.min(W / sw, H / sh);
+        const dw = sw * scale, dh = sh * scale;
         const out = document.createElement("canvas");
         out.width = W; out.height = H;
         const octx = out.getContext("2d");
-        octx.drawImage(canvas, box.minX, box.minY, bw, bh, (W - dw) / 2, H - dh, dw, dh);
+        octx.drawImage(canvas, sx, sy, sw, sh, (W - dw) / 2, H - dh, dw, dh);
         const b64 = out.toDataURL("image/png").split(",")[1];
         n++;
         fs.writeFileSync(path.join(OUT, "f-" + String(n).padStart(3, "0") + ".png"), Buffer.from(b64, "base64"));
