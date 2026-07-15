@@ -236,13 +236,22 @@ Anti-annoyance guardrails (critical — this is where companions get uninstalled
 4. Asks: launch at login? bedtime? break interval? (defaults offered, all skippable).
 - Total time < 2 minutes. Skippable entirely.
 
-### F8 — Settings (minimal panel)
-- Character name, user name, position reset
-- Nudge toggles + break interval, bedtime, water reminder
-- Character sounds on/off + volume (auto-muted while hidden/focus mode)
-- Launch at login, notification permissions status
-- Data: "delete everything" (clears local store)
-- About + feedback link (mailto or Google Form for beta)
+### F8 — Settings (spec finalized July 2026 after Finch/Mobbin pattern review)
+All copy written in Blob's voice (Finch pattern: settings stay in-character).
+**v1 sections:**
+- 🌱 companion: Blob's name, your name, sounds on/off (+volume later)
+- 💛 care: stretch interval (off/30/45/60/90), water on/off, bedtime on/off+time,
+  jokes off/3h/rare — every nudge individually controllable, named in Blob's voice
+  ("let me check on you", "when should I get sleepy?")
+- 🧠 memory: "what I remember about you" — view & DELETE individual facts
+  (differentiator: visible/touchable privacy), clear chat history
+- ⚙️ app: launch at login, API key change/remove (beta only)
+- 🔒 privacy: policy link, delete everything (confirm)
+- ℹ️ about: version, feedback link
+**Baked-in behavior (from Finch's "day boundary")**: sprout/day resets at 4am,
+not midnight — 1am accomplishments count toward "today".
+**Later:** companion size, personality loudness (paid candidate), quiet hours,
+appearance light/dark, language, subscription section (Day 11).
 
 ---
 
