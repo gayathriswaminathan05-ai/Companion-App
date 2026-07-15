@@ -377,7 +377,14 @@ Two design rules: (1) the only marginal cost is AI chat — cap that, give away
 everything local; (2) **never paywall the kindness** — free users get a real friend
 with a smaller brain, never a cold or guilt-tripping demo.
 
-| | Free — "the companion" | Paid — "the best friend" ($4.99/mo or $39.99/yr) |
+**Pricing (July 2026 decision):** 7-day full trial (no card upfront) → $6.99/mo or
+$49.99/yr. Unit economics @ Sonnet-class chat model: avg user COGS ~$2.35/mo + ~$0.50
+payment fees → ~59% margin monthly; heavy users capped by 100 msgs/day fair-use so no
+subscriber is loss-making. After trial the app NEVER dies: all zero-marginal-cost
+features stay free forever (tasks, reminders, nudges, sprout, voice input, canned
+jokes) — paid re-awakens the brain (chat, memory, research, adaptive care).
+
+| | Free — "the companion" | Paid — "the best friend" ($6.99/mo or $49.99/yr) |
 |---|---|---|
 | Character, animations, presence | ✅ Full | ✅ Full |
 | To-dos & reminders | ✅ Unlimited (zero marginal cost; the daily-habit hook) | ✅ Unlimited |
