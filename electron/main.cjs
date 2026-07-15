@@ -267,6 +267,89 @@ ipcMain.handle("brain-once", async (_e, { system, prompt, maxTokens }) => {
   }
 });
 
+// --- Call detection: auto-tuck during Zoom / Google Meet calls -------------
+const { exec } = require("child_process");
+let callAutoHide = true;
+let hiddenForCall = false;
+
+ipcMain.on("set-call-autohide", (_e, v) => {
+  callAutoHide = !!v;
+});
+
+function checkZoomCall(cb) {
+  // Zoom runs the "CptHost" helper only while actually in a meeting.
+  exec("pgrep -x CptHost", (err) => cb(!err));
+}
+
+function checkMeetCall(cb) {
+  exec('pgrep -x "Google Chrome"', (err) => {
+    if (err) return cb(false);
+    exec(
+      `osascript -e 'tell application "Google Chrome" to get URL of tabs of every window' 2>/dev/null`,
+      { timeout: 4000 },
+      (e, out) => cb(!e && /meet\.google\.com\/[a-z]{3}-/.test(String(out))),
+    );
+  });
+}
+
+function onCallState(active) {
+  if (!win) return;
+  if (active && callAutoHide && win.isVisible()) {
+    hiddenForCall = true;
+    win.hide();
+    updateTrayMenu();
+  } else if (!active && hiddenForCall) {
+    hiddenForCall = false;
+    if (!win.isVisible()) {
+      win.show();
+      updateTrayMenu();
+    }
+  }
+}
+
+setInterval(() => {
+  if (!callAutoHide && !hiddenForCall) return;
+  checkZoomCall((zoom) => {
+    if (zoom) return onCallState(true);
+    checkMeetCall((meet) => onCallState(meet));
+  });
+}, 10000);
+
+// --- Settings-backed app controls ------------------------------------------
+ipcMain.handle("get-login-item", () => {
+  try {
+    return app.getLoginItemSettings().openAtLogin;
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle("set-login-item", (_e, on) => {
+  try {
+    app.setLoginItemSettings({ openAtLogin: !!on });
+    updateTrayMenu();
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle("brain-disconnect", () => {
+  try {
+    fs.unlinkSync(keyFile());
+  } catch {}
+  anthropicClient = null;
+  return true;
+});
+
+ipcMain.handle("data-reset", () => {
+  try {
+    fs.unlinkSync(dataFile());
+  } catch {}
+  if (win) win.reload();
+  return true;
+});
+
 // Persistent data (todos, sprout progress, settings) in one JSON file.
 const dataFile = () => path.join(app.getPath("userData"), "companion-data.json");
 

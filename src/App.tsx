@@ -7,6 +7,7 @@ import ChatPanel from "./ui/ChatPanel";
 import ReminderBubble, { FiredReminder } from "./ui/ReminderBubble";
 import NudgeBubble from "./ui/NudgeBubble";
 import QuickNav from "./ui/QuickNav";
+import SettingsPanel from "./ui/SettingsPanel";
 import { formatDue, parseWhen } from "./reminders";
 import { useCharacter } from "./character/useCharacter";
 import { AppData, emptyData, loadData, saveData, sproutStageFor, today } from "./store";
@@ -34,6 +35,11 @@ declare global {
       brainOnce: (payload: unknown) => Promise<unknown>;
       onChatEvent: (channel: string, handler: (data: unknown) => void) => () => void;
       openLink: (url: string) => void;
+      setCallAutohide: (on: boolean) => void;
+      getLoginItem: () => Promise<unknown>;
+      setLoginItem: (on: boolean) => Promise<unknown>;
+      brainDisconnect: () => Promise<unknown>;
+      dataReset: () => Promise<unknown>;
     };
   }
 }
@@ -46,7 +52,7 @@ const hoverable = {
 export default function App() {
   const { state, set } = useCharacter();
   const [data, setData] = useState<AppData>(emptyData());
-  const [open, setOpen] = useState<"none" | "menu" | "tasks" | "chat">("none");
+  const [open, setOpen] = useState<"none" | "menu" | "tasks" | "chat" | "settings">("none");
   const [clip, setClip] = useState({ clipLeft: 0, clipRight: 0 });
   const [menuPhase, setMenuPhase] = useState<MenuPhase>("juggling");
   const juggleTimer = useRef<number | null>(null);
@@ -113,6 +119,7 @@ export default function App() {
   useEffect(() => {
     dataRef.current = data;
     setSoundsEnabled(data.settings.soundsOn);
+    window.companion.setCallAutohide?.(data.settings.autoHideOnCalls);
   }, [data]);
   const stateRef = useRef(state);
   useEffect(() => {
@@ -381,8 +388,11 @@ export default function App() {
       if (document.visibilityState === "hidden") return;
       if (jokeRef.current || nudgeRef.current || openRef.current !== "none") return;
       if (stateRef.current === "sleeping" || stateRef.current === "dragged") return;
+      const freq = dataRef.current.settings.jokeEvery;
+      if (freq === "off") return;
+      const gapH = freq === "rare" ? 6 : 3;
       const last = dataRef.current.chat.jokeLastAt;
-      if (!last || Date.now() - new Date(last).getTime() > 3 * 60 * 60_000) {
+      if (!last || Date.now() - new Date(last).getTime() > gapH * 60 * 60_000) {
         void tellJoke();
       }
     };
@@ -514,13 +524,20 @@ export default function App() {
     }
   };
 
+  const patchSettings = (patch: Partial<AppData["settings"]>) => {
+    update((d) => {
+      d.settings = { ...d.settings, ...patch };
+      return d;
+    });
+  };
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
   };
 
   const sproutStage = sproutStageFor(data.sprout.points);
-  const panelOpen = open === "tasks" || open === "chat";
+  const panelOpen = open === "tasks" || open === "chat" || open === "settings";
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative", pointerEvents: "none" }}>
@@ -531,7 +548,7 @@ export default function App() {
             items={[
               { icon: "💬", label: "chat", color: "#FF8A7A", active: open === "chat", onClick: () => { setOpen("chat"); if (!chatBusy) set("idle"); } },
               { icon: "📝", label: "tasks", color: "#FFD75E", active: open === "tasks", onClick: () => { setOpen("tasks"); set("noting"); } },
-              { icon: "⚙️", label: "settings", color: "#93C46F", onClick: () => showToast("Settings arrive on Day 6!") },
+              { icon: "⚙️", label: "settings", color: "#93C46F", active: open === "settings", onClick: () => { setOpen("settings"); set("idle"); } },
               { icon: "💤", label: "tuck away", color: "#7FB8E8", onClick: () => { setOpen("none"); window.companion?.hide(); } },
             ]}
           />
@@ -547,6 +564,39 @@ export default function App() {
               onEdit={editTask}
               onToggle={toggleTask}
               onDelete={deleteTask}
+              onClose={() => {
+                setOpen("none");
+                set("idle");
+              }}
+            />
+          )}
+          {open === "settings" && (
+            <SettingsPanel
+              settings={data.settings}
+              facts={data.chat.facts}
+              onPatch={patchSettings}
+              onDeleteFact={(f) =>
+                update((d) => {
+                  d.chat.facts = d.chat.facts.filter((x) => x !== f);
+                  return d;
+                })
+              }
+              onClearChat={() => {
+                update((d) => {
+                  d.chat.messages = [];
+                  d.chat.summary = "";
+                  return d;
+                });
+                showToast("chats forgotten 🤍");
+              }}
+              onChangeKey={async () => {
+                await window.companion.brainDisconnect();
+                setBrainConnected(false);
+                setOpen("chat");
+              }}
+              onDeleteAll={() => {
+                void window.companion.dataReset();
+              }}
               onClose={() => {
                 setOpen("none");
                 set("idle");
@@ -589,14 +639,7 @@ export default function App() {
                 set("noting"); // notepad out, spectacles on, pen ready
               },
             },
-            {
-              icon: "⚙️",
-              label: "settings",
-              onClick: () => {
-                showToast("Settings arrive on Day 6!");
-                setOpen("none");
-              },
-            },
+            { icon: "⚙️", label: "settings", onClick: () => setOpen("settings") },
             {
               icon: "💤",
               label: "tuck away",

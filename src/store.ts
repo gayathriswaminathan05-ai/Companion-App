@@ -23,9 +23,13 @@ export interface Reminder {
 
 export interface Settings {
   soundsOn: boolean;
-  breakMins: number; // stretch nudge after this much continuous activity
+  breakMins: number; // stretch nudge interval; 0 = off
   bedtime: string | null; // "HH:MM" 24h, null = off
   waterNudge: boolean; // every ~2h of activity, off by default
+  companionName: string;
+  userName: string;
+  jokeEvery: "off" | "often" | "rare"; // often=3h, rare=6h
+  autoHideOnCalls: boolean;
 }
 
 export interface Wellness {
@@ -57,6 +61,10 @@ export const defaultSettings = (): Settings => ({
   breakMins: 60,
   bedtime: "23:00",
   waterNudge: false,
+  companionName: "Blob",
+  userName: "",
+  jokeEvery: "often",
+  autoHideOnCalls: true,
 });
 
 export const emptyWellness = (): Wellness => ({
@@ -83,7 +91,8 @@ export const emptyData = (): AppData => ({
 });
 
 export function today(): string {
-  const d = new Date();
+  // Day boundary at 4am (Finch pattern): 1am wins still count as "today".
+  const d = new Date(Date.now() - 4 * 60 * 60 * 1000);
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 }
 

@@ -65,6 +65,8 @@ export function buildSystem(d: AppData): { type: string; text: string; cache_con
     `Current context (do not recite this; just be aware):`,
     `- local time: ${now.toLocaleString([], { weekday: "long", hour: "numeric", minute: "2-digit" })}`,
     `- current datetime for computing task due times: ${localIso}`,
+    `- your name is ${d.settings.companionName || "Blob"}` +
+      (d.settings.userName ? `; your friend's name is ${d.settings.userName}` : ""),
     `- their sprout today: ${sproutStageFor(d.sprout.points)} (${d.sprout.points} accomplishments)`,
     openTasks.length
       ? `- open tasks: ${openTasks.map((t) => t.text).join("; ")}`
