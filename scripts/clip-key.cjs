@@ -114,7 +114,10 @@ app.whenReady().then(async () => {
         if (px[pi+3] === 0) continue;
         const magenta = r > 140 && b > 120 && g < r - 70 && g < b - 50;
         const cardWhite = r > 246 && g > 244 && b > 244 && Math.max(r,g,b) - Math.min(r,g,b) < 8;
-        if (magenta || cardWhite) {
+        // Pure-black backdrops (Kling): darkest character features (pupils,
+        // mouth) measure ≥ ~40 red — 28 leaves a safe gap.
+        const nearBlack = r < 28 && g < 28 && b < 28;
+        if (magenta || cardWhite || nearBlack) {
           px[pi+3] = 0;
           mask[i] = 1;
         }
