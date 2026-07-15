@@ -107,7 +107,14 @@ session — it is the cross-session memory.**
   claude-sonnet-5 (user chose for cost; one-line swap in main.cjs CHAT_MODEL).
   API key: user-funded account, stored userData/brain.key.
 
-## Next: Day 6–7 — settings panel + cute sounds + week-1 buffer
+- **Sounds** ✅ (Day 6 partial): src/sounds.ts — SYNTHESIZED chirps (WebAudio, no
+  files): hello/boop/celebrate/pop/sleepy/giggle/msg; one instrument family;
+  settings.soundsOn (default true, toggle in debug menu until Settings panel);
+  auto-silent when hidden. Chat composer: Claude-style — mic + circular ↑ send
+  inside one rounded field.
+
+## Next: Day 6–7 — settings panel (sounds/bedtime/break toggles now have real
+settings to edit) + week-1 buffer
 Settings UI edits store.settings (breakMins/bedtime/water/sounds toggles, names,
 delete-all). ~6 chirp sounds w/ mute + auto-mute when hidden. Then Day 8: proxy +
 Claude chat brain (personality + distress tiers + NL task commands via tool use).

@@ -7,6 +7,8 @@ export default function DebugMenu({
   onState,
   onTestNudge,
   onTestJoke,
+  soundsOn,
+  onToggleSounds,
   onSprout,
   onClose,
   current,
@@ -15,6 +17,8 @@ export default function DebugMenu({
   onState: (s: CharacterState) => void;
   onTestNudge: (k: "stretch" | "water" | "bedtime") => void;
   onTestJoke: () => void;
+  soundsOn: boolean;
+  onToggleSounds: () => void;
   onSprout: (s: SproutStage) => void;
   onClose: () => void;
   current: CharacterState;
@@ -77,6 +81,7 @@ export default function DebugMenu({
           <button key={k} style={btn} onClick={() => { onTestNudge(k); onClose(); }}>{k}</button>
         ))}
         <button style={btn} onClick={() => { onTestJoke(); onClose(); }}>joke</button>
+        <button style={{ ...btn, background: soundsOn ? "#dff0cf" : (btn.background as string) }} onClick={onToggleSounds}>{soundsOn ? "sounds: on" : "sounds: off"}</button>
       </div>
       <button style={{ ...btn, marginTop: 10, width: "100%" }} onClick={onClose}>
         close

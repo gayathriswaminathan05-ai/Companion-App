@@ -22,6 +22,7 @@ export interface Reminder {
 }
 
 export interface Settings {
+  soundsOn: boolean;
   breakMins: number; // stretch nudge after this much continuous activity
   bedtime: string | null; // "HH:MM" 24h, null = off
   waterNudge: boolean; // every ~2h of activity, off by default
@@ -52,6 +53,7 @@ export interface AppData {
 }
 
 export const defaultSettings = (): Settings => ({
+  soundsOn: true,
   breakMins: 60,
   bedtime: "23:00",
   waterNudge: false,

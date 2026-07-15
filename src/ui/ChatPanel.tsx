@@ -135,10 +135,31 @@ export default function ChatPanel({
             }}
           />
           <MicButton key={micKey} bare current={text} onTranscript={setText} />
+          <button
+            onClick={send}
+            disabled={!text.trim() || busy}
+            title="send"
+            style={{
+              width: 26,
+              height: 26,
+              minWidth: 26,
+              borderRadius: "50%",
+              border: "none",
+              background: text.trim() && !busy ? "#5a4a3a" : "#d8cbb4",
+              color: "#fff8ec",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: text.trim() && !busy ? "pointer" : "default",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+              transition: "background 0.15s",
+            }}
+          >
+            ↑
+          </button>
         </div>
-        <button style={{ ...smallBtn, opacity: busy ? 0.5 : 1 }} onClick={send}>
-          send
-        </button>
       </div>
     </div>
   );

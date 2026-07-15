@@ -10,6 +10,7 @@ import { formatDue } from "./reminders";
 import { useCharacter } from "./character/useCharacter";
 import { AppData, emptyData, loadData, saveData, sproutStageFor, today } from "./store";
 import { buildSystem, buildMessages, extractMemory, FALLBACK_JOKES } from "./brain";
+import { chirp, setSoundsEnabled } from "./sounds";
 import type { CharacterState } from "./character/types";
 
 declare global {
@@ -66,7 +67,11 @@ export default function App() {
   const scribbling = typePulse || recording;
 
   useEffect(() => {
-    loadData().then(setData);
+    loadData().then((d) => {
+      setData(d);
+      setSoundsEnabled(d.settings.soundsOn);
+      setTimeout(() => chirp("hello"), 600);
+    });
     window.companion?.setClickThrough(true);
     const stop = () => {
       setDragging((was) => {
@@ -106,6 +111,7 @@ export default function App() {
   const dataRef = useRef(data);
   useEffect(() => {
     dataRef.current = data;
+    setSoundsEnabled(data.settings.soundsOn);
   }, [data]);
   const stateRef = useRef(state);
   useEffect(() => {
@@ -137,6 +143,7 @@ export default function App() {
   };
 
   const triggerNudge = (kind: NudgeKind) => {
+    chirp(kind === "bedtime" ? "sleepy" : "pop");
     if (kind === "bedtime") {
       set("sleeping");
       update((d) => {
@@ -235,6 +242,7 @@ export default function App() {
       setStreamText(null);
       setChatBusy(false);
       set("idle");
+      chirp("msg");
     });
     const offErr = window.companion.onChatEvent("chat-error", (d) => {
       const { error } = d as { error: string };
@@ -316,6 +324,7 @@ export default function App() {
     } catch {}
     setJoke({ setup: j.setup, punchline: j.punchline, revealed: false });
     set("waving");
+    chirp("pop");
     update((d) => {
       d.chat.jokeLastAt = new Date().toISOString();
       return d;
@@ -364,6 +373,7 @@ export default function App() {
           return d;
         });
         setFiredQueue((q) => (q.some((f) => f.id === fired.id) ? q : [...q, fired]));
+        chirp("pop");
         try {
           new Notification("Your companion 🌱", { body: `⏰ ${t.text}` });
         } catch {}
@@ -420,6 +430,7 @@ export default function App() {
     });
     if (completing) {
       set("celebrating");
+      chirp("celebrate");
       growSprout();
     }
   };
@@ -444,6 +455,7 @@ export default function App() {
         return d;
       });
       set("celebrating");
+      chirp("celebrate");
       growSprout();
     } else {
       update((d) => {
@@ -570,6 +582,7 @@ export default function App() {
                     onClick: () => {
                       setJoke({ ...joke, revealed: true });
                       set("celebrating");
+                      chirp("giggle");
                     },
                   },
                   {
@@ -597,6 +610,7 @@ export default function App() {
                     onClick: () => {
                       setNudge(null);
                       set("celebrating");
+                      chirp("celebrate");
                       growSprout();
                     },
                   },
@@ -671,6 +685,7 @@ export default function App() {
               setMenuPhase("juggling");
               setOpen("menu");
               set("juggling");
+              chirp("boop");
               if (juggleTimer.current) clearTimeout(juggleTimer.current);
               juggleTimer.current = window.setTimeout(() => {
                 setMenuPhase("thrown");
@@ -710,6 +725,8 @@ export default function App() {
             onState={set}
             onTestNudge={(k) => triggerNudge(k)}
             onTestJoke={() => void tellJoke()}
+            soundsOn={data.settings.soundsOn}
+            onToggleSounds={() => update((d) => { d.settings.soundsOn = !d.settings.soundsOn; return d; })}
             onSprout={() => showToast("sprout now grows with your day 🌱")}
             onClose={() => setDebugOpen(false)}
           />
