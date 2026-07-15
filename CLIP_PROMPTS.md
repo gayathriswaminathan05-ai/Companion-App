@@ -44,13 +44,19 @@ Name each file exactly as below, drop into: assets/clips/
     pouring water drops onto its own leafy canopy, content closed eyes"
 12. **dragged.mp4** — "the creature dangles and swings gently side to side,
     surprised wide eyes, small round open mouth"
+13. **combing.mp4** — "the creature holds a tiny wooden comb and gently combs
+    a long leafy vine draping from its canopy, slow caring strokes, content
+    peaceful expression, eyes softly closed" (generate AFTER the vine overlay
+    images exist — use a reference frame of the tree WITH the stage-3 creeper)
 
 NOT needed: juggling (stays code-drawn so menu balls sync perfectly),
 sprout stages (stays a code layer so it can change dynamically).
-IMPORTANT: generate all clips WITHOUT flowers — blossoms are the code-drawn
-growth layer (bare canopy → bud → blossoms → full bloom), overlaid dynamically.
-Also generate one still image: "small cluster of soft pink blossoms, same
-style, magenta background" for the bloom overlay sprites.
+IMPORTANT: generate all clips WITHOUT the vine — the CREEPER is the growth
+layer, overlaid dynamically as accomplishments happen. Stages (each its own
+still image on magenta): 1 tiny sprout w/ two proper leaves → 2 short curling
+tendril w/ 4-5 leaves → 3 long leafy creeper draping down the canopy →
+4 creeper dotted with soft-pink blossoms. (Exception: combing.mp4 uses a
+reference WITH the stage-3 creeper, since combing it is the whole point.)
 
 ## Take-selection checklist (before sending me a clip)
 - [ ] character looks identical to reference (colors, proportions, face)
