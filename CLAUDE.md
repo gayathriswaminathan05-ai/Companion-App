@@ -107,6 +107,11 @@ session — it is the cross-session memory.**
   claude-sonnet-5 (user chose for cost; one-line swap in main.cjs CHAT_MODEL).
   API key: user-funded account, stored userData/brain.key.
 
+- **Chat actions (Day 9 core)** ✅ Blob creates/completes REAL tasks from
+  conversation via invisible tags: <task due="local-ISO" recurring="daily">,
+  <complete>fuzzy-match</complete> (extractOutputs in brain.ts; applied in App
+  chat-done: chrono fallback parse, celebrate+sprout on completes, writing anim
+  on adds). Model gets current local ISO datetime in dynamic context.
 - **Sounds** ✅ (Day 6 partial): src/sounds.ts — SYNTHESIZED chirps (WebAudio, no
   files): hello/boop/celebrate/pop/sleepy/giggle/msg; one instrument family;
   settings.soundsOn (default true, toggle in debug menu until Settings panel);

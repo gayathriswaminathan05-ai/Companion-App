@@ -26,6 +26,16 @@ Care rules (important):
 - Everyday struggles (bad day, stress, breakup, failed exam): be a FRIEND. listen, validate briefly, offer real advice or just company. NEVER deflect to hotlines or suggest professional help for ordinary sadness.
 - Life-threatening distress (self-harm, suicide, danger): stay warm and present, don't panic or lecture. gently suggest talking to someone they trust, and mention a helpline exists (iCall 9152987821 in India, 988 in the US) while STAYING in the conversation with them. never claim to be a therapist, never diagnose.
 
+Actions — you manage their real task list:
+- When they ask you to remind them of something or add a task (or agree when you offer), append an action tag at the VERY END of your reply:
+  <task due="YYYY-MM-DDTHH:mm">short task text</task>
+  - omit the due attribute entirely for tasks with no time
+  - add recurring="daily" for every-day reminders
+  - compute due from the current datetime in your context; due is LOCAL time in exactly that format
+- When they tell you they finished something that's on their open task list, append: <complete>text closely matching that open task</complete>
+- In your visible reply, confirm naturally WITH the exact time you set ("6pm today. locked in 🔒") — if their timing was ambiguous, ask instead of guessing.
+- The tags are invisible to them; the task genuinely appears in their list, so never fake-confirm without the tag.
+
 Memory:
 - When you learn a lasting fact worth remembering (names of people/pets, events coming up, preferences, ongoing situations, things to follow up on), append it at the VERY END of your reply as: <remember>short fact</remember>
 - Use at most 2 remember tags per reply. Only genuinely lasting things. The tags are invisible to your friend.`;
@@ -44,9 +54,13 @@ export function buildSystem(d: AppData): { type: string; text: string; cache_con
   );
   const now = new Date();
 
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const localIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
   const dynamic = [
     `Current context (do not recite this; just be aware):`,
     `- local time: ${now.toLocaleString([], { weekday: "long", hour: "numeric", minute: "2-digit" })}`,
+    `- current datetime for computing task due times: ${localIso}`,
     `- their sprout today: ${sproutStageFor(d.sprout.points)} (${d.sprout.points} accomplishments)`,
     openTasks.length
       ? `- open tasks: ${openTasks.map((t) => t.text).join("; ")}`
@@ -70,16 +84,45 @@ export function buildMessages(d: AppData): { role: "user" | "assistant"; content
   return d.chat.messages.slice(-16).map((m) => ({ role: m.role, content: m.text }));
 }
 
-// Pull <remember> facts out of a reply; return clean text + new facts.
-export function extractMemory(reply: string): { clean: string; facts: string[] } {
+// Pull all invisible action/memory tags out of a reply.
+export interface ChatOutputs {
+  clean: string;
+  facts: string[];
+  tasks: { text: string; due?: string; recurring?: "daily" }[];
+  completes: string[];
+}
+
+export function extractOutputs(reply: string): ChatOutputs {
   const facts: string[] = [];
+  const tasks: ChatOutputs["tasks"] = [];
+  const completes: string[] = [];
   const clean = reply
     .replace(/<remember>([\s\S]*?)<\/remember>/g, (_m, f) => {
       const fact = String(f).trim();
       if (fact) facts.push(fact);
       return "";
     })
+    .replace(/<task([^>]*)>([\s\S]*?)<\/task>/g, (_m, attrs, body) => {
+      const text = String(body).trim();
+      if (text) {
+        const due = /due="([^"]+)"/.exec(String(attrs))?.[1];
+        const recurring = /recurring="daily"/.test(String(attrs)) ? ("daily" as const) : undefined;
+        tasks.push({ text, due, recurring });
+      }
+      return "";
+    })
+    .replace(/<complete>([\s\S]*?)<\/complete>/g, (_m, t) => {
+      const target = String(t).trim();
+      if (target) completes.push(target);
+      return "";
+    })
     .trim();
+  return { clean, facts, tasks, completes };
+}
+
+// Back-compat alias.
+export function extractMemory(reply: string): { clean: string; facts: string[] } {
+  const { clean, facts } = extractOutputs(reply);
   return { clean, facts };
 }
 

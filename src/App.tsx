@@ -6,10 +6,10 @@ import TaskPanel from "./ui/TaskPanel";
 import ChatPanel from "./ui/ChatPanel";
 import ReminderBubble, { FiredReminder } from "./ui/ReminderBubble";
 import NudgeBubble from "./ui/NudgeBubble";
-import { formatDue } from "./reminders";
+import { formatDue, parseWhen } from "./reminders";
 import { useCharacter } from "./character/useCharacter";
 import { AppData, emptyData, loadData, saveData, sproutStageFor, today } from "./store";
-import { buildSystem, buildMessages, extractMemory, FALLBACK_JOKES } from "./brain";
+import { buildSystem, buildMessages, extractOutputs, FALLBACK_JOKES } from "./brain";
 import { chirp, setSoundsEnabled } from "./sounds";
 import type { CharacterState } from "./character/types";
 
@@ -230,19 +230,63 @@ export default function App() {
     });
     const offDone = window.companion.onChatEvent("chat-done", (d) => {
       const { text, sources } = d as { text: string; sources?: { title: string; url: string }[] };
-      const { clean, facts } = extractMemory(text);
+      const { clean, facts, tasks, completes } = extractOutputs(text);
+      let completedAny = false;
       update((x) => {
         x.chat.messages.push({ role: "assistant", text: clean || "…", at: new Date().toISOString(), sources: sources && sources.length ? sources.slice(0, 8) : undefined });
         for (const f of facts) if (!x.chat.facts.includes(f)) x.chat.facts.push(f);
         if (x.chat.facts.length > 40) x.chat.facts = x.chat.facts.slice(-40);
         if (x.chat.messages.length > 60) x.chat.messages = x.chat.messages.slice(-60);
+        // Tasks Blob created in conversation
+        for (const t of tasks) {
+          let dueIso: string | null = null;
+          if (t.due) {
+            const d1 = new Date(t.due);
+            if (!isNaN(d1.getTime())) dueIso = d1.toISOString();
+            else {
+              const d2 = parseWhen(t.due);
+              if (d2) dueIso = d2.toISOString();
+            }
+          }
+          x.todos.unshift({
+            id: crypto.randomUUID(),
+            text: t.text,
+            done: false,
+            createdAt: new Date().toISOString(),
+            due: dueIso,
+            recurring: t.recurring,
+            firedAt: null,
+          });
+        }
+        // Tasks Blob marked done from conversation
+        for (const target of completes) {
+          const needle = target.toLowerCase();
+          const match = x.todos.find(
+            (td) => !td.done && (td.text.toLowerCase().includes(needle) || needle.includes(td.text.toLowerCase())),
+          );
+          if (match) {
+            match.done = true;
+            match.completedAt = new Date().toISOString();
+            completedAny = true;
+            if (x.sprout.date !== today()) x.sprout = { date: today(), points: 0 };
+            x.sprout.points += 1;
+          }
+        }
         return x;
       });
       streamRef.current = "";
       setStreamText(null);
       setChatBusy(false);
-      set("idle");
-      chirp("msg");
+      if (completedAny) {
+        set("celebrating");
+        chirp("celebrate");
+      } else if (tasks.length > 0) {
+        set("writing");
+        chirp("pop");
+      } else {
+        set("idle");
+        chirp("msg");
+      }
     });
     const offErr = window.companion.onChatEvent("chat-error", (d) => {
       const { error } = d as { error: string };
