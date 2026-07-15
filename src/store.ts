@@ -35,7 +35,7 @@ export interface Wellness {
 }
 
 export interface ChatState {
-  messages: { role: "user" | "assistant"; text: string; at: string }[];
+  messages: { role: "user" | "assistant"; text: string; at: string; sources?: { title: string; url: string }[] }[];
   facts: string[]; // lasting memory about the user
   summary: string; // compressed older history
   jokeLastAt: string | null;

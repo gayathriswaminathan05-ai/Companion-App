@@ -31,6 +31,7 @@ declare global {
       chatSend: (payload: unknown) => Promise<unknown>;
       brainOnce: (payload: unknown) => Promise<unknown>;
       onChatEvent: (channel: string, handler: (data: unknown) => void) => () => void;
+      openLink: (url: string) => void;
     };
   }
 }
@@ -221,10 +222,10 @@ export default function App() {
       setStreamText(streamRef.current);
     });
     const offDone = window.companion.onChatEvent("chat-done", (d) => {
-      const { text } = d as { text: string };
+      const { text, sources } = d as { text: string; sources?: { title: string; url: string }[] };
       const { clean, facts } = extractMemory(text);
       update((x) => {
-        x.chat.messages.push({ role: "assistant", text: clean || "…", at: new Date().toISOString() });
+        x.chat.messages.push({ role: "assistant", text: clean || "…", at: new Date().toISOString(), sources: sources && sources.length ? sources.slice(0, 8) : undefined });
         for (const f of facts) if (!x.chat.facts.includes(f)) x.chat.facts.push(f);
         if (x.chat.facts.length > 40) x.chat.facts = x.chat.facts.slice(-40);
         if (x.chat.messages.length > 60) x.chat.messages = x.chat.messages.slice(-60);
@@ -238,9 +239,14 @@ export default function App() {
     const offErr = window.companion.onChatEvent("chat-error", (d) => {
       const { error } = d as { error: string };
       update((x) => {
+        const friendly = error.includes("credit balance")
+          ? "my thinking credits ran out 😅 top me up at platform.claude.com → Plans & Billing and I'll be right back!"
+          : error.includes("401")
+            ? "I'm having trouble thinking right now 😅 (is my key okay?)"
+            : "I'm having trouble thinking right now 😅 (are we online?)";
         x.chat.messages.push({
           role: "assistant",
-          text: "I'm having trouble thinking right now 😅 " + (error.includes("401") ? "(is my key okay?)" : "(are we online?)"),
+          text: friendly,
           at: new Date().toISOString(),
         });
         return x;

@@ -34,6 +34,7 @@ export default function TaskPanel({
   onClose: () => void;
 }) {
   const [text, setText] = useState("");
+  const [micKey, setMicKey] = useState(0);
   const parsed = useMemo(() => parseReminder(text), [text]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
@@ -54,6 +55,7 @@ export default function TaskPanel({
     if (parsed) onAdd(parsed.title, parsed.due, parsed.recurring);
     else onAdd(trimmed);
     setText("");
+    setMicKey((k) => k + 1);
   };
 
   const submitPlain = () => {
@@ -61,6 +63,7 @@ export default function TaskPanel({
     if (!trimmed) return;
     onAdd(parsed ? parsed.title : trimmed);
     setText("");
+    setMicKey((k) => k + 1);
   };
 
   const startEdit = (t: Todo) => {
@@ -91,24 +94,16 @@ export default function TaskPanel({
       </div>
 
       <div style={{ display: "flex", gap: 6 }}>
-        <input
-          value={text}
-          onChange={(e) => { setText(e.target.value); onActivity(); }}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder="buy milk · call amma at 6pm · stretch daily at 11"
-          style={{
-            flex: 1,
-            fontSize: 12,
-            padding: "7px 9px",
-            borderRadius: 8,
-            border: "1px solid #d8c9ac",
-            outline: "none",
-            fontFamily: "inherit",
-            background: "#fffdf7",
-            color: "#5a4a3a",
-          }}
-        />
-        <MicButton current={text} onTranscript={(t) => { setText(t); onActivity(); }} onSpeaking={onMicPhase} />
+        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 2, border: "1px solid #d8c9ac", borderRadius: 8, background: "#fffdf7", padding: "2px 4px 2px 8px" }}>
+          <input
+            value={text}
+            onChange={(e) => { setText(e.target.value); onActivity(); }}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            placeholder="buy milk · call amma at 6pm (hold 🎤)"
+            style={{ flex: 1, fontSize: 12, padding: "5px 0", border: "none", outline: "none", fontFamily: "inherit", background: "transparent", color: "#5a4a3a" }}
+          />
+          <MicButton key={micKey} bare current={text} onTranscript={(t) => { setText(t); onActivity(); }} onSpeaking={onMicPhase} />
+        </div>
         <button style={smallBtn} onClick={submit}>add</button>
       </div>
 

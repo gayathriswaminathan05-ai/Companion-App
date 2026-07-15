@@ -9,6 +9,7 @@ const {
   nativeImage,
   systemPreferences,
   powerMonitor,
+  shell,
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -174,6 +175,13 @@ function getBrain() {
   return anthropicClient;
 }
 
+ipcMain.on("open-link", (_e, url) => {
+  try {
+    const u = String(url);
+    if (u.startsWith("http://") || u.startsWith("https://")) shell.openExternal(u);
+  } catch {}
+});
+
 ipcMain.handle("brain-status", () => ({ connected: !!loadBrainKey() }));
 
 ipcMain.handle("brain-connect", (_e, key) => {
@@ -186,7 +194,8 @@ ipcMain.handle("brain-connect", (_e, key) => {
   }
 });
 
-const CHAT_MODEL = "claude-opus-4-8";
+// Chat model — swap this one line to change brains (user chose Sonnet for cost).
+const CHAT_MODEL = "claude-sonnet-5";
 
 // Streaming chat with web search; continues across pause_turn automatically.
 ipcMain.handle("chat-send", async (e, { id, system, messages }) => {
@@ -195,13 +204,14 @@ ipcMain.handle("chat-send", async (e, { id, system, messages }) => {
   try {
     let msgs = [...messages];
     let full = "";
+    const sources = [];
     for (let hop = 0; hop < 4; hop++) {
       const stream = client.messages.stream({
         model: CHAT_MODEL,
-        max_tokens: 1024,
+        max_tokens: 2048,
         system,
         messages: msgs,
-        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 3 }],
+        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8 }],
       });
       stream.on("text", (t) => {
         full += t;
@@ -210,13 +220,22 @@ ipcMain.handle("chat-send", async (e, { id, system, messages }) => {
         } catch {}
       });
       const final = await stream.finalMessage();
+      for (const b of final.content) {
+        if (b.type === "text" && Array.isArray(b.citations)) {
+          for (const c of b.citations) {
+            if (c.url && !sources.some((s) => s.url === c.url)) {
+              sources.push({ url: c.url, title: c.title || c.url });
+            }
+          }
+        }
+      }
       if (final.stop_reason === "pause_turn") {
         msgs = [...msgs, { role: "assistant", content: final.content }];
         continue;
       }
       break;
     }
-    e.sender.send("chat-done", { id, text: full });
+    e.sender.send("chat-done", { id, text: full, sources });
     return { ok: true };
   } catch (err) {
     const msg = String((err && err.message) || err);

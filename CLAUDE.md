@@ -99,6 +99,14 @@ session — it is the cross-session memory.**
   NOT YET: task commands via chat tools (Day 9), summary compaction (Day 10),
   15/day free cap (beta unlocked).
 
+- **Chat v2** ✅ LOUD over-the-top personality (gasps/CAPS spikes/huge empathy);
+  deep research mode (web_search max_uses 8, max_tokens 2048, multi-angle,
+  opinionated synthesis); source citations collected from API → clickable 🔗 chips
+  in bubbles → shell.openExternal. Hold-to-talk mic INSIDE input field (micKey
+  remount cancels in-flight transcription = input-refill bug fixed). MODEL:
+  claude-sonnet-5 (user chose for cost; one-line swap in main.cjs CHAT_MODEL).
+  API key: user-funded account, stored userData/brain.key.
+
 ## Next: Day 6–7 — settings panel + cute sounds + week-1 buffer
 Settings UI edits store.settings (breakMins/bedtime/water/sounds toggles, names,
 delete-all). ~6 chirp sounds w/ mute + auto-mute when hidden. Then Day 8: proxy +

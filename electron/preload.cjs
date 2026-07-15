@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("companion", {
   layoutInfo: () => ipcRenderer.invoke("layout-info"),
   ensureMic: () => ipcRenderer.invoke("ensure-mic"),
   idleSeconds: () => ipcRenderer.invoke("idle-seconds"),
+  openLink: (url) => ipcRenderer.send("open-link", url),
   brainStatus: () => ipcRenderer.invoke("brain-status"),
   brainConnect: (key) => ipcRenderer.invoke("brain-connect", key),
   chatSend: (payload) => ipcRenderer.invoke("chat-send", payload),
