@@ -130,8 +130,16 @@ session — it is the cross-session memory.**
   auto-silent when hidden. Chat composer: Claude-style — mic + circular ↑ send
   inside one rounded field.
 
-## Next: Day 6–7 — settings panel (sounds/bedtime/break toggles now have real
-settings to edit) + week-1 buffer
-Settings UI edits store.settings (breakMins/bedtime/water/sounds toggles, names,
-delete-all). ~6 chirp sounds w/ mute + auto-mute when hidden. Then Day 8: proxy +
-Claude chat brain (personality + distress tiers + NL task commands via tool use).
+## Status: PAUSED for Figma design refinement (July 2026)
+Gayathri is refining all UI designs in Figma. When she returns with links, use
+the Figma connector (may need one-time auth) to read frames and implement
+faithfully. Design inventory: 3 panels + menu arc, 3 bubble types, quick-nav,
+chips/toggles, 13 character poses + 4 sprout stages + arms, palette
+(#FFF6E9/#FFCF96/#5a4a3a + 5 ball colors).
+
+## Remaining for beta (after design pass)
+- Onboarding flow + trial countdown/paywall/founder code (Days 11-12 in plan)
+- Final character art integration (swap procedural blob; single-clock juggle grip)
+- Packaging: notarized DMG, bundle Whisper model, real app icon (Day 13)
+- Apple Developer enrollment (BEFORE packaging — 24-48h lead)
+- Beta distribution: privacy page, feedback form, welcome note (Day 14)
