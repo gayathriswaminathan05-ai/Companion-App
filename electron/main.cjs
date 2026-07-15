@@ -1,0 +1,178 @@
+// Main process: owns the transparent, always-on-top window the character lives in.
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage } = require("electron");
+const path = require("path");
+const fs = require("fs");
+
+const WIN_W = 320;
+const WIN_H = 500;
+
+const stateFile = () => path.join(app.getPath("userData"), "window-state.json");
+
+function loadPosition() {
+  try {
+    const s = JSON.parse(fs.readFileSync(stateFile(), "utf8"));
+    // Ignore a saved position that's now off-screen (monitor changed/unplugged).
+    const onScreen = screen.getAllDisplays().some((d) => {
+      const b = d.workArea;
+      return s.x >= b.x - WIN_W && s.x <= b.x + b.width && s.y >= b.y - WIN_H && s.y <= b.y + b.height;
+    });
+    return onScreen ? s : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePosition(bounds) {
+  try {
+    fs.writeFileSync(stateFile(), JSON.stringify({ x: bounds.x, y: bounds.y }));
+  } catch {}
+}
+
+let win = null;
+
+function createWindow() {
+  const wa = screen.getPrimaryDisplay().workArea;
+  const saved = loadPosition();
+  // Clamp so the (possibly larger) window never hangs off-screen.
+  const px = saved ? Math.min(saved.x, wa.x + wa.width - WIN_W) : wa.x + wa.width - WIN_W - 24;
+  const py = saved ? Math.min(saved.y, wa.y + wa.height - WIN_H) : wa.y + wa.height - WIN_H - 8;
+
+  win = new BrowserWindow({
+    width: WIN_W,
+    height: WIN_H,
+    x: px,
+    y: py,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    alwaysOnTop: true,
+    hasShadow: false,
+    skipTaskbar: true,
+    fullscreenable: false,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.cjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  // Float above normal windows, follow the user across desktops/spaces.
+  // skipTransformProcessType keeps the Dock icon visible (macOS otherwise
+  // hides it when a window can appear over fullscreen apps).
+  win.setAlwaysOnTop(true, "floating");
+  win.setVisibleOnAllWorkspaces(true, {
+    visibleOnFullScreen: true,
+    skipTransformProcessType: true,
+  });
+
+  // Click-through by default; forwarded mouse moves let the page detect hover
+  // over the character and ask us to become clickable again.
+  win.setIgnoreMouseEvents(true, { forward: true });
+
+  win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+
+  win.on("moved", () => savePosition(win.getBounds()));
+}
+
+ipcMain.on("set-click-through", (_e, ignore) => {
+  if (win) win.setIgnoreMouseEvents(ignore, { forward: true });
+});
+
+// Manual drag: while dragging, the window follows the cursor ~60x per second.
+let dragTimer = null;
+let dragOffset = null;
+
+ipcMain.on("drag-start", () => {
+  if (!win || dragTimer) return;
+  const cursor = screen.getCursorScreenPoint();
+  const [wx, wy] = win.getPosition();
+  dragOffset = { x: cursor.x - wx, y: cursor.y - wy };
+  dragTimer = setInterval(() => {
+    const p = screen.getCursorScreenPoint();
+    win.setPosition(p.x - dragOffset.x, p.y - dragOffset.y);
+  }, 16);
+});
+
+ipcMain.on("drag-end", () => {
+  if (dragTimer) {
+    clearInterval(dragTimer);
+    dragTimer = null;
+    if (win) savePosition(win.getBounds());
+  }
+});
+
+ipcMain.on("quit-app", () => app.quit());
+
+// Persistent data (todos, sprout progress, settings) in one JSON file.
+const dataFile = () => path.join(app.getPath("userData"), "companion-data.json");
+
+ipcMain.handle("data-load", () => {
+  try {
+    return JSON.parse(fs.readFileSync(dataFile(), "utf8"));
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.on("data-save", (_e, data) => {
+  try {
+    fs.writeFileSync(dataFile(), JSON.stringify(data, null, 2));
+  } catch {}
+});
+
+// Menu-bar (tray) home: dismiss the companion here and bring it back anytime.
+let tray = null;
+
+function updateTrayMenu() {
+  if (!tray || !win) return;
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      {
+        label: win.isVisible() ? "Hide companion" : "Show companion",
+        click: () => toggleCompanion(),
+      },
+      { type: "separator" },
+      { label: "Quit", click: () => app.quit() },
+    ]),
+  );
+}
+
+function toggleCompanion() {
+  if (!win) return;
+  if (win.isVisible()) win.hide();
+  else win.show();
+  updateTrayMenu();
+}
+
+ipcMain.on("hide-app", () => {
+  if (win) win.hide();
+  updateTrayMenu();
+});
+
+function createTray() {
+  tray = new Tray(nativeImage.createEmpty());
+  tray.setTitle("🍡");
+  tray.setToolTip("Your companion");
+  updateTrayMenu();
+}
+
+app.whenReady().then(() => {
+  createWindow();
+  createTray();
+  if (process.platform === "darwin" && app.dock) {
+    const icon = nativeImage.createFromPath(path.join(__dirname, "..", "assets", "icon.png"));
+    if (!icon.isEmpty()) app.dock.setIcon(icon);
+  }
+  win.on("show", updateTrayMenu);
+  win.on("hide", updateTrayMenu);
+});
+
+// Clicking the Dock icon brings the companion back.
+app.on("activate", () => {
+  if (win && !win.isVisible()) {
+    win.show();
+    updateTrayMenu();
+  }
+});
+
+app.on("window-all-closed", () => app.quit());
