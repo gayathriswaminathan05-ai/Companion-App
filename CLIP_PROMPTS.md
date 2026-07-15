@@ -41,7 +41,7 @@ Name each file exactly as below, drop into: assets/clips/
 10. **thinking.mp4** — "the creature looks up thoughtfully, swaying gently,
     pondering expression"
 11. **watering.mp4** — "the creature holds a small blue cup above its own head,
-    pouring water drops onto the sprout on its head, content closed eyes"
+    pouring water drops onto its own leafy canopy, content closed eyes"
 12. **dragged.mp4** — "the creature dangles and swings gently side to side,
     surprised wide eyes, small round open mouth"
 
@@ -60,5 +60,5 @@ style, magenta background" for the bloom overlay sprites.
 - [ ] first and last frames are close enough to loop
 
 ## What Claude does with each clip
-frames extracted → green removed → cropped/centered → resized → sprite sheet →
+frames extracted → magenta removed → cropped/centered → resized → sprite sheet →
 wired into the app for that state. States without clips keep the placeholder.
