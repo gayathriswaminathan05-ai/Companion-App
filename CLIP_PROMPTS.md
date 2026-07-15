@@ -1,12 +1,9 @@
 # Blob Animation Clips — AI Video Shooting List
 
 ## Step 0: the master reference image (do this first, once)
-Image prompt (adjust to your final design):
-> Cute chunky mochi blob creature, flat 2D cartoon style, soft cream-peach body
-> (#FFCF96) with lighter belly, tiny green sprout with two leaves on top of head,
-> simple dot eyes, small smile, blush cheeks, two small stubby arms with tiny
-> hands, two little feet. Front-facing, standing, centered, full body visible.
-> Solid bright green background (#00FF00). No shadow. No outline. High resolution.
+CHARACTER: the little blooming TREE (see chat for the full reference prompt —
+fuzzy-gradient or flat-chunky variant). Generate WITHOUT flowers: blossoms are
+the growth layer, composited by code as accomplishments happen.
 
 Pick your favorite → this exact image is the START FRAME for every clip below.
 
@@ -14,7 +11,7 @@ Pick your favorite → this exact image is the START FRAME for every clip below.
 - same character, identical design and colors throughout, flat 2D cartoon style
 - camera completely static, no zoom, no pan
 - character stays centered, full body always visible in frame
-- solid bright green background stays unchanged
+- solid bright magenta background stays unchanged
 - motion loops: character ends in the same pose it started in
 - duration: 3–5 seconds
 
@@ -50,13 +47,14 @@ Name each file exactly as below, drop into: assets/clips/
 
 NOT needed: juggling (stays code-drawn so menu balls sync perfectly),
 sprout stages (stays a code layer so it can change dynamically).
-IMPORTANT: because the sprout is a code layer, ideally generate the character
-WITHOUT the sprout for these clips (remove it from the reference image) — or
-with the smallest bud version; we'll overlay the growing sprout in code.
+IMPORTANT: generate all clips WITHOUT flowers — blossoms are the code-drawn
+growth layer (bare canopy → bud → blossoms → full bloom), overlaid dynamically.
+Also generate one still image: "small cluster of soft pink blossoms, same
+style, magenta background" for the bloom overlay sprites.
 
 ## Take-selection checklist (before sending me a clip)
 - [ ] character looks identical to reference (colors, proportions, face)
-- [ ] background stayed solid green (no drift to other colors)
+- [ ] background stayed solid magenta (no drift to other colors)
 - [ ] camera didn't move
 - [ ] nothing extra appeared (no second character, no props except specified)
 - [ ] first and last frames are close enough to loop
