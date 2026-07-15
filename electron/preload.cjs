@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld("companion", {
   quit: () => ipcRenderer.send("quit-app"),
   layoutInfo: () => ipcRenderer.invoke("layout-info"),
   ensureMic: () => ipcRenderer.invoke("ensure-mic"),
+  idleSeconds: () => ipcRenderer.invoke("idle-seconds"),
   transcribe: (audioBuffer) => ipcRenderer.invoke("transcribe", audioBuffer),
   dataLoad: () => ipcRenderer.invoke("data-load"),
   dataSave: (data) => ipcRenderer.send("data-save", data),

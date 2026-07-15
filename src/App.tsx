@@ -5,6 +5,7 @@ import RadialMenu, { MenuPhase } from "./ui/RadialMenu";
 import TaskPanel from "./ui/TaskPanel";
 import ChatPanel from "./ui/ChatPanel";
 import ReminderBubble, { FiredReminder } from "./ui/ReminderBubble";
+import NudgeBubble from "./ui/NudgeBubble";
 import { formatDue } from "./reminders";
 import { useCharacter } from "./character/useCharacter";
 import { AppData, emptyData, loadData, saveData, sproutStageFor, today } from "./store";
@@ -22,6 +23,7 @@ declare global {
       dataSave: (data: unknown) => void;
       layoutInfo: () => Promise<unknown>;
       ensureMic: () => Promise<unknown>;
+      idleSeconds: () => Promise<unknown>;
       transcribe: (audioBuffer: ArrayBuffer) => Promise<unknown>;
     };
   }
@@ -98,6 +100,104 @@ export default function App() {
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+  const openRef = useRef(open);
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
+
+  // --- Wellness engine: notices long stretches of work, bedtime, water ---
+  type NudgeKind = "stretch" | "water" | "bedtime";
+  const [nudge, setNudge] = useState<NudgeKind | null>(null);
+  const nudgeRef = useRef<NudgeKind | null>(null);
+  useEffect(() => {
+    nudgeRef.current = nudge;
+  }, [nudge]);
+  const activeMsRef = useRef(0);
+  const waterMsRef = useRef(0);
+
+  const markProactive = () => {
+    update((d) => {
+      if (d.wellness.date !== today())
+        d.wellness = { date: today(), proactive: 0, lastNudgeAt: null, bedtimeDate: d.wellness.bedtimeDate };
+      d.wellness.proactive += 1;
+      d.wellness.lastNudgeAt = new Date().toISOString();
+      return d;
+    });
+  };
+
+  const triggerNudge = (kind: NudgeKind) => {
+    if (kind === "bedtime") {
+      set("sleeping");
+      update((d) => {
+        d.wellness.bedtimeDate = today();
+        return d;
+      });
+    } else {
+      set("stretching");
+    }
+    setNudge(kind);
+    markProactive();
+    activeMsRef.current = 0;
+    if (kind === "water") waterMsRef.current = 0;
+  };
+
+  useEffect(() => {
+    const TICK = 30_000;
+    const check = async () => {
+      try {
+        // Suppressed while hidden (focus mode), mid-interaction, or already nudging.
+        if (document.visibilityState === "hidden") return;
+        if (nudgeRef.current || openRef.current !== "none") return;
+        if (stateRef.current === "sleeping" || stateRef.current === "dragged") return;
+
+        const idle = (await window.companion.idleSeconds()) as number;
+        if (idle < 60) {
+          activeMsRef.current += TICK;
+          waterMsRef.current += TICK;
+        } else if (idle > 300) {
+          activeMsRef.current = 0; // a real break resets the clock
+        }
+
+        const d = dataRef.current;
+        const w = d.wellness.date === today() ? d.wellness : { ...d.wellness, proactive: 0, lastNudgeAt: null };
+        const gapOk = !w.lastNudgeAt || Date.now() - new Date(w.lastNudgeAt).getTime() > 15 * 60_000;
+        const capOk = w.proactive < 4;
+
+        // Bedtime care: once per evening, from the configured time onward.
+        if (d.settings.bedtime && w.bedtimeDate !== today()) {
+          const [hh, mm] = d.settings.bedtime.split(":").map(Number);
+          const nowD = new Date();
+          if (nowD.getHours() > hh || (nowD.getHours() === hh && nowD.getMinutes() >= mm)) {
+            if (capOk) triggerNudge("bedtime");
+            return;
+          }
+        }
+
+        if (!capOk || !gapOk) return;
+
+        if (activeMsRef.current >= d.settings.breakMins * 60_000) {
+          triggerNudge("stretch");
+          return;
+        }
+        if (d.settings.waterNudge && waterMsRef.current >= 2 * 60 * 60_000) {
+          triggerNudge("water");
+        }
+      } catch {}
+    };
+    const id = window.setInterval(check, TICK);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const NUDGE_TEXT: Record<NudgeKind, string> = {
+    stretch: "you've been at it a while — stretch with me? 🧘",
+    water: "little water break? 💧",
+    bedtime: "I'm sleepy… don't stay up too late, okay? 💤",
+  };
 
   useEffect(() => {
     const check = () => {
@@ -302,6 +402,34 @@ export default function App() {
         />
       )}
 
+      {nudge && firedQueue.length === 0 && (
+        <NudgeBubble
+          text={NUDGE_TEXT[nudge]}
+          actions={
+            nudge === "bedtime"
+              ? [{ label: "good night 💤", primary: true, onClick: () => setNudge(null) }]
+              : [
+                  {
+                    label: "did it! 🌱",
+                    primary: true,
+                    onClick: () => {
+                      setNudge(null);
+                      set("celebrating");
+                      growSprout();
+                    },
+                  },
+                  {
+                    label: "not now",
+                    onClick: () => {
+                      setNudge(null);
+                      set("idle");
+                    },
+                  },
+                ]
+          }
+        />
+      )}
+
       {toast && (
         <div
           style={{
@@ -345,6 +473,13 @@ export default function App() {
         }}
         onMouseUp={async () => {
           if (!dragging && mouseDownAt.current) {
+            if (state === "sleeping") {
+              // First click on a sleeping blob just wakes it up.
+              set("waking");
+              setNudge(null);
+              mouseDownAt.current = null;
+              return;
+            }
             if (open === "none") {
               const info = (await window.companion.layoutInfo()) as {
                 clipLeft: number;
@@ -391,6 +526,7 @@ export default function App() {
             current={state}
             sprout={sproutStage}
             onState={set}
+            onTestNudge={(k) => triggerNudge(k)}
             onSprout={() => showToast("sprout now grows with your day 🌱")}
             onClose={() => setDebugOpen(false)}
           />

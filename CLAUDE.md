@@ -78,8 +78,16 @@ session — it is the cross-session memory.**
 - src/store.ts — AppData{todos, reminders(legacy), sprout}, migration.
 - src/reminders.ts — chrono-node parse/format helpers.
 
-## Next: Day 5 — wellness nudges
-Idle detection (powerMonitor), stretch nudge (60min default, 1-click dismiss,
-15min suppression, ≤4 proactive/day cap), bedtime sleepiness, water (opt-in),
-focus mode (timed hide + auto-suppress), launch at login. Then Day 6–7: settings
-panel + sounds + week-1 buffer. Day 8: proxy + Claude chat brain.
+- **Day 5** ✅ Wellness engine (src/App.tsx): powerMonitor idle tracking (30s tick;
+  <60s idle = active, >5min idle = real break resets clock); stretch nudge at
+  settings.breakMins (60 default); water nudge opt-in (2h, default off); bedtime
+  care (settings.bedtime 23:00 default — blob yawns+sleeps + one line, once/evening,
+  click wakes it); caps: ≤4 proactive/day + 15min gap + suppressed when hidden/
+  panel-open/sleeping/dragged. NudgeBubble component (did it!🌱 grows sprout /
+  not now). Tray: Focus hide-for-30min/1hr (auto-return), Start-at-login checkbox.
+  Debug menu has nudge test buttons (bypass caps via triggerNudge).
+
+## Next: Day 6–7 — settings panel + cute sounds + week-1 buffer
+Settings UI edits store.settings (breakMins/bedtime/water/sounds toggles, names,
+delete-all). ~6 chirp sounds w/ mute + auto-mute when hidden. Then Day 8: proxy +
+Claude chat brain (personality + distress tiers + NL task commands via tool use).

@@ -21,17 +21,47 @@ export interface Reminder {
   createdAt: string;
 }
 
+export interface Settings {
+  breakMins: number; // stretch nudge after this much continuous activity
+  bedtime: string | null; // "HH:MM" 24h, null = off
+  waterNudge: boolean; // every ~2h of activity, off by default
+}
+
+export interface Wellness {
+  date: string;
+  proactive: number; // nudges shown today (hard cap)
+  lastNudgeAt: string | null;
+  bedtimeDate: string | null; // bedtime care already shown for this date
+}
+
 export interface AppData {
   todos: Todo[];
   reminders: Reminder[];
   // Sprout progress for TODAY. Only ever grows; resets fresh each morning.
   sprout: { date: string; points: number };
+  settings: Settings;
+  wellness: Wellness;
 }
+
+export const defaultSettings = (): Settings => ({
+  breakMins: 60,
+  bedtime: "23:00",
+  waterNudge: false,
+});
+
+export const emptyWellness = (): Wellness => ({
+  date: today(),
+  proactive: 0,
+  lastNudgeAt: null,
+  bedtimeDate: null,
+});
 
 export const emptyData = (): AppData => ({
   todos: [],
   reminders: [],
   sprout: { date: today(), points: 0 },
+  settings: defaultSettings(),
+  wellness: emptyWellness(),
 });
 
 export function today(): string {
@@ -47,6 +77,10 @@ export async function loadData(): Promise<AppData> {
   }
   if (!Array.isArray(data.todos)) data.todos = [];
   if (!Array.isArray(data.reminders)) data.reminders = [];
+  data.settings = { ...defaultSettings(), ...(data.settings ?? {}) };
+  if (!data.wellness || data.wellness.date !== today()) {
+    data.wellness = { ...emptyWellness(), bedtimeDate: data.wellness?.bedtimeDate ?? null };
+  }
   // Migration: fold old separate reminders into the unified task list.
   if (data.reminders.length > 0) {
     for (const r of data.reminders) {

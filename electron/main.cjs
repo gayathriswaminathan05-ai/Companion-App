@@ -8,6 +8,7 @@ const {
   Menu,
   nativeImage,
   systemPreferences,
+  powerMonitor,
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -177,16 +178,50 @@ ipcMain.on("data-save", (_e, data) => {
   } catch {}
 });
 
+// Seconds since the user last touched mouse/keyboard (for wellness nudges).
+ipcMain.handle("idle-seconds", () => powerMonitor.getSystemIdleTime());
+
 // Menu-bar (tray) home: dismiss the companion here and bring it back anytime.
 let tray = null;
+let focusTimer = null;
+
+function hideFor(minutes) {
+  if (!win) return;
+  win.hide();
+  if (focusTimer) clearTimeout(focusTimer);
+  focusTimer = setTimeout(() => {
+    focusTimer = null;
+    if (win && !win.isVisible()) win.show();
+    updateTrayMenu();
+  }, minutes * 60 * 1000);
+  updateTrayMenu();
+}
 
 function updateTrayMenu() {
   if (!tray || !win) return;
+  let loginEnabled = false;
+  try {
+    loginEnabled = app.getLoginItemSettings().openAtLogin;
+  } catch {}
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {
         label: win.isVisible() ? "Hide companion" : "Show companion",
         click: () => toggleCompanion(),
+      },
+      { label: "Focus: hide for 30 min", click: () => hideFor(30) },
+      { label: "Focus: hide for 1 hour", click: () => hideFor(60) },
+      { type: "separator" },
+      {
+        label: "Start at login",
+        type: "checkbox",
+        checked: loginEnabled,
+        click: () => {
+          try {
+            app.setLoginItemSettings({ openAtLogin: !loginEnabled });
+          } catch {}
+          updateTrayMenu();
+        },
       },
       { type: "separator" },
       { label: "Quit", click: () => app.quit() },
@@ -196,8 +231,15 @@ function updateTrayMenu() {
 
 function toggleCompanion() {
   if (!win) return;
-  if (win.isVisible()) win.hide();
-  else win.show();
+  if (win.isVisible()) {
+    win.hide();
+  } else {
+    if (focusTimer) {
+      clearTimeout(focusTimer);
+      focusTimer = null;
+    }
+    win.show();
+  }
   updateTrayMenu();
 }
 

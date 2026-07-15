@@ -5,12 +5,14 @@ import type { CharacterState, SproutStage } from "./character/types";
 // Replaced by the real character menu on Day 3.
 export default function DebugMenu({
   onState,
+  onTestNudge,
   onSprout,
   onClose,
   current,
   sprout,
 }: {
   onState: (s: CharacterState) => void;
+  onTestNudge: (k: "stretch" | "water" | "bedtime") => void;
   onSprout: (s: SproutStage) => void;
   onClose: () => void;
   current: CharacterState;
@@ -65,6 +67,12 @@ export default function DebugMenu({
           >
             {s}
           </button>
+        ))}
+      </div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "#8a7a5e", margin: "8px 0 6px" }}>nudges (test)</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+        {(["stretch", "water", "bedtime"] as const).map((k) => (
+          <button key={k} style={btn} onClick={() => { onTestNudge(k); onClose(); }}>{k}</button>
         ))}
       </div>
       <button style={{ ...btn, marginTop: 10, width: "100%" }} onClick={onClose}>
