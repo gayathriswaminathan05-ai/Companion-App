@@ -430,6 +430,12 @@ sync, marketplace/licensed characters, subscriptions (Finch-model freemium).
   paid tier, lip-sync animation). Explicitly deferred until the full app is built and
   validated. System (robotic) TTS remains rejected at any stage.
 
+**Global launch (decided: yes, from v1):** direct download is worldwide by default.
+Payments via a Merchant of Record (Paddle or Lemon Squeezy) — they handle global
+taxes/currencies/compliance and pay out to India (export income). Privacy design
+already GDPR/DPDP/CCPA-aligned. v2 growth levers: UI localization (JP/KR cozy-app
+markets especially), multilingual chat (near-free via prompt), regional pricing.
+
 **v1.5 committed — mobile gap bridge (before building a phone app):** deliver reminders
 beyond the laptop via a messaging bot in the character's voice ("don't forget —
 call amma at 6 💛"), and accept quick to-do adds from the phone that sync to the desktop
