@@ -6,6 +6,7 @@ import type { CharacterState, SproutStage } from "./character/types";
 export default function DebugMenu({
   onState,
   onTestNudge,
+  onTestJoke,
   onSprout,
   onClose,
   current,
@@ -13,6 +14,7 @@ export default function DebugMenu({
 }: {
   onState: (s: CharacterState) => void;
   onTestNudge: (k: "stretch" | "water" | "bedtime") => void;
+  onTestJoke: () => void;
   onSprout: (s: SproutStage) => void;
   onClose: () => void;
   current: CharacterState;
@@ -74,6 +76,7 @@ export default function DebugMenu({
         {(["stretch", "water", "bedtime"] as const).map((k) => (
           <button key={k} style={btn} onClick={() => { onTestNudge(k); onClose(); }}>{k}</button>
         ))}
+        <button style={btn} onClick={() => { onTestJoke(); onClose(); }}>joke</button>
       </div>
       <button style={{ ...btn, marginTop: 10, width: "100%" }} onClick={onClose}>
         close

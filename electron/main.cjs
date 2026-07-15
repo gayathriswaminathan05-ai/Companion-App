@@ -150,6 +150,104 @@ ipcMain.handle("transcribe", async (_e, audioBuffer) => {
   }
 });
 
+// --- Chat brain: Claude API. Key lives ONLY in a local file on this machine. ---
+const keyFile = () => path.join(app.getPath("userData"), "brain.key");
+
+function loadBrainKey() {
+  try {
+    const k = fs.readFileSync(keyFile(), "utf8").trim();
+    return k || null;
+  } catch {
+    return process.env.ANTHROPIC_API_KEY || null;
+  }
+}
+
+let anthropicClient = null;
+
+function getBrain() {
+  if (!anthropicClient) {
+    const key = loadBrainKey();
+    if (!key) return null;
+    const Anthropic = require("@anthropic-ai/sdk");
+    anthropicClient = new Anthropic({ apiKey: key });
+  }
+  return anthropicClient;
+}
+
+ipcMain.handle("brain-status", () => ({ connected: !!loadBrainKey() }));
+
+ipcMain.handle("brain-connect", (_e, key) => {
+  try {
+    fs.writeFileSync(keyFile(), String(key).trim(), { mode: 0o600 });
+    anthropicClient = null; // rebuild with the new key
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err.message || err) };
+  }
+});
+
+const CHAT_MODEL = "claude-opus-4-8";
+
+// Streaming chat with web search; continues across pause_turn automatically.
+ipcMain.handle("chat-send", async (e, { id, system, messages }) => {
+  const client = getBrain();
+  if (!client) return { ok: false, error: "no-key" };
+  try {
+    let msgs = [...messages];
+    let full = "";
+    for (let hop = 0; hop < 4; hop++) {
+      const stream = client.messages.stream({
+        model: CHAT_MODEL,
+        max_tokens: 1024,
+        system,
+        messages: msgs,
+        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 3 }],
+      });
+      stream.on("text", (t) => {
+        full += t;
+        try {
+          e.sender.send("chat-chunk", { id, delta: t });
+        } catch {}
+      });
+      const final = await stream.finalMessage();
+      if (final.stop_reason === "pause_turn") {
+        msgs = [...msgs, { role: "assistant", content: final.content }];
+        continue;
+      }
+      break;
+    }
+    e.sender.send("chat-done", { id, text: full });
+    return { ok: true };
+  } catch (err) {
+    const msg = String((err && err.message) || err);
+    try {
+      e.sender.send("chat-error", { id, error: msg });
+    } catch {}
+    return { ok: false, error: msg };
+  }
+});
+
+// One-shot small requests (jokes, summaries) — no streaming, no tools.
+ipcMain.handle("brain-once", async (_e, { system, prompt, maxTokens }) => {
+  const client = getBrain();
+  if (!client) return { ok: false, error: "no-key" };
+  try {
+    const res = await client.messages.create({
+      model: CHAT_MODEL,
+      max_tokens: maxTokens || 300,
+      system,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const text = res.content
+      .filter((b) => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+    return { ok: true, text };
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  }
+});
+
 // Persistent data (todos, sprout progress, settings) in one JSON file.
 const dataFile = () => path.join(app.getPath("userData"), "companion-data.json");
 

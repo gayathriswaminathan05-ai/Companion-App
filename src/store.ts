@@ -34,6 +34,13 @@ export interface Wellness {
   bedtimeDate: string | null; // bedtime care already shown for this date
 }
 
+export interface ChatState {
+  messages: { role: "user" | "assistant"; text: string; at: string }[];
+  facts: string[]; // lasting memory about the user
+  summary: string; // compressed older history
+  jokeLastAt: string | null;
+}
+
 export interface AppData {
   todos: Todo[];
   reminders: Reminder[];
@@ -41,6 +48,7 @@ export interface AppData {
   sprout: { date: string; points: number };
   settings: Settings;
   wellness: Wellness;
+  chat: ChatState;
 }
 
 export const defaultSettings = (): Settings => ({
@@ -56,12 +64,20 @@ export const emptyWellness = (): Wellness => ({
   bedtimeDate: null,
 });
 
+export const emptyChat = (): ChatState => ({
+  messages: [],
+  facts: [],
+  summary: "",
+  jokeLastAt: null,
+});
+
 export const emptyData = (): AppData => ({
   todos: [],
   reminders: [],
   sprout: { date: today(), points: 0 },
   settings: defaultSettings(),
   wellness: emptyWellness(),
+  chat: emptyChat(),
 });
 
 export function today(): string {
@@ -78,6 +94,9 @@ export async function loadData(): Promise<AppData> {
   if (!Array.isArray(data.todos)) data.todos = [];
   if (!Array.isArray(data.reminders)) data.reminders = [];
   data.settings = { ...defaultSettings(), ...(data.settings ?? {}) };
+  data.chat = { ...emptyChat(), ...(data.chat ?? {}) };
+  if (data.chat.messages.length > 60) data.chat.messages = data.chat.messages.slice(-60);
+  if (data.chat.facts.length > 40) data.chat.facts = data.chat.facts.slice(-40);
   if (!data.wellness || data.wellness.date !== today()) {
     data.wellness = { ...emptyWellness(), bedtimeDate: data.wellness?.bedtimeDate ?? null };
   }

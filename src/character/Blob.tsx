@@ -37,7 +37,7 @@ function Sprout({ stage }: { stage: SproutStage }) {
 
 function Eyes({ state, blink }: { state: CharacterState; blink: boolean }) {
   const closed = state === "sleeping" || blink;
-  const happy = state === "celebrating" || state === "waving";
+  const happy = state === "celebrating" || state === "waving" || state === "watering";
   const wide = state === "dragged";
   const up = state === "thinking" || state === "juggling"; // watching the balls
 
@@ -270,6 +270,19 @@ export default function Blob({
             <ellipse cx="45" cy="134" rx="10" ry="6.5" fill="#F7A98F" />
             <ellipse cx="125" cy="134" rx="10" ry="6.5" fill="#F7A98F" />
 
+            {state === "watering" && (
+              <g>
+                <g className="cup">
+                  <rect x="106" y="18" width="24" height="28" rx="4" fill="#BFE0F5" stroke="#8FBEE0" strokeWidth="2" />
+                  <rect x="109" y="26" width="18" height="17" rx="2" fill="#7FB8E8" opacity="0.85" />
+                </g>
+                <circle className="drop dr1" cx="99" cy="38" r="3.2" fill="#7FB8E8" />
+                <circle className="drop dr2" cx="95" cy="34" r="2.6" fill="#7FB8E8" />
+                <circle className="drop dr3" cx="103" cy="35" r="2.4" fill="#7FB8E8" />
+                <ellipse className="splash" cx="85" cy="66" rx="9" ry="2.5" fill="#A8D4F0" opacity="0" />
+              </g>
+            )}
+
             {(state === "writing" || state === "noting") && (
               <g className="notebook">
                 <rect x="55" y="146" width="60" height="38" rx="5" fill="#FFFFFF" stroke="#E0D5C0" strokeWidth="2" transform="rotate(-4 85 165)" />
@@ -311,7 +324,45 @@ export default function Blob({
         svg.pose-waving { animation: rock 1.1s ease-in-out infinite; }
         svg.pose-celebrating { animation: hop 0.65s ease-in-out infinite; }
         svg.pose-writing { animation: writebob 1.2s ease-in-out infinite; }
-        svg.pose-stretching { animation: stretch 2.8s ease-in-out; }
+        svg.pose-stretching { animation: waistbend 2.8s ease-in-out; }
+        svg.pose-stretching .arm-l { animation: pumpL 0.7s ease-in-out infinite; }
+        svg.pose-stretching .arm-r { animation: pumpR 0.7s ease-in-out infinite; }
+        @keyframes waistbend {
+          0%   { transform: none; }
+          12%  { transform: scaleY(1.09) scaleX(0.95); }
+          32%  { transform: rotate(-9deg) scaleY(1.04); }
+          52%  { transform: rotate(9deg) scaleY(1.04); }
+          70%  { transform: rotate(-7deg) scaleY(1.02); }
+          86%  { transform: rotate(6deg); }
+          100% { transform: none; }
+        }
+        @keyframes pumpL { 0%,100% { transform: rotate(-152deg); } 50% { transform: rotate(-114deg); } }
+        @keyframes pumpR { 0%,100% { transform: rotate(152deg); } 50% { transform: rotate(114deg); } }
+
+        /* Watering: right arm holds the cup tipped over the head-sprout. */
+        svg.pose-watering { animation: watersway 2.4s ease-in-out infinite; }
+        svg.pose-watering .arm-r { transform: rotate(168deg); }
+        @keyframes watersway { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(0.985) scaleX(1.008); } }
+        .cup { transform-origin: 118px 40px; animation: cuptip 2.4s ease-in-out infinite; }
+        @keyframes cuptip {
+          0%, 15%  { transform: rotate(-18deg); }
+          35%, 75% { transform: rotate(-42deg); }
+          95%, 100% { transform: rotate(-18deg); }
+        }
+        .drop { animation: dropfall 0.8s linear infinite; opacity: 0; }
+        .dr2 { animation-delay: 0.25s; }
+        .dr3 { animation-delay: 0.5s; }
+        @keyframes dropfall {
+          0%   { opacity: 0; transform: translate(0, 0); }
+          15%  { opacity: 1; }
+          100% { opacity: 0.2; transform: translate(-13px, 26px); }
+        }
+        .splash { animation: splashpulse 0.8s ease-out infinite; }
+        @keyframes splashpulse {
+          0%, 55% { opacity: 0; transform: scaleX(0.5); }
+          70%  { opacity: 0.85; transform: scaleX(1.15); }
+          100% { opacity: 0; transform: scaleX(1.35); }
+        }
         svg.pose-dragged { animation: dangle 0.5s ease-in-out infinite; }
 
         @keyframes wiggle { 0%,100% { transform: rotate(0deg); } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }

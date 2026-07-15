@@ -10,6 +10,15 @@ contextBridge.exposeInMainWorld("companion", {
   layoutInfo: () => ipcRenderer.invoke("layout-info"),
   ensureMic: () => ipcRenderer.invoke("ensure-mic"),
   idleSeconds: () => ipcRenderer.invoke("idle-seconds"),
+  brainStatus: () => ipcRenderer.invoke("brain-status"),
+  brainConnect: (key) => ipcRenderer.invoke("brain-connect", key),
+  chatSend: (payload) => ipcRenderer.invoke("chat-send", payload),
+  brainOnce: (payload) => ipcRenderer.invoke("brain-once", payload),
+  onChatEvent: (channel, handler) => {
+    const wrapped = (_e, data) => handler(data);
+    ipcRenderer.on(channel, wrapped);
+    return () => ipcRenderer.removeListener(channel, wrapped);
+  },
   transcribe: (audioBuffer) => ipcRenderer.invoke("transcribe", audioBuffer),
   dataLoad: () => ipcRenderer.invoke("data-load"),
   dataSave: (data) => ipcRenderer.send("data-save", data),

@@ -87,6 +87,18 @@ session — it is the cross-session memory.**
 - src/reminders.ts — chrono-node parse/format helpers.
 
 
+- **Day 8 (pulled forward)** ✅ Chat brain: src/brain.ts (personality: gossip-loving
+  best-friend, friend-not-therapist tiers, <remember> fact tags, follow-up-on-open-
+  loops hook), main.cjs Claude API integration (model claude-opus-4-8, streaming
+  via chat-chunk/done/error IPC, web_search_20260209 tool, pause_turn loop, prompt
+  caching on personality block). Key: userData/brain.key (local only, connect card
+  in ChatPanel). Memory: data.chat {messages(cap60), facts(cap40), summary,
+  jokeLastAt}. Jokes: every 3h (10min checker, suppressed like nudges) — API-
+  generated "what do you call…?" w/ FALLBACK_JOKES offline; two-phase bubble
+  (what?🤔 → punchline + celebrating). Debug: joke test button.
+  NOT YET: task commands via chat tools (Day 9), summary compaction (Day 10),
+  15/day free cap (beta unlocked).
+
 ## Next: Day 6–7 — settings panel + cute sounds + week-1 buffer
 Settings UI edits store.settings (breakMins/bedtime/water/sounds toggles, names,
 delete-all). ~6 chirp sounds w/ mute + auto-mute when hidden. Then Day 8: proxy +

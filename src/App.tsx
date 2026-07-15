@@ -9,6 +9,7 @@ import NudgeBubble from "./ui/NudgeBubble";
 import { formatDue } from "./reminders";
 import { useCharacter } from "./character/useCharacter";
 import { AppData, emptyData, loadData, saveData, sproutStageFor, today } from "./store";
+import { buildSystem, buildMessages, extractMemory, FALLBACK_JOKES } from "./brain";
 import type { CharacterState } from "./character/types";
 
 declare global {
@@ -25,6 +26,11 @@ declare global {
       ensureMic: () => Promise<unknown>;
       idleSeconds: () => Promise<unknown>;
       transcribe: (audioBuffer: ArrayBuffer) => Promise<unknown>;
+      brainStatus: () => Promise<unknown>;
+      brainConnect: (key: string) => Promise<unknown>;
+      chatSend: (payload: unknown) => Promise<unknown>;
+      brainOnce: (payload: unknown) => Promise<unknown>;
+      onChatEvent: (channel: string, handler: (data: unknown) => void) => () => void;
     };
   }
 }
@@ -137,7 +143,7 @@ export default function App() {
         return d;
       });
     } else {
-      set("stretching");
+      set(kind === "water" ? "watering" : "stretching");
     }
     setNudge(kind);
     markProactive();
@@ -198,6 +204,132 @@ export default function App() {
     water: "little water break? 💧",
     bedtime: "I'm sleepy… don't stay up too late, okay? 💤",
   };
+
+  // --- Chat brain -----------------------------------------------------------
+  const [brainConnected, setBrainConnected] = useState(false);
+  const [streamText, setStreamText] = useState<string | null>(null);
+  const [chatBusy, setChatBusy] = useState(false);
+  const streamRef = useRef("");
+
+  useEffect(() => {
+    (window.companion.brainStatus() as Promise<{ connected: boolean }>).then((s) =>
+      setBrainConnected(!!s?.connected),
+    );
+    const offChunk = window.companion.onChatEvent("chat-chunk", (d) => {
+      const { delta } = d as { delta: string };
+      streamRef.current += delta;
+      setStreamText(streamRef.current);
+    });
+    const offDone = window.companion.onChatEvent("chat-done", (d) => {
+      const { text } = d as { text: string };
+      const { clean, facts } = extractMemory(text);
+      update((x) => {
+        x.chat.messages.push({ role: "assistant", text: clean || "…", at: new Date().toISOString() });
+        for (const f of facts) if (!x.chat.facts.includes(f)) x.chat.facts.push(f);
+        if (x.chat.facts.length > 40) x.chat.facts = x.chat.facts.slice(-40);
+        if (x.chat.messages.length > 60) x.chat.messages = x.chat.messages.slice(-60);
+        return x;
+      });
+      streamRef.current = "";
+      setStreamText(null);
+      setChatBusy(false);
+      set("idle");
+    });
+    const offErr = window.companion.onChatEvent("chat-error", (d) => {
+      const { error } = d as { error: string };
+      update((x) => {
+        x.chat.messages.push({
+          role: "assistant",
+          text: "I'm having trouble thinking right now 😅 " + (error.includes("401") ? "(is my key okay?)" : "(are we online?)"),
+          at: new Date().toISOString(),
+        });
+        return x;
+      });
+      streamRef.current = "";
+      setStreamText(null);
+      setChatBusy(false);
+      set("idle");
+    });
+    return () => {
+      offChunk();
+      offDone();
+      offErr();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const sendChat = (text: string) => {
+    const userMsg = { role: "user" as const, text, at: new Date().toISOString() };
+    const draft = structuredClone(dataRef.current);
+    draft.chat.messages.push(userMsg);
+    update((x) => {
+      x.chat.messages.push(userMsg);
+      return x;
+    });
+    setChatBusy(true);
+    streamRef.current = "";
+    setStreamText("");
+    set("thinking");
+    void window.companion.chatSend({
+      id: crypto.randomUUID(),
+      system: buildSystem(draft),
+      messages: buildMessages(draft),
+    });
+  };
+
+  const connectBrain = async (key: string) => {
+    const res = (await window.companion.brainConnect(key)) as { ok: boolean };
+    if (res?.ok) {
+      setBrainConnected(true);
+      showToast("brain connected! 🧠✨");
+    } else {
+      showToast("hmm, couldn't save the key");
+    }
+  };
+
+  // --- Jokes: every ~3 hours, "what do you call…?" ---------------------------
+  const [joke, setJoke] = useState<{ setup: string; punchline: string; revealed: boolean } | null>(null);
+  const jokeRef = useRef(joke);
+  useEffect(() => {
+    jokeRef.current = joke;
+  }, [joke]);
+
+  const tellJoke = async () => {
+    let j = FALLBACK_JOKES[Math.floor(Math.random() * FALLBACK_JOKES.length)];
+    try {
+      const res = (await window.companion.brainOnce({
+        system:
+          'You write one original, silly, wholesome joke in the exact format: a question starting with "what do you call" and a short punchline. Reply with ONLY JSON: {"setup":"what do you call …?","punchline":"…"}',
+        prompt: "one fresh joke please. make it giggle-worthy and kid-friendly.",
+        maxTokens: 120,
+      })) as { ok: boolean; text?: string };
+      if (res?.ok && res.text) {
+        const parsed = JSON.parse(res.text.slice(res.text.indexOf("{"), res.text.lastIndexOf("}") + 1));
+        if (parsed.setup && parsed.punchline) j = parsed;
+      }
+    } catch {}
+    setJoke({ setup: j.setup, punchline: j.punchline, revealed: false });
+    set("waving");
+    update((d) => {
+      d.chat.jokeLastAt = new Date().toISOString();
+      return d;
+    });
+  };
+
+  useEffect(() => {
+    const check = () => {
+      if (document.visibilityState === "hidden") return;
+      if (jokeRef.current || nudgeRef.current || openRef.current !== "none") return;
+      if (stateRef.current === "sleeping" || stateRef.current === "dragged") return;
+      const last = dataRef.current.chat.jokeLastAt;
+      if (!last || Date.now() - new Date(last).getTime() > 3 * 60 * 60_000) {
+        void tellJoke();
+      }
+    };
+    const id = window.setInterval(check, 10 * 60_000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const check = () => {
@@ -349,11 +481,19 @@ export default function App() {
           )}
           {open === "chat" && (
             <ChatPanel
+              messages={data.chat.messages}
+              streamText={streamText}
+              busy={chatBusy}
+              connected={brainConnected}
+              onConnectKey={connectBrain}
+              onSend={sendChat}
               onClose={() => {
                 setOpen("none");
-                set("idle");
+                if (!chatBusy) set("idle");
               }}
-              onBlobState={(s) => set(s as CharacterState)}
+              onBlobState={(s) => {
+                if (!chatBusy) set(s as CharacterState);
+              }}
             />
           )}
         </div>
@@ -399,6 +539,42 @@ export default function App() {
           fired={firedQueue[0]}
           onDone={() => dismissFired(firedQueue[0].id, true)}
           onSnooze={() => dismissFired(firedQueue[0].id, false)}
+        />
+      )}
+
+      {joke && firedQueue.length === 0 && !nudge && (
+        <NudgeBubble
+          text={joke.revealed ? joke.punchline : joke.setup}
+          actions={
+            joke.revealed
+              ? [
+                  {
+                    label: "hehe ✓",
+                    primary: true,
+                    onClick: () => {
+                      setJoke(null);
+                      set("idle");
+                    },
+                  },
+                ]
+              : [
+                  {
+                    label: "what? 🤔",
+                    primary: true,
+                    onClick: () => {
+                      setJoke({ ...joke, revealed: true });
+                      set("celebrating");
+                    },
+                  },
+                  {
+                    label: "not now",
+                    onClick: () => {
+                      setJoke(null);
+                      set("idle");
+                    },
+                  },
+                ]
+          }
         />
       )}
 
@@ -527,6 +703,7 @@ export default function App() {
             sprout={sproutStage}
             onState={set}
             onTestNudge={(k) => triggerNudge(k)}
+            onTestJoke={() => void tellJoke()}
             onSprout={() => showToast("sprout now grows with your day 🌱")}
             onClose={() => setDebugOpen(false)}
           />
