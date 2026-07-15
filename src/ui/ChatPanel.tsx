@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { panel, smallBtn } from "./theme";
+import MicButton from "./MicButton";
 
 interface Msg {
   from: "you" | "blob";
@@ -93,6 +94,7 @@ export default function ChatPanel({
             color: "#5a4a3a",
           }}
         />
+        <MicButton current={text} onTranscript={setText} />
         <button style={smallBtn} onClick={send}>send</button>
       </div>
     </div>

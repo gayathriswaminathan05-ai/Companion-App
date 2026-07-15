@@ -145,6 +145,9 @@ Blockers that gate the build; settle these first:
 - ✅ **Done when:** a fresh install feels delightful from first launch to first reminder.
 
 ### Day 13 — Packaging & install testing
+- **Bundle the Whisper voice model (~40MB) inside the installer** (point
+  transformers.js at the packaged model path) — voice must work offline on first
+  launch with zero downloads. Test on a machine with Wi-Fi off.
 - macOS: electron-builder → signed + **notarized** DMG (Apple account from Day 0).
 - Windows: installer + SmartScreen click-through instructions note.
 - Clean-machine install tests (or fresh user account): onboarding → todo → reminder →
@@ -154,6 +157,8 @@ Blockers that gate the build; settle these first:
   companion in under 2 minutes with no help.
 
 ### Day 14 — Ship the beta
+- One-page plain-language privacy policy (from PRD §6b) included with the download
+  and linked in Settings.
 - Feedback channel: Google Form (PRD survey questions) + WhatsApp/Telegram group.
 - Welcome note: what it is, what to try, how to report weirdness ("screenshot anything
   the character says that feels off").

@@ -271,6 +271,31 @@ Anti-annoyance guardrails (critical — this is where companions get uninstalled
 
 ---
 
+## 6b. Privacy Policy (binding design constraints)
+
+Non-negotiable rules — every feature must comply or it doesn't ship:
+
+1. **Local-first by default.** To-dos, reminders, settings, sprout progress, chat
+   history: stored only on the user's device. No cloud copies, no sync, no backups
+   on our servers.
+2. **Voice never leaves the device.** Whisper runs locally; audio is processed
+   in-memory and discarded. We never store or transmit recordings.
+3. **Chat is the ONLY network flow.** Message text goes to the Claude API solely to
+   generate a reply. Proxy rules: no content logging or storage; anonymous device ID
+   only (no accounts/emails/names); TLS everywhere; per-device rate caps. Under
+   Anthropic API terms, chats are not used for model training and are deleted from
+   their systems after a limited retention period.
+4. **No tracking.** No analytics SDKs, no ad IDs, no third-party trackers. Future
+   usage stats (Section 11 Layer 2): opt-in, default OFF, anonymized, never chat
+   content.
+5. **User control.** "Delete everything" in Settings wipes all local data instantly.
+   No data survives uninstall + delete.
+6. **Plain-language privacy policy** ships with the beta (one page, no legalese)
+   stating all of the above; also required later for Mac App Store listing and
+   GDPR/India DPDP alignment.
+7. **Distress conversations get no special storage** — same local-only handling; we
+   never see them.
+
 ## 7. Success Metrics (beta)
 
 Qualitative (survey after ~1 week of use, plus a mid-week check-in):

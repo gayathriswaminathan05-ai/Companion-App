@@ -8,6 +8,8 @@ export type CharacterState =
   | "stretching"
   | "listening"
   | "thinking"
+  | "juggling"
+  | "noting"
   | "dragged";
 
 export type SproutStage = "bud" | "leaf" | "leaves" | "bloom";
@@ -24,5 +26,7 @@ export const ALL_STATES: CharacterState[] = [
   "stretching",
   "listening",
   "thinking",
+  "juggling",
+  "noting",
   "dragged",
 ];

@@ -6,16 +6,31 @@ export interface Todo {
   done: boolean;
   createdAt: string;
   completedAt?: string;
+  // Optional time: a task with `due` also fires a reminder bubble.
+  due?: string | null;
+  recurring?: "daily";
+  firedAt?: string | null;
+}
+
+export interface Reminder {
+  id: string;
+  text: string;
+  due: string; // ISO
+  recurring?: "daily";
+  firedAt?: string | null;
+  createdAt: string;
 }
 
 export interface AppData {
   todos: Todo[];
+  reminders: Reminder[];
   // Sprout progress for TODAY. Only ever grows; resets fresh each morning.
   sprout: { date: string; points: number };
 }
 
 export const emptyData = (): AppData => ({
   todos: [],
+  reminders: [],
   sprout: { date: today(), points: 0 },
 });
 
@@ -31,6 +46,23 @@ export async function loadData(): Promise<AppData> {
     data.sprout = { date: today(), points: 0 }; // new day, new sprout
   }
   if (!Array.isArray(data.todos)) data.todos = [];
+  if (!Array.isArray(data.reminders)) data.reminders = [];
+  // Migration: fold old separate reminders into the unified task list.
+  if (data.reminders.length > 0) {
+    for (const r of data.reminders) {
+      data.todos.push({
+        id: r.id,
+        text: r.text,
+        done: false,
+        createdAt: r.createdAt,
+        due: r.due,
+        recurring: r.recurring,
+        firedAt: r.firedAt,
+      });
+    }
+    data.reminders = [];
+    saveData(data);
+  }
   return data;
 }
 

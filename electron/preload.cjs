@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld("companion", {
   dragEnd: () => ipcRenderer.send("drag-end"),
   hide: () => ipcRenderer.send("hide-app"),
   quit: () => ipcRenderer.send("quit-app"),
+  layoutInfo: () => ipcRenderer.invoke("layout-info"),
+  ensureMic: () => ipcRenderer.invoke("ensure-mic"),
+  transcribe: (audioBuffer) => ipcRenderer.invoke("transcribe", audioBuffer),
   dataLoad: () => ipcRenderer.invoke("data-load"),
   dataSave: (data) => ipcRenderer.send("data-save", data),
 });

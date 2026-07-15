@@ -1,5 +1,14 @@
 // Main process: owns the transparent, always-on-top window the character lives in.
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  screen,
+  Tray,
+  Menu,
+  nativeImage,
+  systemPreferences,
+} = require("electron");
 const path = require("path");
 const fs = require("fs");
 
@@ -103,8 +112,56 @@ ipcMain.on("drag-end", () => {
 
 ipcMain.on("quit-app", () => app.quit());
 
+// --- Local voice: Whisper (via transformers.js) running fully offline ------
+let asrPromise = null;
+
+function getAsr() {
+  if (!asrPromise) {
+    asrPromise = import("@huggingface/transformers").then(async ({ pipeline }) => {
+      // Downloads the small English model on first run (~40MB), then cached.
+      return pipeline("automatic-speech-recognition", "Xenova/whisper-tiny.en");
+    });
+  }
+  return asrPromise;
+}
+
+ipcMain.handle("ensure-mic", async () => {
+  if (process.platform === "darwin") {
+    try {
+      return await systemPreferences.askForMediaAccess("microphone");
+    } catch {
+      return false;
+    }
+  }
+  return true;
+});
+
+ipcMain.handle("transcribe", async (_e, audioBuffer) => {
+  try {
+    const asr = await getAsr();
+    const audio = new Float32Array(audioBuffer);
+    if (audio.length < 1600) return null; // <0.1s — ignore accidental taps
+    const out = await asr(audio);
+    return out && out.text ? String(out.text) : null;
+  } catch (err) {
+    console.error("transcribe failed:", err && err.message);
+    return null;
+  }
+});
+
 // Persistent data (todos, sprout progress, settings) in one JSON file.
 const dataFile = () => path.join(app.getPath("userData"), "companion-data.json");
+
+// How much of the window is hanging off the screen (for edge-aware menus).
+ipcMain.handle("layout-info", () => {
+  if (!win) return { clipLeft: 0, clipRight: 0 };
+  const b = win.getBounds();
+  const wa = screen.getDisplayMatching(b).workArea;
+  return {
+    clipLeft: Math.max(0, wa.x - b.x),
+    clipRight: Math.max(0, b.x + b.width - (wa.x + wa.width)),
+  };
+});
 
 ipcMain.handle("data-load", () => {
   try {
@@ -159,6 +216,8 @@ function createTray() {
 app.whenReady().then(() => {
   createWindow();
   createTray();
+  // Warm up the voice model in the background so the first mic use is fast.
+  setTimeout(() => getAsr().catch(() => {}), 4000);
   if (process.platform === "darwin" && app.dock) {
     const icon = nativeImage.createFromPath(path.join(__dirname, "..", "assets", "icon.png"));
     if (!icon.isEmpty()) app.dock.setIcon(icon);

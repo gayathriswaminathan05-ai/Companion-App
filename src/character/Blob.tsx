@@ -39,7 +39,7 @@ function Eyes({ state, blink }: { state: CharacterState; blink: boolean }) {
   const closed = state === "sleeping" || blink;
   const happy = state === "celebrating" || state === "waving";
   const wide = state === "dragged";
-  const up = state === "thinking";
+  const up = state === "thinking" || state === "juggling"; // watching the balls
 
   if (closed)
     return (
@@ -64,8 +64,9 @@ function Eyes({ state, blink }: { state: CharacterState; blink: boolean }) {
         <circle cx="111" cy="113.5" r="2.6" fill="#fff" />
       </g>
     );
+  const down = state === "writing" || state === "noting"; // eyes on the notebook
   const dx = up ? -2 : 0;
-  const dy = up ? -3 : 0;
+  const dy = up ? -3 : down ? 3.5 : 0;
   return (
     <g>
       <circle cx={62 + dx} cy={118 + dy} r="6.5" fill="#4A3226" />
@@ -114,9 +115,13 @@ function AsleepBody({ sproutStage }: { sproutStage: SproutStage }) {
 export default function Blob({
   state,
   sproutStage,
+  scribbling = false,
 }: {
   state: CharacterState;
   sproutStage: SproutStage;
+  // In the persistent "noting" pose: pen moves only while the user is
+  // actively typing or speaking.
+  scribbling?: boolean;
 }) {
   const [blink, setBlink] = useState(false);
   const [wiggle, setWiggle] = useState(false);
@@ -185,7 +190,7 @@ export default function Blob({
         el.style.transform = "";
       };
     }
-    const perpetual = state === "idle" || asleep || state === "thinking";
+    const perpetual = state === "idle" || state === "noting" || asleep || state === "thinking";
     if (!perpetual) {
       el.style.transform = "";
       return;
@@ -193,7 +198,7 @@ export default function Blob({
     const t0 = performance.now();
     const timer = window.setInterval(() => {
       const t = (performance.now() - t0) / 1000;
-      if (state === "idle") {
+      if (state === "idle" || state === "noting") {
         const p = Math.cos((2 * Math.PI * t) / 3.2);
         el.style.transform = `scaleX(${1.006 - 0.006 * p}) scaleY(${0.985 + 0.015 * p})`;
       } else if (asleep) {
@@ -210,7 +215,7 @@ export default function Blob({
   }, [state, asleep]);
 
   const pose = yawning ? "yawning" : asleep ? "asleep" : state;
-  const cls = `pose-${pose}${wiggle && state === "idle" ? " wiggling" : ""}`;
+  const cls = `pose-${pose}${wiggle && state === "idle" ? " wiggling" : ""}${state === "noting" && scribbling ? " scribbling" : ""}`;
 
   return (
     <svg ref={svgRef} viewBox="0 0 170 200" width="170" height="200" className={cls}>
@@ -224,14 +229,34 @@ export default function Blob({
             <ellipse cx="65" cy="192" rx="13" ry="7" fill="#F5B87E" />
             <ellipse cx="105" cy="192" rx="13" ry="7" fill="#F5B87E" />
 
-            {state === "waving" && (
-              <g className="wave-arm">
-                <ellipse cx="152" cy="118" rx="12" ry="17" fill="#FFCF96" />
-              </g>
-            )}
+            <g className="arm arm-l">
+              <rect x="8" y="132" width="20" height="44" rx="10" fill="#FFCF96" />
+              <circle cx="18" cy="178" r="10" fill="#FFCF96" />
+              <circle cx="10.5" cy="185" r="4" fill="#FFCF96" />
+              <circle cx="18" cy="188.5" r="4" fill="#FFCF96" />
+              <circle cx="25.5" cy="185" r="4" fill="#FFCF96" />
+            </g>
+            <g className="arm arm-r">
+              <rect x="142" y="132" width="20" height="44" rx="10" fill="#FFCF96" />
+              <circle cx="152" cy="178" r="10" fill="#FFCF96" />
+              <circle cx="144.5" cy="185" r="4" fill="#FFCF96" />
+              <circle cx="152" cy="188.5" r="4" fill="#FFCF96" />
+              <circle cx="159.5" cy="185" r="4" fill="#FFCF96" />
+            </g>
 
             <Sprout stage={sproutStage} />
             <Eyes state={state} blink={blink} />
+
+            {(state === "writing" || state === "noting") && (
+              <g className="specs">
+                <line x1="50" y1="115" x2="22" y2="106" stroke="#8a6d4a" strokeWidth="2.2" strokeLinecap="round" />
+                <line x1="120" y1="115" x2="148" y2="106" stroke="#8a6d4a" strokeWidth="2.2" strokeLinecap="round" />
+                <circle cx="62" cy="119" r="13" fill="rgba(190, 216, 240, 0.28)" stroke="#8a6d4a" strokeWidth="2.5" />
+                <circle cx="108" cy="119" r="13" fill="rgba(190, 216, 240, 0.28)" stroke="#8a6d4a" strokeWidth="2.5" />
+                <path d="M75 117 Q85 111 95 117" fill="none" stroke="#8a6d4a" strokeWidth="2.5" strokeLinecap="round" />
+                <path d="M53 112 Q57 108 62 108" fill="none" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" opacity="0.75" />
+              </g>
+            )}
 
             {yawning ? (
               <g>
@@ -245,7 +270,7 @@ export default function Blob({
             <ellipse cx="45" cy="134" rx="10" ry="6.5" fill="#F7A98F" />
             <ellipse cx="125" cy="134" rx="10" ry="6.5" fill="#F7A98F" />
 
-            {state === "writing" && (
+            {(state === "writing" || state === "noting") && (
               <g className="notebook">
                 <rect x="55" y="146" width="60" height="38" rx="5" fill="#FFFFFF" stroke="#E0D5C0" strokeWidth="2" transform="rotate(-4 85 165)" />
                 <path className="scribble" d="M64 156 Q75 153 86 156 T106 155 M64 165 Q76 162 88 165 T105 164 M64 174 Q74 171 84 174" fill="none" stroke="#B9A98F" strokeWidth="2.5" strokeLinecap="round" transform="rotate(-4 85 165)" />
@@ -298,8 +323,55 @@ export default function Blob({
         @keyframes stretch { 0%,100% { transform: scaleY(1); } 35% { transform: scaleY(1.16) scaleX(0.93); } 55% { transform: scaleY(1.16) scaleX(0.93); } }
         @keyframes dangle { 0%,100% { transform: rotate(-6deg) scaleY(1.05) scaleX(0.96); } 50% { transform: rotate(6deg) scaleY(1.05) scaleX(0.96); } }
 
-        .wave-arm { transform-origin: 148px 132px; animation: wavearm 0.55s ease-in-out infinite; }
-        @keyframes wavearm { 0%,100% { transform: rotate(-18deg); } 50% { transform: rotate(26deg); } }
+        /* Arms: rest at the sides; pivot at the shoulder. */
+        svg { overflow: visible; }
+        .arm-l { transform-origin: 18px 136px; }
+        .arm-r { transform-origin: 152px 136px; }
+        .arm { transition: transform 0.25s ease-out; }
+
+        svg.pose-waving .arm-r { animation: wavearmR 0.55s ease-in-out infinite; }
+        @keyframes wavearmR { 0%,100% { transform: rotate(140deg); } 50% { transform: rotate(178deg); } }
+
+        svg.pose-celebrating .arm-l { animation: cheerL 0.65s ease-in-out infinite; }
+        svg.pose-celebrating .arm-r { animation: cheerR 0.65s ease-in-out infinite; }
+        @keyframes cheerL { 0%,100% { transform: rotate(-145deg); } 50% { transform: rotate(-165deg); } }
+        @keyframes cheerR { 0%,100% { transform: rotate(145deg); } 50% { transform: rotate(165deg); } }
+
+        /* Synced to the ball physics: one throw per 0.72s cycle per hand,
+           left hand throws on even beats (cycle start), right on odd.
+           Negative = inward for the left arm, positive = inward for the right. */
+        svg.pose-juggling .arm-l { animation: juggleL 0.72s linear infinite; }
+        svg.pose-juggling .arm-r { animation: juggleR 0.72s linear infinite; animation-delay: -0.36s; }
+        @keyframes juggleL {
+          0%   { transform: rotate(-80deg); }
+          22%  { transform: rotate(-40deg); }
+          58%  { transform: rotate(-40deg); }
+          85%  { transform: rotate(-68deg); }
+          100% { transform: rotate(-80deg); }
+        }
+        @keyframes juggleR {
+          0%   { transform: rotate(80deg); }
+          22%  { transform: rotate(40deg); }
+          58%  { transform: rotate(40deg); }
+          85%  { transform: rotate(68deg); }
+          100% { transform: rotate(80deg); }
+        }
+
+        svg.pose-juggling { animation: jugglebob 0.35s ease-in-out infinite; }
+        @keyframes jugglebob { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(0.975) scaleX(1.008); } }
+
+        .specs { transform-origin: 85px 118px; animation: specson 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes specson {
+          0% { transform: translateY(-26px) scale(0.7); opacity: 0; }
+          100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        /* Noting: hands hold the notepad; pen moves only while scribbling. */
+        svg.pose-noting .arm-l { transform: rotate(-52deg); }
+        svg.pose-noting .arm-r { transform: rotate(52deg); }
+        svg.pose-noting .scribble, svg.pose-noting .pencil { animation-play-state: paused; }
+        svg.pose-noting.scribbling .scribble, svg.pose-noting.scribbling .pencil { animation-play-state: running; }
+        svg.pose-noting.scribbling { animation: writebob 1.2s ease-in-out infinite; }
 
         .sprout-pop { transform-origin: 85px 74px; animation: sproutpop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
         @keyframes sproutpop { 0% { transform: scale(0.3); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
