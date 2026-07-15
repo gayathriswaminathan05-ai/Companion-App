@@ -8,7 +8,7 @@ const TIMED: Partial<Record<CharacterState, number>> = {
   celebrating: 2600,
   writing: 3400,
   stretching: 2800,
-  juggling: 1200,
+  juggling: 750,
 };
 
 export function useCharacter() {

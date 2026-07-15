@@ -6,6 +6,7 @@ import TaskPanel from "./ui/TaskPanel";
 import ChatPanel from "./ui/ChatPanel";
 import ReminderBubble, { FiredReminder } from "./ui/ReminderBubble";
 import NudgeBubble from "./ui/NudgeBubble";
+import QuickNav from "./ui/QuickNav";
 import { formatDue, parseWhen } from "./reminders";
 import { useCharacter } from "./character/useCharacter";
 import { AppData, emptyData, loadData, saveData, sproutStageFor, today } from "./store";
@@ -524,7 +525,18 @@ export default function App() {
   return (
     <div style={{ width: "100%", height: "100%", position: "relative", pointerEvents: "none" }}>
       {panelOpen && (
-        <div {...hoverable} style={{ position: "absolute", top: 6, left: 6, right: 6, height: 280, pointerEvents: "auto" }}>
+        <>
+        <div style={{ position: "absolute", top: 4, left: 0, right: 0, pointerEvents: "none" }}>
+          <QuickNav
+            items={[
+              { icon: "💬", label: "chat", color: "#FF8A7A", active: open === "chat", onClick: () => { setOpen("chat"); if (!chatBusy) set("idle"); } },
+              { icon: "📝", label: "tasks", color: "#FFD75E", active: open === "tasks", onClick: () => { setOpen("tasks"); set("noting"); } },
+              { icon: "⚙️", label: "settings", color: "#93C46F", onClick: () => showToast("Settings arrive on Day 6!") },
+              { icon: "💤", label: "tuck away", color: "#7FB8E8", onClick: () => { setOpen("none"); window.companion?.hide(); } },
+            ]}
+          />
+        </div>
+        <div {...hoverable} style={{ position: "absolute", top: 40, left: 6, right: 6, height: 258, pointerEvents: "auto" }}>
           {open === "tasks" && (
             <TaskPanel
               todos={data.todos}
@@ -559,6 +571,7 @@ export default function App() {
             />
           )}
         </div>
+        </>
       )}
 
       {open === "menu" && (
@@ -733,7 +746,7 @@ export default function App() {
               if (juggleTimer.current) clearTimeout(juggleTimer.current);
               juggleTimer.current = window.setTimeout(() => {
                 setMenuPhase("thrown");
-              }, 1100);
+              }, 650);
             } else {
               if (juggleTimer.current) clearTimeout(juggleTimer.current);
               setOpen("none");

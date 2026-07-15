@@ -112,6 +112,11 @@ session — it is the cross-session memory.**
   <complete>fuzzy-match</complete> (extractOutputs in brain.ts; applied in App
   chat-done: chrono fallback parse, celebrate+sprout on completes, writing anim
   on adds). Model gets current local ISO datetime in dynamic context.
+- **UX polish** ✅ Juggle 650ms; QuickNav bar (src/ui/QuickNav.tsx): when a panel
+  is open, other menu balls line up horizontally above it for 1-click switching
+  (colors match menu balls; active=filled). Chat bubbles render markdown-lite
+  (bold/bullets/[links](url)/bare URLs clickable → openLink); research answers
+  format-locked (opener/bullets/my pick/sources).
 - **Sounds** ✅ (Day 6 partial): src/sounds.ts — SYNTHESIZED chirps (WebAudio, no
   files): hello/boop/celebrate/pop/sleepy/giggle/msg; one instrument family;
   settings.soundsOn (default true, toggle in debug menu until Settings panel);

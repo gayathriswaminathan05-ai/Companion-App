@@ -165,6 +165,67 @@ export default function ChatPanel({
   );
 }
 
+// Markdown-lite: **bold**, [label](url), bare URLs, "- " bullets → rich nodes.
+function renderInline(line: string, keyBase: string): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  const re = /(\*\*[^*]+\*\*|\[[^\]]+\]\(https?:\/\/[^\s)]+\)|https?:\/\/[^\s)]+)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let i = 0;
+  while ((m = re.exec(line)) !== null) {
+    if (m.index > last) nodes.push(line.slice(last, m.index));
+    const tok = m[0];
+    if (tok.startsWith("**")) {
+      nodes.push(<b key={`${keyBase}-${i++}`}>{tok.slice(2, -2)}</b>);
+    } else if (tok.startsWith("[")) {
+      const label = tok.slice(1, tok.indexOf("]"));
+      const url = tok.slice(tok.indexOf("(") + 1, -1);
+      nodes.push(
+        <a
+          key={`${keyBase}-${i++}`}
+          onClick={(e) => {
+            e.preventDefault();
+            window.companion.openLink(url);
+          }}
+          href={url}
+          style={{ color: "#4a6a8a", textDecoration: "underline", cursor: "pointer", wordBreak: "break-all" }}
+        >
+          {label}
+        </a>,
+      );
+    } else {
+      nodes.push(
+        <a
+          key={`${keyBase}-${i++}`}
+          onClick={(e) => {
+            e.preventDefault();
+            window.companion.openLink(tok);
+          }}
+          href={tok}
+          style={{ color: "#4a6a8a", textDecoration: "underline", cursor: "pointer", wordBreak: "break-all" }}
+        >
+          {shortLabel(tok)}
+        </a>,
+      );
+    }
+    last = m.index + tok.length;
+  }
+  if (last < line.length) nodes.push(line.slice(last));
+  return nodes;
+}
+
+function renderRich(text: string): React.ReactNode[] {
+  return text.split("\n").map((line, li) => {
+    const bullet = line.startsWith("- ");
+    const content = renderInline(bullet ? line.slice(2) : line, `l${li}`);
+    return (
+      <div key={li} style={bullet ? { paddingLeft: 12, textIndent: -8, margin: "1px 0" } : undefined}>
+        {bullet ? <>• {content}</> : content.length ? content : " "}
+      </div>
+    );
+  });
+}
+
 function shortLabel(title: string): string {
   let t = title;
   for (const prefix of ["https://", "http://"]) {
@@ -187,11 +248,10 @@ function Bubble({ mine, text, sources }: { mine: boolean; text: string; sources?
         background: mine ? "#ffe9c2" : "#f2f7ea",
         border: "1px solid " + (mine ? "#f0d9a8" : "#dbe8cc"),
         color: "#5a4a3a",
-        whiteSpace: "pre-wrap",
         wordBreak: "break-word",
       }}
     >
-      {text}
+      {renderRich(text)}
       {sources && sources.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
           {sources.map((s) => (
