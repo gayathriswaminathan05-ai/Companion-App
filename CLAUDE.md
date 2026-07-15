@@ -62,6 +62,8 @@ session — it is the cross-session memory.**
 - Apple Developer enrollment DEFERRED — must start by Day 10 (BUILD_PLAN).
 
 ## Known bugs / polish debt (user said "later")
+- Settings "change key" deletes key with NO confirm — one stray click disconnects
+  brain (happened to user). Make it two-step like delete-everything.
 - VAD pen-pause doesn't trigger reliably while speaking pauses (threshold 0.015
   likely too low vs ambient noise → raise / make adaptive).
 - Menu arc edge cases: minor overlaps/jitter possible when hard against edges.
