@@ -45,16 +45,44 @@ app.whenReady().then(async () => {
       const d = ctx.getImageData(0, 0, w, h);
       const px = d.data;
       const mask = new Uint8Array(w * h);
-      const queue = [];
-      const T = 42; // color tolerance vs the seed's color
+      const T = 45; // color tolerance vs the background palette
 
+      // Background PALETTE: colors at all seed points (deduped). A checkered
+      // "transparency" background contributes both of its colors, letting the
+      // flood cross cell boundaries; character colors stop it as usual.
+      const palette = [];
+      for (const [sx, sy] of seeds) {
+        const x = Math.min(w - 1, Math.max(0, Math.round(sx)));
+        const y = Math.min(h - 1, Math.max(0, Math.round(sy)));
+        const si = (y * w + x) * 4;
+        const col = { r: px[si], g: px[si+1], b: px[si+2] };
+        if (!palette.some((p) => (p.r-col.r)**2 + (p.g-col.g)**2 + (p.b-col.b)**2 < 400)) {
+          palette.push(col);
+        }
+      }
+      // Checker detection: also sample a small grid in the lower corners where
+      // the pattern's second color lives between seed points.
+      for (const [gx, gy] of [[6, h-6], [w-7, h-6], [14, h-14], [w-15, h-14]]) {
+        const si = (gy * w + gx) * 4;
+        const col = { r: px[si], g: px[si+1], b: px[si+2] };
+        if (!palette.some((p) => (p.r-col.r)**2 + (p.g-col.g)**2 + (p.b-col.b)**2 < 400)) {
+          palette.push(col);
+        }
+      }
+      const isBgColor = (pi) => {
+        const r = px[pi], g = px[pi+1], b = px[pi+2];
+        for (const p of palette) {
+          if ((r-p.r)**2 + (g-p.g)**2 + (b-p.b)**2 < T*T) return true;
+        }
+        return false;
+      };
+
+      const queue = [];
       for (const [sx, sy] of seeds) {
         const x = Math.min(w - 1, Math.max(0, Math.round(sx)));
         const y = Math.min(h - 1, Math.max(0, Math.round(sy)));
         const idx = y * w + x;
-        if (mask[idx]) continue;
-        const si = idx * 4;
-        const sr = px[si], sg = px[si+1], sb = px[si+2];
+        if (mask[idx] || !isBgColor(idx * 4)) continue;
         mask[idx] = 1;
         queue.push(idx);
         while (queue.length) {
@@ -64,9 +92,7 @@ app.whenReady().then(async () => {
             if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
             const ni = ny * w + nx;
             if (mask[ni]) continue;
-            const pi = ni * 4;
-            const dr = px[pi] - sr, dg = px[pi+1] - sg, db = px[pi+2] - sb;
-            if (dr*dr + dg*dg + db*db < T*T) {
+            if (isBgColor(ni * 4)) {
               mask[ni] = 1;
               queue.push(ni);
             }
