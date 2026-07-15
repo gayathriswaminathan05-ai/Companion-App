@@ -457,7 +457,8 @@ function createTray() {
 
 app.whenReady().then(() => {
   createWindow();
-  createTray();
+  // Menu-bar (tray) presence removed by user request — the Dock icon is the
+  // app's single home: click to summon, right-click → Quit.
   // Warm up the voice model in the background so the first mic use is fast.
   setTimeout(() => getAsr().catch(() => {}), 4000);
   if (process.platform === "darwin" && app.dock) {
