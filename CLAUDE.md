@@ -35,6 +35,14 @@ session — it is the cross-session memory.**
   dictation via 1.4s chunked re-transcription; VAD (volume-based) drives pen.
   **Noting pose**: tasks panel open → blob holds notepad w/ spectacles; pen
   scribbles only while typing/speaking, pauses on inactivity.
+- **Day 5** ✅ Wellness engine (src/App.tsx): powerMonitor idle tracking (30s tick;
+  <60s idle = active, >5min idle = real break resets clock); stretch nudge at
+  settings.breakMins (60 default); water nudge opt-in (2h, default off); bedtime
+  care (settings.bedtime 23:00 default — blob yawns+sleeps + one line, once/evening,
+  click wakes it); caps: ≤4 proactive/day + 15min gap + suppressed when hidden/
+  panel-open/sleeping/dragged. NudgeBubble component (did it!🌱 grows sprout /
+  not now). Tray: Focus hide-for-30min/1hr (auto-return), Start-at-login checkbox.
+  Debug menu has nudge test buttons (bypass caps via triggerNudge).
 
 ## Key decisions
 - ONE character (mochi blob w/ head-sprout; hedgehog/penguin were candidates).
@@ -78,14 +86,6 @@ session — it is the cross-session memory.**
 - src/store.ts — AppData{todos, reminders(legacy), sprout}, migration.
 - src/reminders.ts — chrono-node parse/format helpers.
 
-- **Day 5** ✅ Wellness engine (src/App.tsx): powerMonitor idle tracking (30s tick;
-  <60s idle = active, >5min idle = real break resets clock); stretch nudge at
-  settings.breakMins (60 default); water nudge opt-in (2h, default off); bedtime
-  care (settings.bedtime 23:00 default — blob yawns+sleeps + one line, once/evening,
-  click wakes it); caps: ≤4 proactive/day + 15min gap + suppressed when hidden/
-  panel-open/sleeping/dragged. NudgeBubble component (did it!🌱 grows sprout /
-  not now). Tray: Focus hide-for-30min/1hr (auto-return), Start-at-login checkbox.
-  Debug menu has nudge test buttons (bypass caps via triggerNudge).
 
 ## Next: Day 6–7 — settings panel + cute sounds + week-1 buffer
 Settings UI edits store.settings (breakMins/bedtime/water/sounds toggles, names,
