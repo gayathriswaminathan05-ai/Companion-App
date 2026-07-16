@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blob — a tiny creature that lives on your desktop</title>
+<meta name="description" content="A tiny tree creature lives on your desktop. He keeps your to-dos, notices when you need a break, and never, ever guilts you. Join the waitlist.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #FFF6E9;
+    --cream-deep: #FBEFDD;
+    --peach: #FFCF96;
+    --peach-soft: #FFE3C2;
+    --brown: #5a4a3a;
+    --brown-soft: #a08e70;
+    --green: #7FB25B;
+    --green-deep: #5a7a42;
+    --coral: #FF8A7A;
+    --gold: #FFD75E;
+    --leaf: #93C46F;
+    --sky: #7FB8E8;
+    --pink: #F9A8C4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--cream);
+    color: var(--brown);
+    font-family: "Nunito", system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  h1, h2, .serif { font-family: "Fraunces", Georgia, serif; font-weight: 600; line-height: 1.12; }
+
+  /* highlight-word device */
+  .hl {
+    display: inline-block;
+    background: var(--peach);
+    border-radius: 10px;
+    padding: 0 14px 4px;
+    box-decoration-break: clone;
+  }
+  .hl.green { background: #DDEbC8; }
+  .hl.pink { background: #FFDCE8; }
+
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- hero ---------- */
+  .hero {
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 48px 24px 64px;
+    position: relative;
+  }
+  .hero-blob { width: 200px; height: auto; margin-bottom: 8px; }
+  .hero h1 { font-size: clamp(38px, 7vw, 62px); max-width: 13ch; margin: 18px auto 18px; }
+  .hero p.sub { font-size: clamp(17px, 2.4vw, 20px); color: var(--brown-soft); max-width: 44ch; margin: 0 auto 34px; }
+  .hero .scroll-hint {
+    position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
+    font-size: 13px; color: var(--brown-soft); opacity: 0.85;
+    animation: bob 2.4s ease-in-out infinite;
+  }
+  @keyframes bob { 0%,100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, 7px); } }
+
+  /* ---------- waitlist form ---------- */
+  .waitlist { display: flex; gap: 10px; width: 100%; max-width: 440px; margin: 0 auto; }
+  .waitlist input {
+    flex: 1; min-width: 0;
+    font: 600 16px "Nunito", sans-serif; color: var(--brown);
+    background: #fffdf7;
+    border: 2px solid #e8d9bc; border-radius: 999px;
+    padding: 14px 22px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .waitlist input::placeholder { color: #c5b696; }
+  .waitlist input:focus { border-color: var(--peach); }
+  .waitlist button {
+    font: 700 16px "Nunito", sans-serif; color: var(--brown);
+    background: var(--peach);
+    border: none; border-radius: 999px;
+    padding: 14px 26px; cursor: pointer; white-space: nowrap;
+    box-shadow: 0 6px 18px rgba(255, 178, 102, 0.45);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .waitlist button:hover { transform: translateY(-2px); box-shadow: 0 9px 22px rgba(255, 178, 102, 0.55); }
+  .form-note { font-size: 13px; color: var(--brown-soft); margin-top: 14px; }
+  .form-done {
+    display: none;
+    font: 600 17px "Nunito", sans-serif; color: var(--green-deep);
+    background: #eef6e3; border: 1.5px solid #cfe3b5; border-radius: 999px;
+    padding: 14px 26px;
+  }
+
+  /* ---------- scrolly scenes ---------- */
+  .scene { position: relative; }
+  .scene .pin {
+    position: sticky; top: 0; height: 100svh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .scene .track { position: relative; }
+  .scene h2 { font-size: clamp(30px, 5.4vw, 48px); text-align: center; max-width: 17ch; margin: 0 auto 10px; }
+  .scene .caption { text-align: center; color: var(--brown-soft); font-size: clamp(16px, 2.2vw, 19px); max-width: 42ch; margin: 0 auto; }
+  .scrub-img { width: 230px; height: auto; margin-top: 26px; }
+
+  /* notice-scene floating cards */
+  .note-card {
+    position: absolute;
+    background: #fffdf7;
+    border: 1.5px solid #eadfc6;
+    border-radius: 16px;
+    padding: 13px 18px;
+    font-size: 15.5px; font-weight: 600;
+    box-shadow: 0 10px 26px rgba(90, 74, 58, 0.12);
+    width: max-content; max-width: 240px;
+    opacity: 0;
+  }
+  .note-card .t { font-size: 12px; color: var(--brown-soft); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; display: block; margin-bottom: 2px; }
+
+  /* glass pill (recreated from the app) */
+  .pill-demo {
+    display: flex; align-items: center; gap: 14px;
+    padding: 8px 14px;
+    border-radius: 27px;
+    background: linear-gradient(180deg, rgba(255,253,248,0.72), rgba(255,248,236,0.6));
+    backdrop-filter: blur(16px) saturate(1.35);
+    -webkit-backdrop-filter: blur(16px) saturate(1.35);
+    border: 1px solid rgba(255,255,255,0.85);
+    box-shadow: 0 10px 30px rgba(90,74,58,0.22), inset 0 1px 0 rgba(255,255,255,0.9);
+    opacity: 0; transform: scale(0.4);
+    transition: opacity 0.4s, transform 0.45s cubic-bezier(0.3, 1.25, 0.45, 1);
+    margin-top: 18px;
+  }
+  .pill-demo.on { opacity: 1; transform: scale(1); }
+  .pill-demo .dot {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(255,252,246,0.92); display: flex; align-items: center; justify-content: center;
+    font-size: 15px; border: 2px solid;
+  }
+  .pill-demo .x { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #d8c9ac; background: rgba(255,252,246,0.9); color: var(--brown-soft); font-size: 9px; display: flex; align-items: center; justify-content: center; }
+
+  .squeak {
+    font-family: "Fraunces", serif; font-size: clamp(20px, 3.4vw, 30px); color: #ef6a56; font-weight: 600;
+    opacity: 0; transform: rotate(-7deg) scale(0.6);
+    transition: opacity 0.3s, transform 0.35s cubic-bezier(0.3, 1.4, 0.5, 1);
+    position: absolute;
+  }
+  .squeak.on { opacity: 1; transform: rotate(-7deg) scale(1); }
+
+  /* sprout scene */
+  .sprout-row { display: flex; gap: clamp(18px, 5vw, 46px); align-items: flex-end; justify-content: center; margin: 34px 0 8px; }
+  .sprout-stage { display: flex; flex-direction: column; align-items: center; gap: 10px; opacity: 0.25; transform: translateY(8px); transition: opacity 0.45s, transform 0.45s; }
+  .sprout-stage.on { opacity: 1; transform: translateY(0); }
+  .sprout-stage svg { display: block; }
+  .sprout-stage span { font-size: 12.5px; font-weight: 700; color: var(--brown-soft); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* privacy + plain sections */
+  .plain { padding: 15vh 24px; text-align: center; }
+  .plain h2 { font-size: clamp(30px, 5.4vw, 46px); max-width: 18ch; margin: 0 auto 16px; }
+  .plain p { color: var(--brown-soft); max-width: 46ch; margin: 0 auto; }
+  .priv-list { list-style: none; margin: 30px auto 0; max-width: 430px; text-align: left; }
+  .priv-list li {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: #fffdf7; border: 1.5px solid #eadfc6; border-radius: 14px;
+    padding: 13px 18px; margin-bottom: 10px; font-weight: 600; font-size: 15.5px;
+  }
+  .priv-list li em { font-style: normal; color: var(--green-deep); }
+
+  .finale { padding: 16vh 24px 10vh; text-align: center; }
+  .finale h2 { font-size: clamp(34px, 6vw, 54px); max-width: 16ch; margin: 0 auto 14px; }
+  .finale p { color: var(--brown-soft); margin-bottom: 34px; }
+  footer { text-align: center; padding: 40px 24px 34px; font-size: 13.5px; color: var(--brown-soft); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero .scroll-hint { animation: none; }
+    html { scroll-behavior: auto; }
+  }
+  @media (max-width: 960px) {
+    .note-card[data-note="0"] { left: -140px !important; }
+    .note-card[data-note="1"] { right: -135px !important; }
+    .note-card[data-note="2"] { left: -130px !important; }
+    .note-card { max-width: 200px; }
+  }
+  @media (max-width: 560px) {
+    .waitlist { flex-direction: column; }
+    .note-card { max-width: 165px; font-size: 13.5px; }
+    .note-card[data-note="0"] { left: -78px !important; }
+    .note-card[data-note="1"] { right: -72px !important; }
+    .note-card[data-note="2"] { left: -70px !important; }
+    .scrub-img { width: 190px; }
+    .hero-blob { width: 170px; }
+    .squeak { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <img class="hero-blob" id="heroBlob" src="assets/idle-01.webp" alt="Blob, a small fuzzy tree creature with leafy vines and a white flower" width="260" height="306">
+  <h1>Someone <span class="hl">tiny</span> lives on your desktop.</h1>
+  <p class="sub">He keeps your to-dos, notices when you've been working too long, and falls asleep when it's your bedtime. He never, ever guilts you.</p>
+  <form class="waitlist" data-waitlist>
+    <input type="email" required placeholder="your@email.com" aria-label="Email address">
+    <button type="submit">Join the waitlist</button>
+  </form>
+  <div class="form-done" data-done>You're in! He's already excited. 🌱</div>
+  <div class="form-note">macOS first · free 7-day trial at launch · no spam, only one hello</div>
+  <div class="scroll-hint">scroll — he'll show you around ↓</div>
+</section>
+
+<!-- ============ SCENE: HE NOTICES YOU ============ -->
+<section class="scene" id="noticeScene" style="height: 320svh;">
+  <div class="pin">
+    <h2>He <span class="hl green">notices</span> you.</h2>
+    <p class="caption">Not your metrics. You.</p>
+    <div style="position: relative;">
+      <img class="scrub-img" src="assets/idle-01.webp" alt="" aria-hidden="true">
+      <div class="note-card" data-note="0" style="top: 8%; left: -215px;">
+        <span class="t">after a long stretch of work</span>
+        psst… you've been at it for 2 hours. stretch with me? 🙆
+      </div>
+      <div class="note-card" data-note="1" style="top: 34%; right: -205px;">
+        <span class="t">gentle, opt-in</span>
+        water break? I'll pour some on my head too 💧
+      </div>
+      <div class="note-card" data-note="2" style="bottom: 6%; left: -195px;">
+        <span class="t">at your bedtime, he yawns</span>
+        I'm getting sleepy… walk me to bed? 🌙
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENE: JUGGLE ============ -->
+<section class="scene" id="juggleScene" style="height: 300svh;">
+  <div class="pin">
+    <h2>Your to-dos? He <span class="hl">juggles</span> them.</h2>
+    <p class="caption">Click him and your menu is a little circus act — then a tidy glass bar.</p>
+    <img class="scrub-img" id="juggleImg" src="assets/juggle-01.webp" alt="" aria-hidden="true">
+    <div class="pill-demo" id="pillDemo">
+      <div class="dot" style="border-color:#FF8A7A">💬</div>
+      <div class="dot" style="border-color:#FFD75E">📝</div>
+      <div class="dot" style="border-color:#93C46F">⚙️</div>
+      <div class="dot" style="border-color:#7FB8E8">💤</div>
+      <div class="x">✕</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENE: DRAG ============ -->
+<section class="scene" id="dragScene" style="height: 280svh;">
+  <div class="pin">
+    <h2>Move him anywhere.</h2>
+    <p class="caption">He'll be a little dramatic about it.</p>
+    <div style="position: relative;">
+      <img class="scrub-img" id="dragImg" src="assets/drag-01.webp" alt="" aria-hidden="true">
+      <div class="squeak" id="squeak1" style="top: 7%; left: -30px;">eep!!</div>
+      <div class="squeak" id="squeak2" style="top: 26%; right: -58px; transition-delay: 0.12s;">eep-eep!!</div>
+    </div>
+    <p class="caption" style="margin-top: 20px; font-size: 15px;">(yes, he squeaks)</p>
+  </div>
+</section>
+
+<!-- ============ SCENE: SPROUT ============ -->
+<section class="scene" id="sproutScene" style="height: 300svh;">
+  <div class="pin">
+    <h2>Finish things, and something <span class="hl green">grows</span>.</h2>
+    <p class="caption">Each done task feeds the little sprout on his head. It blooms by evening —<br>and tomorrow it starts fresh. Just like you.</p>
+    <div class="sprout-row">
+      <div class="sprout-stage" data-stage="0">
+        <svg width="44" height="64" viewBox="0 0 44 64"><circle cx="22" cy="54" r="7" fill="#8a6f4d"/></svg>
+        <span>one task</span>
+      </div>
+      <div class="sprout-stage" data-stage="1">
+        <svg width="44" height="64" viewBox="0 0 44 64"><path d="M22 60 V40" stroke="#6FA050" stroke-width="4" stroke-linecap="round"/><path d="M22 44 Q12 38 8 28 Q20 28 24 40 Z" fill="#7FB25B"/></svg>
+        <span>a few more</span>
+      </div>
+      <div class="sprout-stage" data-stage="2">
+        <svg width="44" height="64" viewBox="0 0 44 64"><path d="M22 60 V26" stroke="#6FA050" stroke-width="4" stroke-linecap="round"/><path d="M22 40 Q10 34 6 22 Q20 24 25 36 Z" fill="#7FB25B"/><path d="M22 30 Q34 24 38 14 Q23 15 20 28 Z" fill="#93C46F"/></svg>
+        <span>on a roll</span>
+      </div>
+      <div class="sprout-stage" data-stage="3">
+        <svg width="44" height="64" viewBox="0 0 44 64"><path d="M22 60 V22" stroke="#6FA050" stroke-width="4" stroke-linecap="round"/><path d="M22 40 Q10 34 6 22 Q20 24 25 36 Z" fill="#7FB25B"/><path d="M22 32 Q34 26 38 16 Q23 17 20 30 Z" fill="#93C46F"/><g transform="translate(22 14)"><circle r="4.5" fill="#FFE08A"/><g fill="#F9A8C4"><circle cx="0" cy="-8" r="4.6"/><circle cx="7.6" cy="-2.5" r="4.6"/><circle cx="4.7" cy="6.5" r="4.6"/><circle cx="-4.7" cy="6.5" r="4.6"/><circle cx="-7.6" cy="-2.5" r="4.6"/></g></g></svg>
+        <span>bloomed 🌸</span>
+      </div>
+    </div>
+    <p class="caption" style="font-weight: 700; color: var(--brown);">No streaks. No dying pet. No guilt.</p>
+  </div>
+</section>
+
+<!-- ============ PRIVACY ============ -->
+<section class="plain">
+  <h2>What you tell him <span class="hl pink">stays home</span>.</h2>
+  <p>Blob is local-first — built like a diary, not a feed.</p>
+  <ul class="priv-list">
+    <li>🎙️ <div>Your voice is understood <em>on your Mac</em> — audio never leaves your device.</div></li>
+    <li>📓 <div>Tasks, reminders and memories live <em>in a local file</em>, not on our servers.</div></li>
+    <li>🗑️ <div>One button deletes <em>everything</em>. No "are you sure you're sure?" dark patterns.</div></li>
+  </ul>
+</section>
+
+<!-- ============ FINALE ============ -->
+<section class="finale">
+  <img src="assets/idle-01.webp" alt="" width="150" style="height:auto" aria-hidden="true">
+  <h2>He's almost ready to <span class="hl">meet you.</span></h2>
+  <p>Beta opens soon on macOS. The waitlist hears first.</p>
+  <form class="waitlist" data-waitlist style="max-width: 440px;">
+    <input type="email" required placeholder="your@email.com" aria-label="Email address">
+    <button type="submit">Join the waitlist</button>
+  </form>
+  <div class="form-done" data-done>You're in! He's already excited. 🌱</div>
+  <div class="form-note">one email at launch — that's the whole newsletter</div>
+</section>
+
+<footer>made with 🌱 by a tiny team &amp; a tree creature · <a href="#" style="color: inherit;">privacy</a></footer>
+
+<script>
+  // ---- waitlist ---------------------------------------------------------
+  // Set to your Formspree (or similar) endpoint, e.g. "https://formspree.io/f/xxxxxx".
+  const WAITLIST_ENDPOINT = "";
+
+  document.querySelectorAll("[data-waitlist]").forEach((form) => {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = form.querySelector("input").value.trim();
+      if (!email) return;
+      if (WAITLIST_ENDPOINT) {
+        try {
+          await fetch(WAITLIST_ENDPOINT, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({ email }),
+          });
+        } catch {}
+      } else {
+        // No endpoint configured yet — keep signups in the browser so testing works.
+        const list = JSON.parse(localStorage.getItem("waitlist") || "[]");
+        list.push({ email, at: new Date().toISOString() });
+        localStorage.setItem("waitlist", JSON.stringify(list));
+      }
+      form.style.display = "none";
+      const done = form.parentElement.querySelector("[data-done]");
+      if (done) done.style.display = "inline-block";
+    });
+  });
+
+  // ---- frame sets -------------------------------------------------------
+  const pad = (n) => String(n).padStart(2, "0");
+  const FRAMES = {
+    idle: Array.from({ length: 61 }, (_, i) => `assets/idle-${pad(i + 1)}.webp`),
+    juggle: Array.from({ length: 23 }, (_, i) => `assets/juggle-${pad(i + 1)}.webp`),
+    drag: Array.from({ length: 18 }, (_, i) => `assets/drag-${pad(i + 1)}.webp`),
+  };
+  // Preload lazily after first paint.
+  addEventListener("load", () => {
+    Object.values(FRAMES).flat().forEach((src) => { const im = new Image(); im.src = src; });
+  });
+
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---- hero: living blob (ping-pong at 12fps) ---------------------------
+  const hero = document.getElementById("heroBlob");
+  if (!reduced) {
+    let i = 0, dir = 1;
+    setInterval(() => {
+      i += dir;
+      if (i >= FRAMES.idle.length - 1) dir = -1;
+      if (i <= 0) dir = 1;
+      hero.src = FRAMES.idle[i];
+    }, 1000 / 12);
+  }
+
+  // ---- scroll progress helper ------------------------------------------
+  function progressOf(section) {
+    const r = section.getBoundingClientRect();
+    const total = r.height - innerHeight;
+    return Math.min(1, Math.max(0, -r.top / total));
+  }
+
+  const noticeScene = document.getElementById("noticeScene");
+  const juggleScene = document.getElementById("juggleScene");
+  const dragScene = document.getElementById("dragScene");
+  const sproutScene = document.getElementById("sproutScene");
+  const juggleImg = document.getElementById("juggleImg");
+  const dragImg = document.getElementById("dragImg");
+  const pillDemo = document.getElementById("pillDemo");
+  const noteCards = [...document.querySelectorAll(".note-card")];
+  const squeaks = [document.getElementById("squeak1"), document.getElementById("squeak2")];
+  const stages = [...document.querySelectorAll(".sprout-stage")];
+
+  function onScroll() {
+    // notice: cards drift up & fade in one at a time
+    const pn = progressOf(noticeScene);
+    noteCards.forEach((c, i) => {
+      const local = Math.min(1, Math.max(0, (pn - i * 0.28) / 0.24));
+      c.style.opacity = local;
+      c.style.transform = `translateY(${(1 - local) * 30}px) rotate(${(i % 2 ? 1 : -1) * 2.5}deg)`;
+    });
+
+    // juggle: scrub frames across scroll; pill pops at the end
+    const pj = progressOf(juggleScene);
+    juggleImg.src = FRAMES.juggle[Math.min(FRAMES.juggle.length - 1, Math.floor(pj * 1.25 * FRAMES.juggle.length))];
+    pillDemo.classList.toggle("on", pj > 0.78);
+
+    // drag: scrub + squeaks
+    const pd = progressOf(dragScene);
+    dragImg.src = FRAMES.drag[Math.min(FRAMES.drag.length - 1, Math.floor(pd * 1.15 * FRAMES.drag.length))];
+    squeaks[0].classList.toggle("on", pd > 0.25);
+    squeaks[1].classList.toggle("on", pd > 0.55);
+
+    // sprout stages light up in sequence
+    const ps = progressOf(sproutScene);
+    stages.forEach((s, i) => s.classList.toggle("on", ps > 0.15 + i * 0.18));
+  }
+
+  if (reduced) {
+    // show everything statically
+    noteCards.forEach((c) => { c.style.opacity = 1; c.style.transform = "none"; });
+    pillDemo.classList.add("on");
+    squeaks.forEach((s) => s.classList.add("on"));
+    stages.forEach((s) => s.classList.add("on"));
+  } else {
+    addEventListener("scroll", () => requestAnimationFrame(onScroll), { passive: true });
+    onScroll();
+  }
+</script>
+</body>
+</html>
