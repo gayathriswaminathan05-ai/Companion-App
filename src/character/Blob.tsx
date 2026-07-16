@@ -8,7 +8,21 @@ function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
   const [idx, setIdx] = useState(0);
   const dirRef = useRef(1);
 
+  // Show every state at the same TRUE character scale: a clip cropped to a
+  // bigger source box (e.g. covering swing travel) packs the character smaller
+  // into its frames, so we compensate relative to idle's crop box.
+  const base = SPRITES.idle;
+  let scale = 1;
+  if (anim !== base && anim.srcW && anim.srcH && base?.srcW && base?.srcH) {
+    const fit = (a: SpriteAnimDef) => Math.min(340 / a.srcW!, 400 / a.srcH!);
+    scale = Math.max(0.7, Math.min(1.45, fit(base) / fit(anim)));
+  }
+
   useEffect(() => {
+    // Restart from the first frame whenever the state (clip) changes, so
+    // gesture clips (juggling, dragged) always play from their beginning.
+    setIdx(0);
+    dirRef.current = 1;
     // Preload every frame once so playback never flickers.
     for (const src of anim.frames) {
       const img = new Image();
@@ -40,7 +54,13 @@ function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
       width={170}
       height={200}
       draggable={false}
-      style={{ objectFit: "contain", objectPosition: "bottom center", display: "block" }}
+      style={{
+        objectFit: "contain",
+        objectPosition: "bottom center",
+        display: "block",
+        transform: scale !== 1 ? `scale(${scale})` : undefined,
+        transformOrigin: "bottom center",
+      }}
       alt=""
     />
   );

@@ -20,6 +20,17 @@ export default function QuickNav({ items }: { items: QuickNavItem[] }) {
         justifyContent: "center",
         alignItems: "center",
         pointerEvents: "auto",
+        // Frosted-glass pill, matching the juggle menu bar.
+        padding: "7px 12px",
+        borderRadius: 22,
+        background: "linear-gradient(180deg, rgba(255,253,248,0.62), rgba(255,248,236,0.5))",
+        backdropFilter: "blur(16px) saturate(1.35)",
+        WebkitBackdropFilter: "blur(16px) saturate(1.35)",
+        border: "1px solid rgba(255,255,255,0.72)",
+        boxShadow:
+          "0 8px 22px rgba(90,74,58,0.2), 0 2px 6px rgba(90,74,58,0.09), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(90,74,58,0.05)",
+        width: "fit-content",
+        margin: "0 auto",
       }}
     >
       {items.map((it) => (

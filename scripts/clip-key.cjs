@@ -122,6 +122,45 @@ app.whenReady().then(async () => {
           mask[i] = 1;
         }
       }
+      // Third pass: drop small isolated islands (watermark text, sparkles,
+      // drifting petals). The character + its attached vines form one big
+      // connected component; anything under 2% of the largest one is debris.
+      {
+        const label = new Int32Array(w * h).fill(-1);
+        const areas = [];
+        const stack = [];
+        for (let i = 0; i < w * h; i++) {
+          if (label[i] >= 0 || px[i*4 + 3] <= 20) continue;
+          const id = areas.length;
+          let area = 0;
+          label[i] = id;
+          stack.push(i);
+          while (stack.length) {
+            const cur = stack.pop();
+            area++;
+            const cx = cur % w, cy = (cur / w) | 0;
+            for (const [nx, ny] of [[cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1],[cx+1,cy+1],[cx-1,cy-1],[cx+1,cy-1],[cx-1,cy+1]]) {
+              if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+              const ni = ny * w + nx;
+              if (label[ni] >= 0 || px[ni*4 + 3] <= 20) continue;
+              label[ni] = id;
+              stack.push(ni);
+            }
+          }
+          areas.push(area);
+        }
+        const biggest = Math.max(0, ...areas);
+        // Only true debris dies: watermark letters and sparkles are tiny.
+        // A detached CHARACTER piece (e.g. a loose vine strand) is far larger
+        // — it must survive in EVERY frame, else it flickers in and out.
+        const debrisMax = Math.min(biggest * 0.02, 1000);
+        for (let i = 0; i < w * h; i++) {
+          if (label[i] >= 0 && areas[label[i]] < debrisMax) {
+            px[i*4 + 3] = 0;
+            mask[i] = 1;
+          }
+        }
+      }
       for (let y = 1; y < h - 1; y++) {
         for (let x = 1; x < w - 1; x++) {
           const i = y * w + x;
@@ -145,7 +184,7 @@ app.whenReady().then(async () => {
           if (px[(y*w + x)*4 + 3] > 20) { rows[y]++; cols[x]++; }
         }
       }
-      const MIN = 30;
+      const MIN = 6; // low enough to keep thin vine strands; stray specks are rarer now (clean Kling source)
       let minY = -1, maxY = -1, minX = -1, maxX = -1;
       for (let y = 0; y < h; y++) if (rows[y] >= MIN) { if (minY < 0) minY = y; maxY = y; }
       for (let x = 0; x < w; x++) if (cols[x] >= MIN) { if (minX < 0) minX = x; maxX = x; }
@@ -190,16 +229,40 @@ app.whenReady().then(async () => {
         if (!boxes[i]) boxes[i] = { ...lastGood };
         else lastGood = boxes[i];
       }
-      const smooth = boxes.map((_, i) => {
-        const win = [];
-        for (let j = Math.max(0, i - 4); j <= Math.min(boxes.length - 1, i + 4); j++) win.push(boxes[j]);
-        const avg = (k) => win.reduce((s, b) => s + b[k], 0) / win.length;
-        return { minX: avg("minX"), minY: avg("minY"), maxX: avg("maxX"), maxY: avg("maxY") };
-      });
+      let smooth;
+      if (process.env.CLIP_CROP === "perframe") {
+        // For source videos that pan/zoom: follow the character frame by frame.
+        smooth = boxes.map((_, i) => {
+          const win = [];
+          for (let j = Math.max(0, i - 4); j <= Math.min(boxes.length - 1, i + 4); j++) win.push(boxes[j]);
+          const avg = (k) => win.reduce((s, b) => s + b[k], 0) / win.length;
+          return { minX: avg("minX"), minY: avg("minY"), maxX: avg("maxX"), maxY: avg("maxY") };
+        });
+      } else {
+        // DEFAULT (static camera, e.g. Kling): ONE union box for every frame.
+        // Per-frame boxes re-scale each frame slightly differently, which makes
+        // rigid motion look rubbery; a fixed crop keeps geometry true.
+        const u = {
+          minX: Math.min(...boxes.map((b) => b.minX)),
+          minY: Math.min(...boxes.map((b) => b.minY)),
+          maxX: Math.max(...boxes.map((b) => b.maxX)),
+          maxY: Math.max(...boxes.map((b) => b.maxY)),
+        };
+        smooth = boxes.map(() => u);
+      }
 
       // Pass B: crop each frame to its smoothed box, scale to fill 340x400
       // (bottom-center anchored), save.
       fs.mkdirSync(OUT, { recursive: true });
+      // Record the crop box size (source pixels). The app uses this to show
+      // every state at the same true scale (a clip whose box is bigger — e.g.
+      // covering swing travel — would otherwise render the character smaller).
+      {
+        const b0 = smooth[0];
+        const mw = (b0.maxX - b0.minX) * 1.06;
+        const mh = (b0.maxY - b0.minY) * 1.06;
+        fs.writeFileSync(path.join(OUT, "meta.json"), JSON.stringify({ srcW: Math.round(mw), srcH: Math.round(mh) }));
+      }
       let n = 0;
       for (let i = 0; i < files.length; i++) {
         const img = await loadImage(path.join(IN, files[i]));

@@ -47,6 +47,57 @@ export type ChirpName =
   | "giggle" // fast wobbly tee-hee (joke punchline)
   | "msg"; // very quiet blip when a chat reply lands
 
+// Dangle voice: startled "whoop!" on pickup, then a soft wobbling hum that
+// sways with the character until stopDangle() (release) plays a landing plop.
+let dangle: { osc: OscillatorNode; lfo: OscillatorNode; gain: GainNode } | null = null;
+
+export function startDangle() {
+  if (!enabled || dangle) return;
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+  try {
+    // Surprised chipmunk "eep-eep!" — two quick squeaks, rounded not shrill.
+    note(650, 980, 0, 0.08, 0.09, "sine");
+    note(800, 1150, 0.09, 0.1, 0.08, "sine");
+    // Then a tiny nervous tremble while dangling — gentler and lower.
+    const a = ac();
+    const osc = a.createOscillator();
+    const lfo = a.createOscillator();
+    const lfoGain = a.createGain();
+    const gain = a.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 560;
+    lfo.type = "sine";
+    lfo.frequency.value = 7; // soft trembling
+    lfoGain.gain.value = 30; // wobble depth in Hz
+    lfo.connect(lfoGain).connect(osc.frequency);
+    gain.gain.setValueAtTime(0.0001, a.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.015, a.currentTime + 0.3);
+    osc.connect(gain).connect(a.destination);
+    osc.start();
+    lfo.start();
+    dangle = { osc, lfo, gain };
+  } catch {
+    // audio unavailable — stay silent, never crash
+  }
+}
+
+export function stopDangle() {
+  if (!dangle) return;
+  try {
+    const a = ac();
+    const { osc, lfo, gain } = dangle;
+    gain.gain.cancelScheduledValues(a.currentTime);
+    gain.gain.setValueAtTime(gain.gain.value, a.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.12);
+    osc.stop(a.currentTime + 0.15);
+    lfo.stop(a.currentTime + 0.15);
+    if (enabled) note(950, 600, 0.08, 0.12, 0.07, "sine"); // relieved squeak-down on landing
+  } catch {
+    // ignore
+  }
+  dangle = null;
+}
+
 export function chirp(name: ChirpName) {
   if (!enabled) return;
   if (typeof document !== "undefined" && document.visibilityState === "hidden") return;

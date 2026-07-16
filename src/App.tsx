@@ -12,7 +12,7 @@ import { formatDue, parseWhen } from "./reminders";
 import { useCharacter } from "./character/useCharacter";
 import { AppData, emptyData, loadData, saveData, sproutStageFor, today } from "./store";
 import { buildSystem, buildMessages, extractOutputs, FALLBACK_JOKES } from "./brain";
-import { chirp, setSoundsEnabled } from "./sounds";
+import { chirp, setSoundsEnabled, startDangle, stopDangle } from "./sounds";
 import type { CharacterState } from "./character/types";
 
 declare global {
@@ -84,6 +84,7 @@ export default function App() {
       setDragging((was) => {
         if (was) {
           window.companion?.dragEnd();
+          stopDangle();
           set("idle");
         }
         return false;
@@ -629,6 +630,11 @@ export default function App() {
           phase={menuPhase}
           clipLeft={clip.clipLeft}
           clipRight={clip.clipRight}
+          onDismiss={() => {
+            setOpen("none");
+            set("idle");
+            chirp("boop");
+          }}
           items={[
             { icon: "💬", label: "chat", onClick: () => setOpen("chat") },
             {
@@ -764,6 +770,7 @@ export default function App() {
               setDragging(true);
               set("dragged");
               setOpen("none");
+              startDangle();
             }
           }
         }}

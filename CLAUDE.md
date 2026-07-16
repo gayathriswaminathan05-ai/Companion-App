@@ -143,6 +143,52 @@ session — it is the cross-session memory.**
   Remaining states still procedural blob. Usage: node scripts/process-clip.cjs
   <video.mp4> <state>.
 
+- **Higgsfield MCP pipeline (July 16)** ✅ Higgsfield MCP connected (hosted,
+  OAuth via terminal /mcp — expires sometimes, re-auth same way; account is
+  free-tier w/ trial credits, plan purchase pending her judgment). Claude drives
+  full loop: upload ref frame (Kling start frame from ~/Downloads/kling_*.mp4)
+  → generate_video kling3_0 (start_image+end_image=ref for loops, sound:'off'
+  → 7.5 credits/5s, std mode) → download → process-clip → app. get_cost:true
+  preflights price free. AI matte tool remove_background = 1 credit (mp4 output,
+  no alpha — of limited use). LESSON: fast motion = Kling redraws/blurs vines →
+  distortion; prompt "slow, minimal, crisp, keep exact vine shape" fixed it.
+  STATES DONE: idle (breathing+2 blinks, start=end frame), dragged (gentle
+  dangle tilt, trimmed 0.7s+, ~16.5 credits left). Pipeline upgrades in
+  clip-key.cjs: island cleanup (drop components <2% of largest — kills
+  watermark/sparkle), MIN=6 bbox (thin vines), UNION crop default (static-cam;
+  CLIP_CROP=perframe env for panning sources), meta.json srcW/srcH → sprites.ts
+  → Blob.tsx SpriteAnim normalizes per-state scale vs idle (fixes drag shrink).
+- **Creeper-flicker saga (RESOLVED)**: idle's detached right creeper strand
+  appeared/disappeared. ROOT CAUSE (user diagnosed strand always present in
+  raw video): island cleanup's <2%-of-largest rule erased the strand ONLY in
+  frames where it didn't touch the vine bundle. Fix: debrisMax =
+  min(2%, 1000px) — only true debris (watermark letters/sparkles) dies now.
+  DEAD ENDS (don't repeat): two deflicker attempts (scripts/deflicker.cjs —
+  erases low-presence pixels; even the morphological "surgical" version reads
+  as distortion because the strand legitimately SWAYS; user rejected both).
+  LESSON: flicker-scan red = "pixels not always present" — that's motion OR
+  popping; use zone pixel-COUNT stability per frame to tell them apart.
+
+- **Menu v2 "merge & spread" + juggling state (July 16)** ✅ RadialMenu.tsx
+  rewritten (arc RETIRED): click → blob plays juggling sprite (Kling
+  "conducting music" gesture — the wording that finally kept hands EMPTY;
+  the word "juggling" in prompts makes Kling paint white balls in) → code
+  balls launch alternately from HAND_L/HAND_R consts → converge + tint to
+  brown = ONE ball above head → glass pill stretches sideways, balls slide to
+  slots (her Pinterest reference). Frosted-glass style (translucent gradient +
+  backdrop-filter + inset highlights; true wallpaper blur impossible in
+  Electron web layer — she accepted the approximation) on menu pill, QuickNav,
+  and a small ✕ dismiss button (onDismiss prop) off the pill's right end.
+  Labels are hover-only now. Drag SOUNDS: sounds.ts startDangle/stopDangle —
+  chipmunk "eep-eep!" pickup + trembling hum + squeak-down landing (tuned
+  softer once; she called v1 "too squeaky"). Dock icon = real character
+  (render-icon.cjs composes idle f-001 onto squircle, base64-embedded; enlarged
+  after "not legible"). SpriteAnim: resets to frame 0 on state change;
+  per-state true-scale normalization via srcW/srcH. STATES with AI sprites:
+  idle, dragged, juggling. Credits: 40 bought, ~1.5 left. Higgsfield jobs are
+  reusable by job-id (uploaded ref image media_id in CLAUDE history; ref
+  frame = first frame of ~/Downloads/kling_20260716_VIDEO_The_cute_t_647_0.mp4).
+
 ## Status: PAUSED for Figma design refinement (July 2026)
 Gayathri is refining all UI designs in Figma. When she returns with links, use
 the Figma connector (may need one-time auth) to read frames and implement
