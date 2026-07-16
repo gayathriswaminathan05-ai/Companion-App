@@ -38,28 +38,12 @@ export const SPRITES: Record<string, SpriteAnim> = {
       "./character/dragged/f-033.png",
       "./character/dragged/f-034.png",
       "./character/dragged/f-035.png",
-      "./character/dragged/f-036.png",
-      "./character/dragged/f-037.png",
-      "./character/dragged/f-038.png",
-      "./character/dragged/f-039.png",
-      "./character/dragged/f-040.png",
-      "./character/dragged/f-041.png",
-      "./character/dragged/f-042.png",
-      "./character/dragged/f-043.png",
-      "./character/dragged/f-044.png",
-      "./character/dragged/f-045.png",
-      "./character/dragged/f-046.png",
-      "./character/dragged/f-047.png",
-      "./character/dragged/f-048.png",
-      "./character/dragged/f-049.png",
-      "./character/dragged/f-050.png",
-      "./character/dragged/f-051.png",
-      "./character/dragged/f-052.png"
+      "./character/dragged/f-036.png"
     ],
     "fps": 12,
     "pingpong": true,
     "srcW": 490,
-    "srcH": 511
+    "srcH": 509
   },
   "idle": {
     "frames": [

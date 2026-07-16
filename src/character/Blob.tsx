@@ -2,6 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import type { CharacterState, SproutStage } from "./types";
 import { SPRITES, SpriteAnim as SpriteAnimDef } from "../generated/sprites";
 
+// Warm EVERY state's frames once at startup, so the very first switch into
+// any state (e.g. grabbing the blob) shows its first frame with zero lag.
+let warmed = false;
+function warmAllSprites() {
+  if (warmed) return;
+  warmed = true;
+  for (const anim of Object.values(SPRITES)) {
+    for (const src of anim.frames) {
+      const img = new Image();
+      img.src = src;
+    }
+  }
+}
+
 // Plays AI-generated frame animations (ping-pong loop) for states that have
 // them; all other states fall back to the procedural drawing below.
 function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
@@ -19,15 +33,11 @@ function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
   }
 
   useEffect(() => {
+    warmAllSprites();
     // Restart from the first frame whenever the state (clip) changes, so
     // gesture clips (juggling, dragged) always play from their beginning.
     setIdx(0);
     dirRef.current = 1;
-    // Preload every frame once so playback never flickers.
-    for (const src of anim.frames) {
-      const img = new Image();
-      img.src = src;
-    }
     const timer = window.setInterval(() => {
       setIdx((i) => {
         let next = i + dirRef.current;

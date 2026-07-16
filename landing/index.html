@@ -179,9 +179,72 @@
   .finale p { color: var(--brown-soft); margin-bottom: 34px; }
   footer { text-align: center; padding: 40px 24px 34px; font-size: 13.5px; color: var(--brown-soft); }
 
+  /* ---------- film grain (zero.university-style texture) ---------- */
+  .grain {
+    position: fixed; inset: -50%;
+    width: 200%; height: 200%;
+    pointer-events: none; z-index: 50;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    opacity: 0.07;
+    animation: grain 0.9s steps(4) infinite;
+  }
+  @keyframes grain {
+    0% { transform: translate(0, 0); }
+    25% { transform: translate(-2%, 1.5%); }
+    50% { transform: translate(1.5%, -1%); }
+    75% { transform: translate(-1%, -2%); }
+    100% { transform: translate(0, 0); }
+  }
+
+  /* ---------- sticky CTA ---------- */
+  .sticky-cta {
+    position: fixed; top: 18px; right: 18px; z-index: 60;
+    font: 700 14.5px "Nunito", sans-serif; color: var(--brown);
+    background: var(--peach); border: none; border-radius: 999px;
+    padding: 11px 20px; cursor: pointer; text-decoration: none;
+    box-shadow: 0 6px 18px rgba(90, 74, 58, 0.25);
+    transition: transform 0.15s;
+  }
+  .sticky-cta:hover { transform: translateY(-2px); }
+
+  /* ---------- typographic chapters (deep forest, mint type) ---------- */
+  .chapter {
+    background: #35503a;
+    color: #D9F2D0;
+    min-height: 100svh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 20vh 24px;
+  }
+  .chapter .line {
+    font-family: "Fraunces", serif; font-weight: 600;
+    font-size: clamp(34px, 6.5vw, 64px); line-height: 1.15;
+    opacity: 0; transform: translateY(26px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .chapter .line.in { opacity: 1; transform: translateY(0); }
+  .chapter .line + .line { margin-top: 10px; }
+  .chapter .line.dim { color: #8FB78A; }
+  .chapter .strike { position: relative; white-space: nowrap; }
+  .chapter .strike::after {
+    content: ""; position: absolute; left: -3%; right: -3%; top: 54%;
+    height: 0.09em; background: var(--coral); border-radius: 99px;
+    transform: scaleX(0); transform-origin: left center;
+    transition: transform 0.5s cubic-bezier(0.6, 0, 0.2, 1) 0.55s;
+  }
+  .chapter .line.in .strike::after { transform: scaleX(1); }
+  .chapter .kicker {
+    font: 700 13px "Nunito", sans-serif; letter-spacing: 2.5px; text-transform: uppercase;
+    color: #8FB78A; margin-bottom: 26px;
+    opacity: 0; transition: opacity 0.6s;
+  }
+  .chapter .kicker.in { opacity: 1; }
+
   @media (prefers-reduced-motion: reduce) {
     .hero .scroll-hint { animation: none; }
+    .grain { animation: none; }
     html { scroll-behavior: auto; }
+    .chapter .line, .chapter .kicker { opacity: 1; transform: none; }
+    .chapter .line .strike::after { transform: scaleX(1); }
   }
   @media (max-width: 960px) {
     .note-card[data-note="0"] { left: -140px !important; }
@@ -203,6 +266,9 @@
 </head>
 <body>
 
+<div class="grain" aria-hidden="true"></div>
+<a class="sticky-cta" href="#join">Join the waitlist</a>
+
 <!-- ============ HERO ============ -->
 <section class="hero">
   <img class="hero-blob" id="heroBlob" src="assets/idle-01.webp" alt="Blob, a small fuzzy tree creature with leafy vines and a white flower" width="260" height="306">
@@ -215,6 +281,15 @@
   <div class="form-done" data-done>You're in! He's already excited. 🌱</div>
   <div class="form-note">macOS first · free 7-day trial at launch · no spam, only one hello</div>
   <div class="scroll-hint">scroll — he'll show you around ↓</div>
+</section>
+
+<!-- ============ CHAPTER: THE PROBLEM ============ -->
+<section class="chapter">
+  <div class="kicker" data-reveal>every productivity app ever</div>
+  <div class="line" data-reveal>Track yourself.</div>
+  <div class="line" data-reveal>Keep the streak.</div>
+  <div class="line dim" data-reveal>Feel bad when you don't.</div>
+  <div class="line" data-reveal style="margin-top: 7vh;">Streaks are <span class="strike">dead</span>.</div>
 </section>
 
 <!-- ============ SCENE: HE NOTICES YOU ============ -->
@@ -297,6 +372,13 @@
   </div>
 </section>
 
+<!-- ============ CHAPTER: THE POINT ============ -->
+<section class="chapter">
+  <div class="kicker" data-reveal>the whole idea</div>
+  <div class="line" data-reveal>He doesn't track you.</div>
+  <div class="line" data-reveal>He keeps you <span style="color:#fff">company</span>.</div>
+</section>
+
 <!-- ============ PRIVACY ============ -->
 <section class="plain">
   <h2>What you tell him <span class="hl pink">stays home</span>.</h2>
@@ -309,7 +391,7 @@
 </section>
 
 <!-- ============ FINALE ============ -->
-<section class="finale">
+<section class="finale" id="join">
   <img src="assets/idle-01.webp" alt="" width="150" style="height:auto" aria-hidden="true">
   <h2>He's almost ready to <span class="hl">meet you.</span></h2>
   <p>Beta opens soon on macOS. The waitlist hears first.</p>
@@ -432,6 +514,21 @@
     addEventListener("scroll", () => requestAnimationFrame(onScroll), { passive: true });
     onScroll();
   }
+
+  // ---- typographic chapters: reveal lines with a stagger -----------------
+  document.querySelectorAll(".chapter").forEach((ch) => {
+    const parts = [...ch.querySelectorAll("[data-reveal]")];
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          parts.forEach((p, i) => setTimeout(() => p.classList.add("in"), reduced ? 0 : 260 + i * 340));
+          io.disconnect();
+        }
+      },
+      { threshold: 0.45 },
+    );
+    io.observe(ch);
+  });
 </script>
 </body>
 </html>

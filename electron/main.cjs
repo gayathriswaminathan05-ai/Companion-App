@@ -120,8 +120,10 @@ let asrPromise = null;
 function getAsr() {
   if (!asrPromise) {
     asrPromise = import("@huggingface/transformers").then(async ({ pipeline }) => {
-      // Downloads the small English model on first run (~40MB), then cached.
-      return pipeline("automatic-speech-recognition", "Xenova/whisper-tiny.en");
+      // base.en: noticeably more accurate than tiny.en (especially with
+      // accents) at ~74MB, still fast enough for live dictation chunks.
+      // If accuracy still disappoints, the next step up is whisper-small.en.
+      return pipeline("automatic-speech-recognition", "Xenova/whisper-base.en");
     });
   }
   return asrPromise;
