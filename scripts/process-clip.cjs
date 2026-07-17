@@ -52,7 +52,7 @@ for (const s of states) {
   // Sleeping plays once then freezes under the blanket (holdLast).
   const oneshot = new Set(["celebrating", "sleeping", "laughing"]);
   const holdLast = new Set(["sleeping"]);
-  const fast = new Set(["celebrating", "laughing"]);
+  const fast = new Set(["laughing"]); // celebrating demoted to 12fps — 18 made the cork-pull feel rushed
   manifest[s] = {
     frames: frames.map((f) => `./character/${s}/${f}`),
     fps: fast.has(s) ? 18 : 12,

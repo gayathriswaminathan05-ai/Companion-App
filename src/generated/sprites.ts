@@ -25,12 +25,34 @@ export const SPRITES: Record<string, SpriteAnim> = {
       "./character/celebrating/f-020.png",
       "./character/celebrating/f-021.png",
       "./character/celebrating/f-022.png",
-      "./character/celebrating/f-023.png"
+      "./character/celebrating/f-023.png",
+      "./character/celebrating/f-024.png",
+      "./character/celebrating/f-025.png",
+      "./character/celebrating/f-026.png",
+      "./character/celebrating/f-027.png",
+      "./character/celebrating/f-028.png",
+      "./character/celebrating/f-029.png",
+      "./character/celebrating/f-030.png",
+      "./character/celebrating/f-031.png",
+      "./character/celebrating/f-032.png",
+      "./character/celebrating/f-033.png",
+      "./character/celebrating/f-034.png",
+      "./character/celebrating/f-035.png",
+      "./character/celebrating/f-036.png",
+      "./character/celebrating/f-037.png",
+      "./character/celebrating/f-038.png",
+      "./character/celebrating/f-039.png",
+      "./character/celebrating/f-040.png",
+      "./character/celebrating/f-041.png",
+      "./character/celebrating/f-042.png",
+      "./character/celebrating/f-043.png",
+      "./character/celebrating/f-044.png",
+      "./character/celebrating/f-045.png"
     ],
-    "fps": 18,
+    "fps": 12,
     "pingpong": false,
-    "srcW": 571,
-    "srcH": 571
+    "srcW": 455,
+    "srcH": 502
   },
   "coffee": {
     "frames": [
