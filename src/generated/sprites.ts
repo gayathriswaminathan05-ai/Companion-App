@@ -51,8 +51,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": false,
-    "srcW": 455,
-    "srcH": 502
+    "srcW": 453,
+    "srcH": 500
   },
   "coffee": {
     "frames": [
@@ -120,8 +120,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 508,
-    "srcH": 466
+    "srcW": 505,
+    "srcH": 464
   },
   "dragged": {
     "frames": [
@@ -160,8 +160,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 391,
-    "srcH": 529
+    "srcW": 389,
+    "srcH": 527
   },
   "groove": {
     "frames": [
@@ -229,8 +229,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 480,
-    "srcH": 553
+    "srcW": 478,
+    "srcH": 551
   },
   "hammock": {
     "frames": [
@@ -298,7 +298,7 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 532,
+    "srcW": 531,
     "srcH": 400
   },
   "hula": {
@@ -367,8 +367,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 537,
-    "srcH": 492
+    "srcW": 536,
+    "srcH": 490
   },
   "idle": {
     "frames": [
@@ -437,7 +437,7 @@ export const SPRITES: Record<string, SpriteAnim> = {
     "fps": 12,
     "pingpong": true,
     "srcW": 336,
-    "srcH": 488
+    "srcH": 485
   },
   "idlehop": {
     "frames": [
@@ -468,8 +468,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 341,
-    "srcH": 507
+    "srcW": 340,
+    "srcH": 506
   },
   "juggling": {
     "frames": [
@@ -660,8 +660,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 341,
-    "srcH": 492
+    "srcW": 339,
+    "srcH": 490
   },
   "lying": {
     "frames": [
@@ -729,8 +729,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 336,
-    "srcH": 490
+    "srcW": 389,
+    "srcH": 489
   },
   "meditate": {
     "frames": [
@@ -798,7 +798,7 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 421,
+    "srcW": 420,
     "srcH": 475
   },
   "noting": {
@@ -867,8 +867,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 338,
-    "srcH": 488
+    "srcW": 336,
+    "srcH": 485
   },
   "picnic": {
     "frames": [
@@ -936,7 +936,7 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 525,
+    "srcW": 541,
     "srcH": 430
   },
   "sleeping": {
@@ -1006,8 +1006,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     "fps": 12,
     "pingpong": false,
     "holdLast": true,
-    "srcW": 519,
-    "srcH": 508
+    "srcW": 517,
+    "srcH": 506
   },
   "stretching": {
     "frames": [
@@ -1076,7 +1076,7 @@ export const SPRITES: Record<string, SpriteAnim> = {
     "fps": 12,
     "pingpong": true,
     "srcW": 449,
-    "srcH": 495
+    "srcH": 494
   },
   "thinking": {
     "frames": [
@@ -1144,8 +1144,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 338,
-    "srcH": 488
+    "srcW": 336,
+    "srcH": 485
   },
   "watering": {
     "frames": [
@@ -1213,8 +1213,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 367,
-    "srcH": 541
+    "srcW": 366,
+    "srcH": 540
   },
   "waving": {
     "frames": [
@@ -1282,7 +1282,7 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 381,
-    "srcH": 492
+    "srcW": 378,
+    "srcH": 490
   }
 };

@@ -211,12 +211,36 @@ app.whenReady().then(async () => {
           }
         }
       }
+      // Defringe: the outermost ring of "character" pixels is really a blend
+      // of character + background (anti-aliasing) — a pale halo that reads
+      // as un-premium on colorful wallpapers. Erode it away entirely, then
+      // feather the fresh edge. CLIP_ERODE overrides the ring count (0 = off).
+      const erodeN = (() => {
+        const v = parseInt(${JSON.stringify(process.env.CLIP_ERODE || "")}, 10);
+        return Number.isNaN(v) ? 1 : Math.max(0, v);
+      })();
+      for (let e = 0; e < erodeN; e++) {
+        const kill = [];
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const i = y * w + x;
+            if (mask[i]) continue;
+            const up = y > 0 ? mask[i-w] : 1, dn = y < h-1 ? mask[i+w] : 1;
+            const lf = x > 0 ? mask[i-1] : 1, rt = x < w-1 ? mask[i+1] : 1;
+            if (up || dn || lf || rt) kill.push(i);
+          }
+        }
+        for (const i of kill) {
+          mask[i] = 1;
+          px[i*4 + 3] = 0;
+        }
+      }
       for (let y = 1; y < h - 1; y++) {
         for (let x = 1; x < w - 1; x++) {
           const i = y * w + x;
           if (mask[i]) continue;
           if (mask[i-1] || mask[i+1] || mask[i-w] || mask[i+w]) {
-            px[i*4 + 3] = Math.min(px[i*4 + 3], 140);
+            px[i*4 + 3] = Math.min(px[i*4 + 3], 150);
           }
         }
       }
