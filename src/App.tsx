@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Blob from "./character/Blob";
 import DebugMenu from "./DebugMenu";
-import RadialMenu, { MenuPhase } from "./ui/RadialMenu";
+import RadialMenu from "./ui/RadialMenu";
 import TaskPanel from "./ui/TaskPanel";
 import ChatPanel from "./ui/ChatPanel";
 import ReminderBubble, { FiredReminder } from "./ui/ReminderBubble";
@@ -55,8 +55,6 @@ export default function App() {
   const [data, setData] = useState<AppData>(emptyData());
   const [open, setOpen] = useState<"none" | "menu" | "tasks" | "chat" | "settings">("none");
   const [clip, setClip] = useState({ clipLeft: 0, clipRight: 0 });
-  const [menuPhase, setMenuPhase] = useState<MenuPhase>("juggling");
-  const juggleTimer = useRef<number | null>(null);
   const [firedQueue, setFiredQueue] = useState<FiredReminder[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
@@ -660,7 +658,6 @@ export default function App() {
 
       {open === "menu" && (
         <RadialMenu
-          phase={menuPhase}
           clipLeft={clip.clipLeft}
           clipRight={clip.clipRight}
           onDismiss={() => {
@@ -827,16 +824,10 @@ export default function App() {
                 clipRight: number;
               };
               setClip(info);
-              setMenuPhase("juggling");
               setOpen("menu");
-              set("juggling");
+              set("idlehop"); // he jumps, the bar rises above him
               chirp("boop");
-              if (juggleTimer.current) clearTimeout(juggleTimer.current);
-              juggleTimer.current = window.setTimeout(() => {
-                setMenuPhase("thrown");
-              }, 650);
             } else {
-              if (juggleTimer.current) clearTimeout(juggleTimer.current);
               setOpen("none");
               set("idle");
             }

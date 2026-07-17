@@ -18,7 +18,7 @@ app.whenReady().then(async () => {
   // corners so the face stays big and legible at Dock size.
   const html = `<!doctype html><html><head><style>
     html,body{margin:0;padding:0;background:transparent;width:512px;height:512px;overflow:hidden}
-    .tile{position:absolute;left:50px;top:50px;width:412px;height:412px;border-radius:92px;background:#FBEFE2;overflow:hidden}
+    .tile{position:absolute;left:50px;top:50px;width:412px;height:412px;border-radius:92px;background:#FFC93F;overflow:hidden}
     img{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);height:470px;image-rendering:auto}
   </style></head><body>
     <div class="tile"><img src="data:image/png;base64,${charB64}"></div>
