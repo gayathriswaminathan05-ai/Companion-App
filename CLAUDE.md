@@ -60,6 +60,12 @@ session — it is the cross-session memory.**
   unlimited chat + long memory + adaptive care. 7-day trial, founder code in beta,
   NO payment processing until v1.1.
 - Apple Developer enrollment DEFERRED — must start by Day 10 (BUILD_PLAN).
+- Image generation in chat: DEFERRED (user decision July 2026) — revisit only
+  after monetization data. When revisited: split is (a) Blob-branded meme
+  templates (free, local canvas captioning, uses sprite expressions — also a
+  marketing flywheel: shared memes carry the mascot) vs (b) true AI image gen
+  (per-image API cost, needs paid tier + caps + safety filter + breaks the
+  "chat is the only network call" privacy line — v1.1+ at earliest).
 
 ## Known bugs / polish debt (user said "later")
 - Settings "change key" deletes key with NO confirm — one stray click disconnects
@@ -188,6 +194,29 @@ session — it is the cross-session memory.**
   idle, dragged, juggling. Credits: 40 bought, ~1.5 left. Higgsfield jobs are
   reusable by job-id (uploaded ref image media_id in CLAUDE history; ref
   frame = first frame of ~/Downloads/kling_20260716_VIDEO_The_cute_t_647_0.mp4).
+
+- **NEW MASCOT: succulent pot creature (July 17)** ✅ Tree Blob retired after
+  user testing (nobody liked it). New: vivid coral matte-clay pot + Disney
+  eyes + tall green paddle leaves (mascot-options/8-disney-eyes-succulent.png;
+  master ref standing = mascot-options/master-ref-standing.png, Higgsfield job
+  104f213b-f336-4bcb-96ad-39ce66c0b28d — anchor for ALL generations).
+  STATES LIVE: idle(breathe)+idlehop(spontaneous, ~40s)+ACTIVITIES rotating
+  every 10-15min (lying/hammock/meditate/picnic/groove/hula, TIMED 25-45s),
+  stretching(real workout: side bends+cross-body), watering(self-water = water
+  nudge), dragged(v1 take, trimmed 2.15-4.8). Raw mp4s in assets/clips/
+  (REPROCESSABLE FREE — never regenerate before exhausting keyer fixes:
+  CLIP_T tolerance, CLIP_GLOBAL=off solid-char mode, trim windows).
+  KEYER UPGRADES: CLIP_T env, CLIP_GLOBAL=off (protects eye whites/pupils),
+  shadow-island removal (light desaturated non-largest components), enclosed-
+  hole healing (globalOff mode). LESSONS: props need STILLS first (juggle-ball
+  trap); "conducting music" ≠ juggling; white bg + bright sheen = use T=15
+  (T=8 no better); Kling can lift character out of frame (check RAW frames
+  before blaming keying!). Showcase: hidden ✦ at menu bar's left end → plays
+  any animation (src/ui/Showcase.tsx). Old tree states remaining: juggling
+  (menu gesture) only. TODO: celebrations x5 (champagne etc.), sleeping/
+  waking/waving/listening/thinking/writing, combing (overgrown still ready:
+  mascot-poses/), growth stills, new voice, Dock icon + landing refresh.
+  Credits: ~430 left on her pro plan.
 
 ## Status: PAUSED for Figma design refinement (July 2026)
 Gayathri is refining all UI designs in Figma. When she returns with links, use

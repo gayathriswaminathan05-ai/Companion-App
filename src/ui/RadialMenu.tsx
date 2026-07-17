@@ -82,12 +82,14 @@ export default function RadialMenu({
   clipLeft,
   clipRight,
   onDismiss,
+  onSecret,
 }: {
   items: RadialItem[];
   phase: MenuPhase;
   clipLeft: number;
   clipRight: number;
   onDismiss?: () => void;
+  onSecret?: () => void;
 }) {
   const [jt, setJt] = useState(0);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -301,6 +303,42 @@ export default function RadialMenu({
           </div>
         );
       })}
+
+      {onSecret && (
+        <button
+          onClick={onSecret}
+          aria-label="showcase"
+          className="menu-secret"
+          onMouseEnter={() => window.companion?.setClickThrough(false)}
+          onMouseLeave={() => window.companion?.setClickThrough(true)}
+          style={{
+            position: "absolute",
+            zIndex: 11,
+            left: barX - pillW / 2 + 2,
+            top: BAR_Y - 8,
+            width: 16,
+            height: 16,
+            borderRadius: "50%",
+            border: "none",
+            background: "transparent",
+            color: "#a08e70",
+            fontSize: 9,
+            lineHeight: 1,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            pointerEvents: "auto",
+            opacity: 0.12,
+            transition: "opacity 0.2s",
+          }}
+          onMouseOver={(e) => ((e.currentTarget as HTMLButtonElement).style.opacity = "0.7")}
+          onMouseOut={(e) => ((e.currentTarget as HTMLButtonElement).style.opacity = "0.12")}
+        >
+          ✦
+        </button>
+      )}
 
       {onDismiss && (
         <button

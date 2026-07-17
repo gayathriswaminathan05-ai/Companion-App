@@ -45,7 +45,7 @@ app.whenReady().then(async () => {
       const d = ctx.getImageData(0, 0, w, h);
       const px = d.data;
       const mask = new Uint8Array(w * h);
-      const T = 45; // color tolerance vs the background palette
+      const T = parseInt(${JSON.stringify(process.env.CLIP_T || "")}, 10) || 45; // tolerance vs bg palette (CLIP_T env overrides; lower = protects bright character highlights on white bg)
 
       // Background PALETTE: colors at all seed points (deduped). A checkered
       // "transparency" background contributes both of its colors, letting the
@@ -108,7 +108,12 @@ app.whenReady().then(async () => {
       // be reached by the flood — clear anything clearly-background globally:
       // magenta-ish (border) and pure-white (card). The flower's petals carry
       // shading/tint so the strict white threshold leaves them alone.
-      for (let i = 0; i < mask.length; i++) {
+      // CLIP_GLOBAL=off skips this pass — needed for characters whose FACE
+      // contains near-white or near-black details (eye whites, dark pupils)
+      // that these global thresholds would eat. Solid-bodied characters
+      // without see-through holes don't need the pass anyway.
+      const globalOff = process.env.CLIP_GLOBAL === "off";
+      for (let i = 0; globalOff ? false : i < mask.length; i++) {
         const pi = i * 4;
         const r = px[pi], g = px[pi+1], b = px[pi+2];
         if (px[pi+3] === 0) continue;
@@ -150,14 +155,59 @@ app.whenReady().then(async () => {
           areas.push(area);
         }
         const biggest = Math.max(0, ...areas);
+        let biggestId = -1;
+        for (let k = 0; k < areas.length; k++) if (areas[k] === biggest) { biggestId = k; break; }
         // Only true debris dies: watermark letters and sparkles are tiny.
         // A detached CHARACTER piece (e.g. a loose vine strand) is far larger
         // — it must survive in EVERY frame, else it flickers in and out.
         const debrisMax = Math.min(biggest * 0.02, 1000);
+        // Ground shadows: any NON-largest component that is uniformly light
+        // desaturated gray is a soft floor shadow, not character — drop it
+        // regardless of size.
+        const sumR = new Float64Array(areas.length), sumG = new Float64Array(areas.length), sumB = new Float64Array(areas.length);
         for (let i = 0; i < w * h; i++) {
-          if (label[i] >= 0 && areas[label[i]] < debrisMax) {
+          if (label[i] >= 0) { sumR[label[i]] += px[i*4]; sumG[label[i]] += px[i*4+1]; sumB[label[i]] += px[i*4+2]; }
+        }
+        const shadowish = areas.map((a, k) => {
+          if (k === biggestId || a === 0) return false;
+          const r = sumR[k]/a, g = sumG[k]/a, b = sumB[k]/a;
+          return Math.max(r,g,b) - Math.min(r,g,b) < 18 && (r+g+b)/3 > 170;
+        });
+        for (let i = 0; i < w * h; i++) {
+          if (label[i] >= 0 && (areas[label[i]] < debrisMax || shadowish[label[i]])) {
             px[i*4 + 3] = 0;
             mask[i] = 1;
+          }
+        }
+      }
+      // Heal enclosed holes (CLIP_GLOBAL=off / solid-character mode only):
+      // a transparent pocket fully surrounded by character can only be an
+      // eaten bright highlight (sheen) — restore it. Real background always
+      // connects to the frame border.
+      if (globalOff) {
+        const reach = new Uint8Array(w * h);
+        const q = [];
+        for (let x = 0; x < w; x++) {
+          for (const i of [x, (h - 1) * w + x]) if (mask[i] && !reach[i]) { reach[i] = 1; q.push(i); }
+        }
+        for (let y = 0; y < h; y++) {
+          for (const i of [y * w, y * w + w - 1]) if (mask[i] && !reach[i]) { reach[i] = 1; q.push(i); }
+        }
+        while (q.length) {
+          const cur = q.pop();
+          const cx = cur % w, cy = (cur / w) | 0;
+          for (const [nx, ny] of [[cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]]) {
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+            const ni = ny * w + nx;
+            if (!mask[ni] || reach[ni]) continue;
+            reach[ni] = 1;
+            q.push(ni);
+          }
+        }
+        for (let i = 0; i < w * h; i++) {
+          if (mask[i] && !reach[i]) {
+            px[i*4 + 3] = 255;
+            mask[i] = 0;
           }
         }
       }

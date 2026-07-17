@@ -7,6 +7,7 @@ import ChatPanel from "./ui/ChatPanel";
 import ReminderBubble, { FiredReminder } from "./ui/ReminderBubble";
 import NudgeBubble from "./ui/NudgeBubble";
 import QuickNav from "./ui/QuickNav";
+import Showcase from "./ui/Showcase";
 import SettingsPanel from "./ui/SettingsPanel";
 import { formatDue, parseWhen } from "./reminders";
 import { useCharacter } from "./character/useCharacter";
@@ -59,6 +60,7 @@ export default function App() {
   const [firedQueue, setFiredQueue] = useState<FiredReminder[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
+  const [showcase, setShowcase] = useState(false);
   const [dragging, setDragging] = useState(false);
   const mouseDownAt = useRef<{ x: number; y: number } | null>(null);
 
@@ -130,6 +132,25 @@ export default function App() {
   useEffect(() => {
     openRef.current = open;
   }, [open]);
+
+  // Spontaneous life: while calmly idling he hops once in a while (avg ~40s),
+  // and every 10-15 minutes settles into a little ACTIVITY — lounging,
+  // hammock, meditation, picnic, music, hula — for a spell, then back to calm.
+  const nextActivityAt = useRef(Date.now() + (10 + Math.random() * 5) * 60_000);
+  useEffect(() => {
+    const ACTIVITIES: CharacterState[] = ["lying", "hammock", "meditate", "picnic", "groove", "hula"];
+    const id = window.setInterval(() => {
+      if (stateRef.current !== "idle" || openRef.current !== "none") return;
+      if (Date.now() >= nextActivityAt.current) {
+        set(ACTIVITIES[Math.floor(Math.random() * ACTIVITIES.length)]);
+        nextActivityAt.current = Date.now() + (10 + Math.random() * 5) * 60_000;
+      } else if (Math.random() < 0.2) {
+        set("idlehop");
+      }
+    }, 8000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // --- Wellness engine: notices long stretches of work, bedtime, water ---
   type NudgeKind = "stretch" | "water" | "bedtime";
@@ -625,6 +646,18 @@ export default function App() {
         </>
       )}
 
+      {showcase && (
+        <Showcase
+          onPlay={(s) => {
+            if (!chatBusy) set(s);
+          }}
+          onClose={() => {
+            setShowcase(false);
+            set("idle");
+          }}
+        />
+      )}
+
       {open === "menu" && (
         <RadialMenu
           phase={menuPhase}
@@ -634,6 +667,11 @@ export default function App() {
             setOpen("none");
             set("idle");
             chirp("boop");
+          }}
+          onSecret={() => {
+            setOpen("none");
+            setShowcase(true);
+            chirp("giggle");
           }}
           items={[
             { icon: "💬", label: "chat", onClick: () => setOpen("chat") },
