@@ -1,37 +1,32 @@
 import { useEffect, useState } from "react";
 import type { Settings } from "../store";
-import { panel, smallBtn } from "./theme";
+import { COLORS, panel, smallBtn, primaryBtn, ghostClose, field } from "./theme";
 
-// Settings, in Blob's own voice (Finch pattern: settings stay in-character).
+// Settings, in Blob's own voice — frosted glass shell.
 
 const row: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
   gap: 8,
-  padding: "5px 0",
+  padding: "6px 0",
   fontSize: 12,
+  color: COLORS.text,
 };
 
 const sectionTitle: React.CSSProperties = {
   fontSize: 10.5,
   fontWeight: 600,
-  color: "#b3a284",
+  color: COLORS.textSoft,
   textTransform: "uppercase",
   letterSpacing: 0.5,
-  margin: "10px 0 2px",
+  margin: "12px 0 4px",
 };
 
 const inputStyle: React.CSSProperties = {
-  fontSize: 11.5,
-  padding: "4px 7px",
-  borderRadius: 6,
-  border: "1px solid #d8c9ac",
-  outline: "none",
-  fontFamily: "inherit",
-  background: "#fffdf7",
-  color: "#5a4a3a",
+  ...field,
   width: 110,
+  fontSize: 11.5,
 };
 
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
@@ -44,7 +39,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
         height: 19,
         borderRadius: 10,
         border: "none",
-        background: on ? "#93C46F" : "#d8cbb4",
+        background: on ? COLORS.accent : "rgba(32, 29, 47, 0.18)",
         position: "relative",
         cursor: "pointer",
         transition: "background 0.15s",
@@ -60,9 +55,9 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
           width: 15,
           height: 15,
           borderRadius: "50%",
-          background: "#fffdf7",
+          background: "#fff",
           transition: "left 0.15s",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.18)",
         }}
       />
     </button>
@@ -83,12 +78,13 @@ export default function SettingsPanel({
   facts: string[];
   onPatch: (patch: Partial<Settings>) => void;
   onDeleteFact: (fact: string) => void;
-  onClearChat: () => void;
+  onClearChat: () => void | Promise<void>;
   onChangeKey: () => void;
   onDeleteAll: () => void;
   onClose: () => void;
 }) {
   const [loginItem, setLoginItem] = useState(false);
+  const [clearPhase, setClearPhase] = useState<"idle" | "clearing" | "done">("idle");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showMemory, setShowMemory] = useState(false);
 
@@ -96,15 +92,35 @@ export default function SettingsPanel({
     (window.companion.getLoginItem() as Promise<boolean>).then(setLoginItem);
   }, []);
 
+  const runClearChat = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (clearPhase !== "idle") return;
+    setClearPhase("clearing");
+    const started = Date.now();
+    try {
+      await onClearChat();
+    } catch {
+      /* still show done — UI state is cleared in parent */
+    }
+    const wait = Math.max(0, 700 - (Date.now() - started));
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    setClearPhase("done");
+    window.setTimeout(() => setClearPhase("idle"), 2200);
+  };
+
   return (
-    <div style={{ ...panel, display: "flex", flexDirection: "column", height: "100%", padding: 10 }}>
+    <div
+      style={{ ...panel, display: "flex", flexDirection: "column", height: "100%", padding: 12, gap: 4 }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 13, fontWeight: 600 }}>settings ⚙️</span>
-        <button style={{ ...smallBtn, padding: "2px 8px" }} onClick={onClose}>✕</button>
+        <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>settings</span>
+        <button style={ghostClose} onClick={onClose} title="close">✕</button>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", paddingRight: 2 }}>
-        <div style={sectionTitle}>🌱 me & you</div>
+      <div style={{ flex: 1, overflowY: "auto", paddingRight: 2, minHeight: 0 }}>
+        <div style={sectionTitle}>me & you</div>
         <div style={row}>
           <span>my name</span>
           <input
@@ -126,8 +142,52 @@ export default function SettingsPanel({
           <span>my little sounds</span>
           <Toggle on={settings.soundsOn} onChange={(v) => onPatch({ soundsOn: v })} />
         </div>
+        <div style={{ ...row, alignItems: "center" }}>
+          <span>how big I look</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 120 }}>
+            <span style={{ fontSize: 10, color: COLORS.textSoft }}>−</span>
+            <input
+              type="range"
+              min={0.6}
+              max={1.2}
+              step={0.05}
+              value={settings.plantScale}
+              onChange={(e) => onPatch({ plantScale: Number(e.target.value) })}
+              title={`${Math.round(settings.plantScale * 100)}%`}
+              style={{
+                flex: 1,
+                width: 80,
+                accentColor: COLORS.accent,
+                cursor: "pointer",
+              }}
+            />
+            <span style={{ fontSize: 10, color: COLORS.textSoft }}>+</span>
+          </div>
+        </div>
+        <div style={{ ...row, alignItems: "center" }}>
+          <span>how big my windows are</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 120 }}>
+            <span style={{ fontSize: 10, color: COLORS.textSoft }}>−</span>
+            <input
+              type="range"
+              min={0.85}
+              max={1.45}
+              step={0.05}
+              value={settings.panelScale}
+              onChange={(e) => onPatch({ panelScale: Number(e.target.value) })}
+              title={`${Math.round(settings.panelScale * 100)}%`}
+              style={{
+                flex: 1,
+                width: 80,
+                accentColor: COLORS.accent,
+                cursor: "pointer",
+              }}
+            />
+            <span style={{ fontSize: 10, color: COLORS.textSoft }}>+</span>
+          </div>
+        </div>
 
-        <div style={sectionTitle}>💛 how I care for you</div>
+        <div style={sectionTitle}>how I care for you</div>
         <div style={row}>
           <span>remind you to stretch</span>
           <select
@@ -179,14 +239,14 @@ export default function SettingsPanel({
           <Toggle on={settings.autoHideOnCalls} onChange={(v) => onPatch({ autoHideOnCalls: v })} />
         </div>
 
-        <div style={sectionTitle}>🧠 what I remember</div>
+        <div style={sectionTitle}>what I remember</div>
         <button style={{ ...smallBtn, width: "100%" }} onClick={() => setShowMemory((s) => !s)}>
           {showMemory ? "hide my memories" : `see my ${facts.length} memories of you`}
         </button>
         {showMemory && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 5 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
             {facts.length === 0 && (
-              <span style={{ fontSize: 11, color: "#b3a284", textAlign: "center" }}>
+              <span style={{ fontSize: 11, color: COLORS.placeholder, textAlign: "center" }}>
                 nothing yet — talk to me more 🤍
               </span>
             )}
@@ -198,29 +258,27 @@ export default function SettingsPanel({
                   alignItems: "center",
                   gap: 6,
                   fontSize: 11,
-                  background: "#fffdf7",
-                  border: "1px solid #eee2c8",
-                  borderRadius: 7,
-                  padding: "4px 7px",
+                  background: COLORS.inputBg,
+                  border: "1px solid rgba(32, 29, 47, 0.06)",
+                  borderRadius: 8,
+                  padding: "5px 8px",
+                  color: COLORS.text,
                 }}
               >
                 <span style={{ flex: 1 }}>{f}</span>
                 <button
                   onClick={() => onDeleteFact(f)}
                   title="forget this"
-                  style={{ border: "none", background: "transparent", cursor: "pointer", color: "#c9b89a", fontSize: 11 }}
+                  style={{ border: "none", background: "transparent", cursor: "pointer", color: COLORS.placeholder, fontSize: 11 }}
                 >
                   ✕
                 </button>
               </div>
             ))}
-            <button style={{ ...smallBtn, fontSize: 11 }} onClick={onClearChat}>
-              forget all our chats (keeps tasks)
-            </button>
           </div>
         )}
 
-        <div style={sectionTitle}>⚙️ app</div>
+        <div style={sectionTitle}>app</div>
         <div style={row}>
           <span>wake up when your Mac starts</span>
           <Toggle
@@ -238,19 +296,91 @@ export default function SettingsPanel({
           </button>
         </div>
 
-        <div style={sectionTitle}>🔒 privacy</div>
-        <div style={{ fontSize: 10.5, color: "#a08e70", lineHeight: 1.5, marginBottom: 5 }}>
+        <div style={sectionTitle}>privacy</div>
+        <div style={{ fontSize: 10.5, color: COLORS.textSoft, lineHeight: 1.5, marginBottom: 6 }}>
           everything lives on this computer. chats go to Claude only to think of a
           reply — never stored, never used for training. voice never leaves at all.
         </div>
+        {clearPhase === "idle" && (
+          <button
+            type="button"
+            style={{
+              ...smallBtn,
+              width: "100%",
+              marginBottom: 6,
+              color: COLORS.text,
+              background: "rgba(32, 29, 47, 0.06)",
+            }}
+            onClick={runClearChat}
+          >
+            delete chat history
+          </button>
+        )}
+        {clearPhase === "clearing" && (
+          <div
+            style={{
+              ...smallBtn,
+              width: "100%",
+              marginBottom: 6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              color: COLORS.textSoft,
+              background: "rgba(32, 29, 47, 0.06)",
+              cursor: "default",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: "50%",
+                border: "2px solid rgba(106, 83, 231, 0.25)",
+                borderTopColor: COLORS.accent,
+                animation: "settingsSpin 0.7s linear infinite",
+                boxSizing: "border-box",
+              }}
+            />
+            deleting…
+          </div>
+        )}
+        {clearPhase === "done" && (
+          <div
+            style={{
+              ...smallBtn,
+              width: "100%",
+              marginBottom: 6,
+              textAlign: "center",
+              color: "#1a7a4c",
+              background: "rgba(46, 160, 100, 0.12)",
+              cursor: "default",
+            }}
+          >
+            deleted
+          </div>
+        )}
         {!confirmDelete ? (
-          <button style={{ ...smallBtn, width: "100%", color: "#b05a4a", borderColor: "#e0b8b0" }} onClick={() => setConfirmDelete(true)}>
+          <button
+            style={{
+              ...smallBtn,
+              width: "100%",
+              color: COLORS.danger,
+              background: "rgba(176, 90, 74, 0.1)",
+            }}
+            onClick={() => setConfirmDelete(true)}
+          >
             delete everything
           </button>
         ) : (
           <div style={{ display: "flex", gap: 5 }}>
             <button
-              style={{ ...smallBtn, flex: 1, background: "#f5d5cf", borderColor: "#d89a8e", color: "#8a3a2a" }}
+              style={{
+                ...primaryBtn,
+                flex: 1,
+                background: COLORS.danger,
+              }}
               onClick={onDeleteAll}
             >
               yes, forget me completely
@@ -261,10 +391,15 @@ export default function SettingsPanel({
           </div>
         )}
 
-        <div style={{ fontSize: 10, color: "#c5b696", textAlign: "center", margin: "10px 0 4px" }}>
+        <div style={{ fontSize: 10, color: COLORS.placeholder, textAlign: "center", margin: "12px 0 4px" }}>
           companion v0.1.0 beta · made with 🌱
         </div>
       </div>
+      <style>{`
+        @keyframes settingsSpin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

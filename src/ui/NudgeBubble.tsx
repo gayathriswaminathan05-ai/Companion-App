@@ -1,6 +1,6 @@
-import { panel, smallBtn } from "./theme";
+import { COLORS, panel, smallBtn, primaryBtn } from "./theme";
 
-// Gentle care bubble: one line, one-click dismiss, never modal.
+// Gentle care / joke bubble: one line, one-click dismiss, never modal.
 export default function NudgeBubble({
   text,
   actions,
@@ -19,21 +19,20 @@ export default function NudgeBubble({
         left: "50%",
         transform: "translateX(-50%)",
         width: 240,
-        padding: "10px 12px",
+        padding: "12px 14px",
         pointerEvents: "auto",
         zIndex: 20,
         animation: "nudgein 0.35s cubic-bezier(0.34, 1.4, 0.64, 1)",
       }}
     >
-      <div style={{ fontSize: 12.5, lineHeight: 1.45 }}>{text}</div>
-      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+      <div style={{ fontSize: 12.5, lineHeight: 1.45, color: COLORS.text }}>{text}</div>
+      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
         {actions.map((a) => (
           <button
             key={a.label}
             style={{
-              ...smallBtn,
+              ...(a.primary ? primaryBtn : smallBtn),
               flex: 1,
-              ...(a.primary ? { borderColor: "#c9dfb2", background: "#eaf3df" } : {}),
             }}
             onClick={a.onClick}
           >
@@ -44,15 +43,17 @@ export default function NudgeBubble({
       <div
         style={{
           position: "absolute",
-          bottom: -7,
+          bottom: -6,
           left: "50%",
-          marginLeft: -7,
-          width: 14,
-          height: 14,
-          background: "rgba(255, 250, 240, 0.97)",
-          borderRight: "1px solid #e5d7ba",
-          borderBottom: "1px solid #e5d7ba",
+          marginLeft: -6,
+          width: 12,
+          height: 12,
+          background: COLORS.panelBg,
+          borderRight: `1px solid ${COLORS.panelBorder}`,
+          borderBottom: `1px solid ${COLORS.panelBorder}`,
           transform: "rotate(45deg)",
+          backdropFilter: "blur(56px)",
+          WebkitBackdropFilter: "blur(56px)",
         }}
       />
       <style>{`

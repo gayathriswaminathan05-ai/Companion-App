@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("companion", {
   hide: () => ipcRenderer.send("hide-app"),
   quit: () => ipcRenderer.send("quit-app"),
   layoutInfo: () => ipcRenderer.invoke("layout-info"),
+  setWindowSize: (size) => ipcRenderer.invoke("set-window-size", size),
   ensureMic: () => ipcRenderer.invoke("ensure-mic"),
   idleSeconds: () => ipcRenderer.invoke("idle-seconds"),
   openLink: (url) => ipcRenderer.send("open-link", url),
@@ -27,5 +28,5 @@ contextBridge.exposeInMainWorld("companion", {
   },
   transcribe: (audioBuffer) => ipcRenderer.invoke("transcribe", audioBuffer),
   dataLoad: () => ipcRenderer.invoke("data-load"),
-  dataSave: (data) => ipcRenderer.send("data-save", data),
+  dataSave: (data) => ipcRenderer.invoke("data-save", data),
 });

@@ -30,6 +30,8 @@ export interface Settings {
   userName: string;
   jokeEvery: "off" | "often" | "rare"; // often=3h, rare=6h
   autoHideOnCalls: boolean;
+  plantScale: number; // visual size of the plant (0.6–1.2); default 1
+  panelScale: number; // chat/tasks/settings height+width (0.85–1.45); default 1
 }
 
 export interface Wellness {
@@ -65,6 +67,8 @@ export const defaultSettings = (): Settings => ({
   userName: "",
   jokeEvery: "often",
   autoHideOnCalls: true,
+  plantScale: 1,
+  panelScale: 1,
 });
 
 export const emptyWellness = (): Wellness => ({
@@ -105,6 +109,11 @@ export async function loadData(): Promise<AppData> {
   if (!Array.isArray(data.todos)) data.todos = [];
   if (!Array.isArray(data.reminders)) data.reminders = [];
   data.settings = { ...defaultSettings(), ...(data.settings ?? {}) };
+  // Clamp plant size in case older/corrupt data has a wild value.
+  const s = Number(data.settings.plantScale);
+  data.settings.plantScale = Number.isFinite(s) ? Math.min(1.2, Math.max(0.6, s)) : 1;
+  const ps = Number(data.settings.panelScale);
+  data.settings.panelScale = Number.isFinite(ps) ? Math.min(1.45, Math.max(0.85, ps)) : 1;
   data.chat = { ...emptyChat(), ...(data.chat ?? {}) };
   if (data.chat.messages.length > 60) data.chat.messages = data.chat.messages.slice(-60);
   if (data.chat.facts.length > 40) data.chat.facts = data.chat.facts.slice(-40);

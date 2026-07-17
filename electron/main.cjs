@@ -14,8 +14,8 @@ const {
 const path = require("path");
 const fs = require("fs");
 
-const WIN_W = 320;
-const WIN_H = 500;
+const WIN_W = 384; // was 320 (+20%)
+const WIN_H = 600; // was 500 (+20%)
 
 const stateFile = () => path.join(app.getPath("userData"), "window-state.json");
 
@@ -66,7 +66,6 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
-
   // Float above normal windows, follow the user across desktops/spaces.
   // skipTransformProcessType keeps the Dock icon visible (macOS otherwise
   // hides it when a window can appear over fullscreen apps).
@@ -355,15 +354,41 @@ ipcMain.handle("data-reset", () => {
 // Persistent data (todos, sprout progress, settings) in one JSON file.
 const dataFile = () => path.join(app.getPath("userData"), "companion-data.json");
 
-// How much of the window is hanging off the screen (for edge-aware menus).
-ipcMain.handle("layout-info", () => {
-  if (!win) return { clipLeft: 0, clipRight: 0 };
+// How much of the window is hanging off the screen (for edge-aware menus/panels).
+function getLayoutInfo() {
+  if (!win) return { clipLeft: 0, clipRight: 0, clipTop: 0, clipBottom: 0 };
   const b = win.getBounds();
   const wa = screen.getDisplayMatching(b).workArea;
   return {
     clipLeft: Math.max(0, wa.x - b.x),
     clipRight: Math.max(0, b.x + b.width - (wa.x + wa.width)),
+    clipTop: Math.max(0, wa.y - b.y),
+    clipBottom: Math.max(0, b.y + b.height - (wa.y + wa.height)),
   };
+}
+
+ipcMain.handle("layout-info", () => getLayoutInfo());
+
+// Grow/shrink the transparent window from the bottom-center so the plant
+// stays visually put while chat/panels get taller/wider.
+ipcMain.handle("set-window-size", (_e, size = {}) => {
+  if (!win) return getLayoutInfo();
+  const w = Math.max(280, Math.min(560, Math.round(Number(size.width) || WIN_W)));
+  const h = Math.max(420, Math.min(900, Math.round(Number(size.height) || WIN_H)));
+  const b = win.getBounds();
+  const wa = screen.getDisplayMatching(b).workArea;
+  let x = Math.round(b.x + (b.width - w) / 2);
+  let y = Math.round(b.y + b.height - h);
+  // Keep a usable strip on-screen.
+  x = Math.min(x, wa.x + wa.width - 120);
+  x = Math.max(x, wa.x + 120 - w);
+  y = Math.min(y, wa.y + wa.height - 160);
+  y = Math.max(y, wa.y);
+  if (b.width !== w || b.height !== h || b.x !== x || b.y !== y) {
+    win.setBounds({ x, y, width: w, height: h });
+    savePosition(win.getBounds());
+  }
+  return getLayoutInfo();
 });
 
 ipcMain.handle("data-load", () => {
@@ -374,10 +399,13 @@ ipcMain.handle("data-load", () => {
   }
 });
 
-ipcMain.on("data-save", (_e, data) => {
+ipcMain.handle("data-save", (_e, data) => {
   try {
     fs.writeFileSync(dataFile(), JSON.stringify(data, null, 2));
-  } catch {}
+    return true;
+  } catch {
+    return false;
+  }
 });
 
 // Seconds since the user last touched mouse/keyboard (for wellness nudges).

@@ -28,7 +28,7 @@ function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
   const base = SPRITES.idle;
   let scale = 1;
   if (anim !== base && anim.srcW && anim.srcH && base?.srcW && base?.srcH) {
-    const fit = (a: SpriteAnimDef) => Math.min(340 / a.srcW!, 400 / a.srcH!);
+    const fit = (a: SpriteAnimDef) => Math.min(408 / a.srcW!, 480 / a.srcH!);
     scale = Math.max(0.7, Math.min(1.45, fit(base) / fit(anim)));
   }
 
@@ -49,6 +49,9 @@ function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
             dirRef.current = 1;
             next = 1;
           }
+        } else if (anim.holdLast) {
+          // Story clips (sleep yawn→blanket): play once, freeze on last frame.
+          if (next >= anim.frames.length) return anim.frames.length - 1;
         } else {
           next = next % anim.frames.length;
         }
@@ -61,8 +64,8 @@ function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
   return (
     <img
       src={anim.frames[idx]}
-      width={170}
-      height={200}
+      width={204}
+      height={240}
       draggable={false}
       style={{
         objectFit: "contain",
@@ -292,9 +295,71 @@ export default function Blob({
   const pose = yawning ? "yawning" : asleep ? "asleep" : state;
   const cls = `pose-${pose}${wiggle && state === "idle" ? " wiggling" : ""}${state === "noting" && scribbling ? " scribbling" : ""}`;
 
-  // AI-generated animation available for this state? Use it.
-  const sprite = SPRITES[state];
+  // Prefer this state's AI clip. Fallbacks stay on the plant — never the old
+  // yellow procedural blob (retired with the succulent mascot).
+  // writing → noting notepad; thinking/listening → coffee sip; else idle.
+  const sprite =
+    SPRITES[state] ||
+    (state === "writing" ? SPRITES.noting : undefined) ||
+    (state === "thinking" || state === "listening" ? SPRITES.coffee : undefined) ||
+    SPRITES.idle;
   if (sprite && sprite.frames.length > 0) {
+    // Celebration needs party energy on top of the clip (sparkles), not just the bottle open.
+    if (state === "celebrating") {
+      return (
+        <div className="celebrate-wrap" style={{ position: "relative", width: 204, height: 240 }}>
+          <SpriteAnim anim={sprite} />
+          <div className="party-fx" aria-hidden>
+            <span className="burst b1">✦</span>
+            <span className="burst b2">✦</span>
+            <span className="burst b3">✧</span>
+            <span className="burst b4">✦</span>
+            <span className="burst b5">✧</span>
+            <span className="conf c1" />
+            <span className="conf c2" />
+            <span className="conf c3" />
+            <span className="conf c4" />
+            <span className="conf c5" />
+            <span className="conf c6" />
+          </div>
+          <style>{`
+            .celebrate-wrap { overflow: visible; }
+            .party-fx { pointer-events: none; position: absolute; inset: 0; z-index: 2; }
+            .burst {
+              position: absolute; color: #FFD75E; font-size: 14px; font-weight: 700;
+              animation: burstpop 0.55s ease-out infinite;
+              text-shadow: 0 0 6px rgba(255, 215, 94, 0.7);
+            }
+            .b1 { left: 12px; top: 28px; animation-delay: 0s; }
+            .b2 { right: 8px; top: 18px; animation-delay: 0.12s; font-size: 18px; color: #FF8A7A; }
+            .b3 { left: 28px; top: 8px; animation-delay: 0.22s; color: #7FB8E8; }
+            .b4 { right: 24px; top: 48px; animation-delay: 0.08s; color: #F9A8C4; }
+            .b5 { left: 48px; top: 22px; animation-delay: 0.3s; font-size: 11px; }
+            @keyframes burstpop {
+              0% { transform: scale(0.4) rotate(-12deg); opacity: 0; }
+              35% { transform: scale(1.25) rotate(8deg); opacity: 1; }
+              100% { transform: scale(0.7) translateY(-10px); opacity: 0; }
+            }
+            .conf {
+              position: absolute; width: 7px; height: 10px; border-radius: 2px;
+              animation: confetti 0.9s linear infinite;
+            }
+            .c1 { left: 20px; top: 40px; background: #FF8A7A; animation-delay: 0s; }
+            .c2 { left: 50px; top: 30px; background: #FFD75E; animation-delay: 0.15s; }
+            .c3 { left: 90px; top: 24px; background: #93C46F; animation-delay: 0.28s; }
+            .c4 { left: 120px; top: 36px; background: #7FB8E8; animation-delay: 0.1s; }
+            .c5 { left: 70px; top: 50px; background: #F9A8C4; animation-delay: 0.35s; }
+            .c6 { left: 140px; top: 55px; background: #FFCF96; animation-delay: 0.2s; }
+            @keyframes confetti {
+              0% { transform: translate(0,0) rotate(0deg); opacity: 1; }
+              100% { transform: translate(var(--dx, 8px), 70px) rotate(220deg); opacity: 0; }
+            }
+            .c1 { --dx: -12px; } .c2 { --dx: 6px; } .c3 { --dx: -4px; }
+            .c4 { --dx: 14px; } .c5 { --dx: -8px; } .c6 { --dx: 4px; }
+          `}</style>
+        </div>
+      );
+    }
     return <SpriteAnim anim={sprite} />;
   }
 

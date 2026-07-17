@@ -1,4 +1,4 @@
-import { panel, smallBtn } from "./theme";
+import { COLORS, panel, smallBtn, primaryBtn } from "./theme";
 
 export interface FiredReminder {
   id: string;
@@ -28,21 +28,21 @@ export default function ReminderBubble({
         left: "50%",
         transform: "translateX(-50%)",
         width: 250,
-        padding: "10px 12px",
+        padding: "12px 14px",
         pointerEvents: "auto",
         zIndex: 20,
         animation: "bubblein 0.35s cubic-bezier(0.34, 1.4, 0.64, 1)",
       }}
     >
-      <div style={{ fontSize: 12.5, lineHeight: 1.45 }}>
+      <div style={{ fontSize: 12.5, lineHeight: 1.45, color: COLORS.text }}>
         ⏰ {fired.missed ? "psst — while you were away: " : ""}
-        <b>{fired.text}</b>
+        <b style={{ color: COLORS.bubbleText }}>{fired.text}</b>
         {fired.missed && (
-          <span style={{ color: "#b3a284" }}> (this was for {fired.timeLabel})</span>
+          <span style={{ color: COLORS.textSoft }}> (this was for {fired.timeLabel})</span>
         )}
       </div>
-      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-        <button style={{ ...smallBtn, flex: 1, borderColor: "#c9dfb2", background: "#eaf3df" }} onClick={onDone}>
+      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+        <button style={{ ...primaryBtn, flex: 1 }} onClick={onDone}>
           done ✓
         </button>
         <button style={{ ...smallBtn, flex: 1 }} onClick={onSnooze}>
@@ -52,15 +52,17 @@ export default function ReminderBubble({
       <div
         style={{
           position: "absolute",
-          bottom: -7,
+          bottom: -6,
           left: "50%",
-          marginLeft: -7,
-          width: 14,
-          height: 14,
-          background: "rgba(255, 250, 240, 0.97)",
-          borderRight: "1px solid #e5d7ba",
-          borderBottom: "1px solid #e5d7ba",
+          marginLeft: -6,
+          width: 12,
+          height: 12,
+          background: COLORS.panelBg,
+          borderRight: `1px solid ${COLORS.panelBorder}`,
+          borderBottom: `1px solid ${COLORS.panelBorder}`,
           transform: "rotate(45deg)",
+          backdropFilter: "blur(56px)",
+          WebkitBackdropFilter: "blur(56px)",
         }}
       />
       <style>{`

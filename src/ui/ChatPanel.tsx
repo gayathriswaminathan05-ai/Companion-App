@@ -1,7 +1,55 @@
-import { useEffect, useRef, useState } from "react";
-import { panel, smallBtn } from "./theme";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import MicButton from "./MicButton";
 import type { ChatMsg } from "../brain";
+import sendIcon from "./assets/chat-send.svg";
+
+// Figma chat window (node 2:107) — frosted glass + lavender accents
+const COLORS = {
+  panelBg: "rgba(243, 243, 243, 0.94)",
+  panelBorder: "#ffffff",
+  bubbleUser: "#e7e3ff",
+  bubbleBot: "#ffffff",
+  text: "#201d2f",
+  textUser: "#190681",
+  placeholder: "#9e9e9e",
+  inputBg: "#ffffff",
+  accent: "#6A53E7",
+  accentSoft: "#f5f3ff",
+  sendIdle: "rgba(106, 83, 231, 0.22)",
+};
+
+const INPUT_MAX_H = 120; // grows upward until this, then scrolls
+
+const shell: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  height: "100%",
+  padding: 12,
+  gap: 12,
+  background: COLORS.panelBg,
+  border: `1px solid ${COLORS.panelBorder}`,
+  borderRadius: 20,
+  boxShadow: "0 4px 18px rgba(32, 29, 47, 0.12)",
+  fontFamily: '"Noto Sans", system-ui, -apple-system, sans-serif',
+  color: COLORS.text,
+  backdropFilter: "blur(40px) saturate(1.4)",
+  WebkitBackdropFilter: "blur(40px) saturate(1.4)",
+  boxSizing: "border-box",
+  position: "relative",
+};
+
+const inputBar: React.CSSProperties = {
+  display: "flex",
+  alignItems: "flex-end",
+  justifyContent: "space-between",
+  gap: 8,
+  padding: 12,
+  background: COLORS.inputBg,
+  borderRadius: 10,
+  boxShadow:
+    "0 1px 2px rgba(12, 12, 13, 0.1), 0 1px 2px rgba(12, 12, 13, 0.05)",
+  flexShrink: 0,
+};
 
 export default function ChatPanel({
   messages,
@@ -14,7 +62,7 @@ export default function ChatPanel({
   onBlobState,
 }: {
   messages: ChatMsg[];
-  streamText: string | null; // partial assistant reply while streaming
+  streamText: string | null;
   busy: boolean;
   connected: boolean;
   onConnectKey: (key: string) => void;
@@ -25,37 +73,52 @@ export default function ChatPanel({
   const [text, setText] = useState("");
   const [keyDraft, setKeyDraft] = useState("");
   const [micKey, setMicKey] = useState(0);
+  const [recording, setRecording] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  const hasContent = Boolean(text.trim());
+  const active = (hasContent || recording) && !busy;
+  const canSend = hasContent && !busy;
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
   }, [messages, streamText]);
+
+  // Auto-grow textarea upward (like Cursor composer).
+  useLayoutEffect(() => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = "0px";
+    const next = Math.min(el.scrollHeight, INPUT_MAX_H);
+    el.style.height = `${next}px`;
+  }, [text]);
 
   const send = () => {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
     onSend(trimmed);
     setText("");
-    setMicKey((k) => k + 1); // cancels any in-flight transcription cleanly
+    setMicKey((k) => k + 1);
   };
 
   if (!connected) {
     return (
-      <div style={{ ...panel, display: "flex", flexDirection: "column", height: "100%", padding: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>connect my brain 🔑</span>
-          <button style={{ ...smallBtn, padding: "2px 8px" }} onClick={onClose}>✕</button>
+      <div style={shell}>
+        <CloseBtn onClose={onClose} />
+        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginBottom: 4 }}>
+          connect my brain
         </div>
-        <div style={{ fontSize: 12, lineHeight: 1.55, color: "#5a4a3a" }}>
+        <div style={{ fontSize: 12, lineHeight: 1.55, color: COLORS.text, opacity: 0.7, flex: 1 }}>
           to really talk with you, I need a Claude API key:
           <ol style={{ margin: "6px 0", paddingLeft: 18 }}>
             <li>go to <b>platform.claude.com</b></li>
             <li>sign in → <b>API Keys</b> → <b>Create key</b></li>
             <li>copy it and paste below</li>
           </ol>
-          it's stored only on this computer, never anywhere else 🤍
+          it's stored only on this computer, never anywhere else
         </div>
-        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+        <div style={{ ...inputBar, gap: 8, alignItems: "center" }}>
           <input
             value={keyDraft}
             onChange={(e) => setKeyDraft(e.target.value)}
@@ -64,18 +127,28 @@ export default function ChatPanel({
             style={{
               flex: 1,
               fontSize: 12,
-              padding: "7px 9px",
-              borderRadius: 8,
-              border: "1px solid #d8c9ac",
+              border: "none",
               outline: "none",
               fontFamily: "inherit",
-              background: "#fffdf7",
-              color: "#5a4a3a",
+              background: "transparent",
+              color: COLORS.text,
+              minWidth: 0,
             }}
           />
           <button
-            style={{ ...smallBtn, borderColor: "#c9dfb2", background: "#eaf3df" }}
             onClick={() => keyDraft.trim() && onConnectKey(keyDraft.trim())}
+            style={{
+              border: "none",
+              borderRadius: 8,
+              padding: "6px 10px",
+              background: COLORS.accentSoft,
+              color: COLORS.accent,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              flexShrink: 0,
+            }}
           >
             connect
           </button>
@@ -85,16 +158,32 @@ export default function ChatPanel({
   }
 
   return (
-    <div style={{ ...panel, display: "flex", flexDirection: "column", height: "100%", padding: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 600 }}>chat 💬</span>
-        <button style={{ ...smallBtn, padding: "2px 8px" }} onClick={onClose}>✕</button>
-      </div>
+    <div style={shell}>
+      <CloseBtn onClose={onClose} />
 
-      <div ref={scroller} style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, paddingRight: 2 }}>
+      <div
+        ref={scroller}
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+          paddingRight: 2,
+          minHeight: 0,
+        }}
+      >
         {messages.length === 0 && streamText === null && (
-          <div style={{ fontSize: 12, color: "#a08e70", textAlign: "center", marginTop: 18 }}>
-            tell me anything — how your day's going, some gossip, a question… 🌱
+          <div
+            style={{
+              fontSize: 12,
+              color: COLORS.placeholder,
+              textAlign: "center",
+              marginTop: 18,
+              lineHeight: 1.5,
+            }}
+          >
+            tell me anything — how your day's going, some gossip, a question…
           </div>
         )}
         {messages.map((m, i) => (
@@ -103,61 +192,85 @@ export default function ChatPanel({
         {streamText !== null && <Bubble mine={false} text={streamText || "…"} />}
       </div>
 
-      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-        <div
+      <div style={inputBar}>
+        <textarea
+          ref={taRef}
+          value={text}
+          rows={1}
+          onChange={(e) => setText(e.target.value)}
+          onFocus={() => onBlobState("listening")}
+          onBlur={() => onBlobState("idle")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
+          placeholder={busy ? "thinking…" : "Let’s chat..."}
           style={{
             flex: 1,
+            fontSize: 12,
+            fontWeight: 500,
+            lineHeight: "18px",
+            padding: 0,
+            border: "none",
+            outline: "none",
+            resize: "none",
+            overflowY: "auto",
+            fontFamily: "inherit",
+            background: "transparent",
+            color: COLORS.text,
+            minWidth: 0,
+            maxHeight: INPUT_MAX_H,
+            alignSelf: "center",
+          }}
+        />
+        <div
+          style={{
             display: "flex",
             alignItems: "center",
-            gap: 2,
-            border: "1px solid #d8c9ac",
-            borderRadius: 8,
-            background: "#fffdf7",
-            padding: "2px 4px 2px 8px",
+            gap: 8,
+            flexShrink: 0,
+            paddingBottom: 0,
+            alignSelf: "flex-end",
           }}
         >
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onFocus={() => onBlobState("listening")}
-            onBlur={() => onBlobState("idle")}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder={busy ? "thinking…" : "say something… (hold 🎤 to talk)"}
-            style={{
-              flex: 1,
-              fontSize: 12,
-              padding: "5px 0",
-              border: "none",
-              outline: "none",
-              fontFamily: "inherit",
-              background: "transparent",
-              color: "#5a4a3a",
-            }}
+          <MicButton
+            key={micKey}
+            variant="chat"
+            current={text}
+            onTranscript={setText}
+            onRecordingChange={setRecording}
           />
-          <MicButton key={micKey} bare current={text} onTranscript={setText} />
           <button
             onClick={send}
-            disabled={!text.trim() || busy}
+            disabled={!canSend}
             title="send"
             style={{
-              width: 26,
-              height: 26,
-              minWidth: 26,
-              borderRadius: "50%",
+              width: 22,
+              height: 22,
+              minWidth: 22,
+              borderRadius: 22,
               border: "none",
-              background: text.trim() && !busy ? "#5a4a3a" : "#d8cbb4",
-              color: "#fff8ec",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: text.trim() && !busy ? "pointer" : "default",
+              background: active ? COLORS.accent : COLORS.sendIdle,
+              cursor: canSend ? "pointer" : "default",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               padding: 0,
-              transition: "background 0.15s",
+              transition: "background 0.2s ease, transform 0.15s ease",
+              transform: active ? "scale(1)" : "scale(0.96)",
+              opacity: busy ? 0.6 : 1,
             }}
           >
-            ↑
+            <img
+              src={sendIcon}
+              alt=""
+              width={12}
+              height={12}
+              style={{ display: "block", pointerEvents: "none" }}
+              draggable={false}
+            />
           </button>
         </div>
       </div>
@@ -165,7 +278,36 @@ export default function ChatPanel({
   );
 }
 
-// Markdown-lite: **bold**, [label](url), bare URLs, "- " bullets → rich nodes.
+function CloseBtn({ onClose }: { onClose: () => void }) {
+  return (
+    <button
+      onClick={onClose}
+      title="close"
+      style={{
+        position: "absolute",
+        top: 8,
+        right: 8,
+        width: 22,
+        height: 22,
+        border: "none",
+        borderRadius: 11,
+        background: "rgba(255,255,255,0.55)",
+        color: COLORS.placeholder,
+        fontSize: 12,
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 0,
+        zIndex: 2,
+        fontFamily: "inherit",
+      }}
+    >
+      ✕
+    </button>
+  );
+}
+
 function renderInline(line: string, keyBase: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
   const re = /(\*\*[^*]+\*\*|\[[^\]]+\]\(https?:\/\/[^\s)]+\)|https?:\/\/[^\s)]+)/g;
@@ -188,7 +330,7 @@ function renderInline(line: string, keyBase: string): React.ReactNode[] {
             window.companion.openLink(url);
           }}
           href={url}
-          style={{ color: "#4a6a8a", textDecoration: "underline", cursor: "pointer", wordBreak: "break-all" }}
+          style={{ color: COLORS.accent, textDecoration: "underline", cursor: "pointer", wordBreak: "break-all" }}
         >
           {label}
         </a>,
@@ -202,7 +344,7 @@ function renderInline(line: string, keyBase: string): React.ReactNode[] {
             window.companion.openLink(tok);
           }}
           href={tok}
-          style={{ color: "#4a6a8a", textDecoration: "underline", cursor: "pointer", wordBreak: "break-all" }}
+          style={{ color: COLORS.accent, textDecoration: "underline", cursor: "pointer", wordBreak: "break-all" }}
         >
           {shortLabel(tok)}
         </a>,
@@ -239,21 +381,22 @@ function Bubble({ mine, text, sources }: { mine: boolean; text: string; sources?
   return (
     <div
       style={{
-        alignSelf: mine ? "flex-end" : "flex-start",
-        maxWidth: "84%",
-        fontSize: 12.5,
-        lineHeight: 1.45,
-        padding: "6px 10px",
-        borderRadius: 12,
-        background: mine ? "#ffe9c2" : "#f2f7ea",
-        border: "1px solid " + (mine ? "#f0d9a8" : "#dbe8cc"),
-        color: "#5a4a3a",
+        alignSelf: "stretch",
+        fontSize: 12,
+        fontWeight: 500,
+        lineHeight: "16.7px",
+        padding: 12,
+        borderRadius: 10,
+        background: mine ? COLORS.bubbleUser : COLORS.bubbleBot,
+        color: COLORS.text,
+        opacity: 0.9,
         wordBreak: "break-word",
+        boxShadow: mine ? undefined : "0 1px 2px rgba(12, 12, 13, 0.06)",
       }}
     >
-      {renderRich(text)}
+      <div style={{ opacity: 0.78 }}>{renderRich(text)}</div>
       {sources && sources.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
           {sources.map((s) => (
             <button
               key={s.url}
@@ -263,9 +406,9 @@ function Bubble({ mine, text, sources }: { mine: boolean; text: string; sources?
                 fontSize: 10,
                 padding: "2px 7px",
                 borderRadius: 8,
-                border: "1px solid #c9d8e8",
-                background: "#eef4fa",
-                color: "#4a6a8a",
+                border: "none",
+                background: COLORS.accentSoft,
+                color: COLORS.accent,
                 cursor: "pointer",
                 fontFamily: "inherit",
                 maxWidth: 180,

@@ -11,10 +11,12 @@ export type CharacterState =
   | "waking"
   | "waving"
   | "celebrating"
+  | "laughing" // joke punchline — party laugh clip
   | "writing"
   | "stretching"
   | "listening"
   | "thinking"
+  | "coffee" // chat open: sit & sip
   | "juggling"
   | "noting"
   | "watering"
@@ -37,10 +39,12 @@ export const ALL_STATES: CharacterState[] = [
   "waking",
   "waving",
   "celebrating",
+  "laughing",
   "writing",
   "stretching",
   "listening",
   "thinking",
+  "coffee",
   "juggling",
   "noting",
   "watering",

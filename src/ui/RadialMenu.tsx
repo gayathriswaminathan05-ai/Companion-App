@@ -1,228 +1,219 @@
-// Menu v4: click the plant → it does its little jump (idlehop sprite, played
-// by App) → this frosted-glass bar RISES UP above it, with a caret pointing
-// down at the plant like a speech-bubble tooltip. (The juggling-balls
-// choreography of v1-v3 is retired.)
+// Menu v5: Figma pill bar — frosted capsule with white circular buttons;
+// default = purple outline icons, hover = solid #6A53E7 with white icons.
 import { useState } from "react";
+import { MenuIcon, type MenuIconId } from "./MenuIcons";
 
 export interface RadialItem {
-  icon: string;
+  icon: MenuIconId;
   label: string;
   onClick: () => void;
 }
 
-const WIN_W = 320;
-const BALL_COLORS = ["#FF8A7A", "#FFD75E", "#93C46F", "#7FB8E8", "#F9A8C4"];
-
-const PLANT_X = 160; // the succulent stands centered in the window
-const BAR_Y = 254; // bar center: caret tip lands just above the leaf tips (~y304), no overlap
-const SLOT = 52; // horizontal distance between item centers
-const BALL = 38; // item button size
-const PILL_PAD = 12;
+const WIN_W = 384;
+const WIN_H = 600;
+const CHAR_H = 240;
+const PLANT_X = 192;
+const MENU_GAP = 55;
+const BTN = 36;
+const ICON = 20;
+const GAP = 10;
+const PILL_PAD = 8;
+const CLOSE = 18;
+const ACCENT = "#6A53E7";
+const BTN_SHADOW = "0px -2px 4px rgba(0,0,0,0.08), 0px 3px 4px rgba(0,0,0,0.08)";
 
 export default function RadialMenu({
   items,
   clipLeft,
   clipRight,
+  clipTop = 0,
+  clipBottom = 0,
+  plantScale = 1,
   onDismiss,
   onSecret,
 }: {
   items: RadialItem[];
   clipLeft: number;
   clipRight: number;
+  clipTop?: number;
+  clipBottom?: number;
+  plantScale?: number;
   onDismiss?: () => void;
   onSecret?: () => void;
 }) {
   const [hovered, setHovered] = useState<string | null>(null);
 
-  const n = items.length;
-  // The ✕ lives inside the pill, after the last item (slightly tighter slot).
-  const dismissGap = onDismiss ? 44 : 0;
-  const pillW =
-    PILL_PAD + BALL / 2 + (n - 1) * SLOT + dismissGap + (onDismiss ? 11 : BALL / 2) + PILL_PAD;
+  const scale = Math.min(1.2, Math.max(0.6, plantScale || 1));
+  const pillH = PILL_PAD * 2 + BTN;
+  let barY = WIN_H - CHAR_H * scale - MENU_GAP;
+  barY = Math.max(clipTop + pillH / 2 + 8, Math.min(barY, WIN_H - clipBottom - pillH / 2 - 8));
 
-  // Keep the whole bar inside the visible part of the window, wherever the
-  // plant has been parked on screen.
+  const n = items.length;
+  const pillW = PILL_PAD * 2 + n * BTN + (n - 1) * GAP;
+
   const visL = clipLeft + 5;
   const visR = WIN_W - clipRight - 5;
-  let barX = Math.min(Math.max(PLANT_X, visL + pillW / 2), visR - pillW / 2);
-  if (visR - visL < pillW) barX = (visL + visR) / 2;
+  // Leave a little room on the right for the floating ✕ above the bar edge.
+  const closePad = onDismiss ? CLOSE + 4 : 0;
+  let barX = Math.min(Math.max(PLANT_X, visL + pillW / 2), visR - pillW / 2 - closePad);
+  if (visR - visL < pillW + closePad) barX = (visL + visR - closePad) / 2;
 
-  const firstBall = -pillW / 2 + PILL_PAD + BALL / 2;
-  const offsets = items.map((_, i) => firstBall + i * SLOT);
-  const dismissOffset = firstBall + (n - 1) * SLOT + dismissGap;
-
-  // The caret points at the plant even when the bar slid sideways at an edge.
-  const caretX = Math.min(Math.max(PLANT_X, barX - pillW / 2 + 26), barX + pillW / 2 - 26);
+  const pillLeft = barX - pillW / 2;
+  const pillTop = barY - pillH / 2;
 
   return (
-    <div className="menu-rise" style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 9 }}>
-      {/* Tooltip tail first (painted under the pill), then the glass pill. */}
+    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 9 }}>
       <div
-        className="menu-caret"
+        className="menu-rise"
         style={{
           position: "absolute",
-          left: caretX - 9,
-          top: BAR_Y + 27 - 9,
-          width: 18,
-          height: 18,
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: barX - pillW / 2,
-          top: BAR_Y - 27,
+          left: pillLeft,
+          top: pillTop,
           width: pillW,
-          height: 54,
+          height: pillH,
+          display: "flex",
+          alignItems: "center",
+          gap: GAP,
+          padding: PILL_PAD,
+          boxSizing: "border-box",
+          borderRadius: 28,
+          background: "rgba(243, 243, 243, 0.94)",
+          border: "1px solid #ffffff",
+          boxShadow: "0 6px 18px rgba(32, 29, 47, 0.12)",
+          backdropFilter: "blur(40px) saturate(1.4)",
+          WebkitBackdropFilter: "blur(40px) saturate(1.4)",
+          isolation: "isolate",
+          pointerEvents: "auto",
         }}
+        onMouseEnter={() => window.companion?.setClickThrough(false)}
+        onMouseLeave={() => window.companion?.setClickThrough(true)}
       >
-        <div className="menu-pill" />
-      </div>
-
-      {items.map((item, i) => {
-        const color = BALL_COLORS[i % BALL_COLORS.length];
-        const isHover = hovered === item.label;
-        return (
-          <div
-            key={item.label}
+        {onSecret && (
+          <button
+            onClick={onSecret}
+            aria-label="showcase"
+            title="showcase"
             style={{
               position: "absolute",
-              zIndex: 10,
-              left: barX + offsets[i] - BALL / 2,
-              top: BAR_Y - BALL / 2,
-              width: BALL,
-              height: BALL,
-              pointerEvents: "auto",
+              left: 2,
+              top: "50%",
+              transform: "translateY(-50%)",
+              width: 12,
+              height: 12,
+              border: "none",
+              background: "transparent",
+              color: ACCENT,
+              fontSize: 7,
+              opacity: 0.15,
+              cursor: "pointer",
+              padding: 0,
+              zIndex: 2,
             }}
-            onMouseEnter={() => {
-              window.companion?.setClickThrough(false);
-              setHovered(item.label);
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.opacity = "0.7";
             }}
-            onMouseLeave={() => {
-              window.companion?.setClickThrough(true);
-              setHovered(null);
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.opacity = "0.15";
             }}
           >
+            ✦
+          </button>
+        )}
+
+        {items.map((item, i) => {
+          const hot = hovered === item.label;
+          return (
             <button
+              key={item.label}
               onClick={item.onClick}
               title={item.label}
               className="menu-item"
               style={{
                 animationDelay: `${90 + i * 40}ms`,
-                width: BALL,
-                height: BALL,
-                borderRadius: "50%",
-                border: `2px solid ${color}`,
-                background: isHover ? color : "rgba(255, 252, 246, 0.9)",
-                boxShadow: isHover
-                  ? `0 4px 12px rgba(90, 70, 40, 0.3)`
-                  : "0 2px 7px rgba(90, 70, 40, 0.18)",
-                fontSize: 16,
+                width: BTN,
+                height: BTN,
+                minWidth: BTN,
+                borderRadius: 20,
+                border: "none",
+                background: hot ? ACCENT : "#ffffff",
+                color: hot ? "#ffffff" : ACCENT,
+                boxShadow: BTN_SHADOW,
                 cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
                 padding: 0,
-                transition: "background 0.16s, box-shadow 0.16s",
+                transition: "background 0.18s ease, color 0.18s ease, transform 0.15s ease",
+                transform: hot ? "scale(1.04)" : "scale(1)",
+                position: "relative",
+                flexShrink: 0,
               }}
+              onMouseEnter={() => setHovered(item.label)}
+              onMouseLeave={() => setHovered(null)}
             >
-              {item.icon}
+              <MenuIcon id={item.icon} size={ICON} />
+              <span
+                style={{
+                  position: "absolute",
+                  top: BTN + 6,
+                  left: "50%",
+                  transform: `translate(-50%, ${hot ? 0 : -3}px)`,
+                  opacity: hot ? 1 : 0,
+                  transition: "opacity 0.15s, transform 0.15s",
+                  fontSize: 9,
+                  fontFamily: "system-ui, sans-serif",
+                  color: "#201d2f",
+                  background: "rgba(255,255,255,0.92)",
+                  borderRadius: 5,
+                  padding: "1px 6px",
+                  whiteSpace: "nowrap",
+                  pointerEvents: "none",
+                  boxShadow: "0 2px 8px rgba(32,29,47,0.12)",
+                }}
+              >
+                {item.label}
+              </span>
             </button>
-            {/* Label appears only for the hovered item — keeps the bar clean. */}
-            <div
-              style={{
-                position: "absolute",
-                top: BALL + 9,
-                left: "50%",
-                transform: `translate(-50%, ${isHover ? 0 : -3}px)`,
-                opacity: isHover ? 1 : 0,
-                transition: "opacity 0.15s, transform 0.15s",
-                fontSize: 10,
-                fontFamily: "system-ui, sans-serif",
-                color: "#5a4a3a",
-                background: "rgba(255, 252, 246, 0.92)",
-                border: "1px solid rgba(255,255,255,0.8)",
-                borderRadius: 6,
-                padding: "2px 7px",
-                whiteSpace: "nowrap",
-                pointerEvents: "none",
-                boxShadow: "0 2px 8px rgba(90, 70, 40, 0.14)",
-              }}
-            >
-              {item.label}
-            </div>
-          </div>
-        );
-      })}
-
-      {onSecret && (
-        <button
-          onClick={onSecret}
-          aria-label="showcase"
-          onMouseEnter={(e) => {
-            window.companion?.setClickThrough(false);
-            (e.currentTarget as HTMLButtonElement).style.opacity = "0.7";
-          }}
-          onMouseLeave={(e) => {
-            window.companion?.setClickThrough(true);
-            (e.currentTarget as HTMLButtonElement).style.opacity = "0.12";
-          }}
-          style={{
-            position: "absolute",
-            zIndex: 11,
-            left: barX - pillW / 2 + 2,
-            top: BAR_Y - 8,
-            width: 16,
-            height: 16,
-            borderRadius: "50%",
-            border: "none",
-            background: "transparent",
-            color: "#a08e70",
-            fontSize: 9,
-            lineHeight: 1,
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 0,
-            pointerEvents: "auto",
-            opacity: 0.12,
-            transition: "opacity 0.2s",
-          }}
-        >
-          ✦
-        </button>
-      )}
+          );
+        })}
+      </div>
 
       {onDismiss && (
         <button
           onClick={onDismiss}
           title="close"
           className="menu-item"
-          onMouseEnter={() => window.companion?.setClickThrough(false)}
-          onMouseLeave={() => window.companion?.setClickThrough(true)}
+          onMouseEnter={() => {
+            window.companion?.setClickThrough(false);
+            setHovered("__close");
+          }}
+          onMouseLeave={() => {
+            window.companion?.setClickThrough(true);
+            setHovered(null);
+          }}
           style={{
             position: "absolute",
-            zIndex: 10,
-            left: barX + dismissOffset - 11,
-            top: BAR_Y - 11,
-            width: 22,
-            height: 22,
+            left: pillLeft + pillW - CLOSE / 2,
+            top: pillTop - CLOSE - 2,
+            zIndex: 11,
+            width: CLOSE,
+            height: CLOSE,
             borderRadius: "50%",
-            border: "1.5px solid #d8c9ac",
-            background: "rgba(255, 252, 246, 0.85)",
-            boxShadow: "0 2px 6px rgba(90,74,58,0.12)",
-            color: "#a08e70",
-            fontSize: 10,
-            lineHeight: 1,
+            border: "1px solid #ffffff",
+            background: hovered === "__close" ? ACCENT : "rgba(255,255,255,0.92)",
+            color: hovered === "__close" ? "#ffffff" : "#9e9e9e",
+            boxShadow: "0 2px 6px rgba(32,29,47,0.14)",
             cursor: "pointer",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
             padding: 0,
+            fontSize: 10,
+            fontWeight: 600,
+            lineHeight: 1,
             pointerEvents: "auto",
+            transition: "background 0.15s ease, color 0.15s ease",
             animationDelay: `${90 + n * 40}ms`,
-            transition: "background 0.16s, color 0.16s",
           }}
         >
           ✕
@@ -230,39 +221,13 @@ export default function RadialMenu({
       )}
 
       <style>{`
-        /* The whole bar rises up from the plant, like a thought appearing. */
         .menu-rise {
-          animation: menurise 0.3s cubic-bezier(0.3, 1.2, 0.45, 1) backwards;
+          /* Opacity-only entrance — transform on this node kills backdrop-filter. */
+          animation: menurise 0.28s ease-out backwards;
         }
         @keyframes menurise {
-          from { transform: translateY(16px); opacity: 0; }
-          to   { transform: translateY(0); opacity: 1; }
-        }
-        .menu-pill {
-          width: 100%;
-          height: 100%;
-          border-radius: 27px;
-          background: linear-gradient(180deg, rgba(255,253,248,0.62), rgba(255,248,236,0.5));
-          backdrop-filter: blur(16px) saturate(1.35);
-          -webkit-backdrop-filter: blur(16px) saturate(1.35);
-          border: 1px solid rgba(255, 255, 255, 0.72);
-          box-shadow:
-            0 10px 30px rgba(90, 74, 58, 0.22),
-            0 2px 8px rgba(90, 74, 58, 0.1),
-            inset 0 1px 0 rgba(255, 255, 255, 0.9),
-            inset 0 -1px 0 rgba(90, 74, 58, 0.05);
-        }
-        /* Tooltip tail: a rotated glass square whose lower corner pokes out
-           from under the pill and points at the plant (Todoist-style). */
-        .menu-caret {
-          background: linear-gradient(135deg, rgba(255,253,248,0.66), rgba(255,248,236,0.58));
-          backdrop-filter: blur(16px) saturate(1.35);
-          -webkit-backdrop-filter: blur(16px) saturate(1.35);
-          border-right: 1px solid rgba(255,255,255,0.72);
-          border-bottom: 1px solid rgba(255,255,255,0.72);
-          border-radius: 3px;
-          transform: rotate(45deg);
-          box-shadow: 4px 4px 10px rgba(90, 74, 58, 0.12);
+          from { opacity: 0; }
+          to   { opacity: 1; }
         }
         .menu-item {
           animation: itempop 0.24s cubic-bezier(0.3, 1.35, 0.5, 1) backwards;

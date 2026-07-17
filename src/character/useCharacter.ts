@@ -4,16 +4,12 @@ import type { CharacterState } from "./types";
 // States that play once, then return to idle automatically (duration in ms).
 const TIMED: Partial<Record<CharacterState, number>> = {
   idlehop: 2000, // one hop burst (24 frames at 12fps), then settle
-  // Idle ACTIVITIES: he does these for a little while, then returns to calm.
-  lying: 40000,
-  hammock: 45000,
-  meditate: 40000,
-  picnic: 35000,
-  groove: 30000,
-  hula: 25000,
+  // Idle ACTIVITIES: App rotates these every 10 min as the resting default —
+  // no auto-return here so the pose sticks until the next swap (or interrupt).
   waking: 1400,
   waving: 2200,
-  celebrating: 2600,
+  celebrating: 1400, // trimmed open+spray+laugh (~1.3s at 18fps)
+  laughing: 3400, // full party laugh for jokes (~3.4s at 18fps)
   writing: 3400,
   stretching: 5200, // full follow-along routine (5s clip)
   juggling: 750,

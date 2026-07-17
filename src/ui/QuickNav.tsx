@@ -1,63 +1,77 @@
-// Horizontal quick-switch bar shown above an open panel: jump between
-// features without closing and re-juggling the menu.
+// Horizontal quick-switch bar above an open panel — compact Figma-style pill.
+import { useState } from "react";
+import { MenuIcon, type MenuIconId } from "./MenuIcons";
 
 export interface QuickNavItem {
-  icon: string;
+  icon: MenuIconId;
   label: string;
-  color: string;
   active?: boolean;
   onClick: () => void;
 }
 
+const ACCENT = "#6A53E7";
+const BTN = 26;
+const ICON = 15;
+const BTN_SHADOW = "0px -1px 3px rgba(0,0,0,0.08), 0px 2px 3px rgba(0,0,0,0.08)";
+
 export default function QuickNav({ items }: { items: QuickNavItem[] }) {
+  const [hovered, setHovered] = useState<string | null>(null);
+
   return (
     <div
       onMouseEnter={() => window.companion?.setClickThrough(false)}
-      onMouseLeave={() => window.companion?.setClickThrough(true)}
+      onMouseLeave={() => {
+        window.companion?.setClickThrough(true);
+        setHovered(null);
+      }}
       style={{
         display: "flex",
-        gap: 8,
+        gap: 7,
         justifyContent: "center",
         alignItems: "center",
         pointerEvents: "auto",
-        // Frosted-glass pill, matching the juggle menu bar.
-        padding: "7px 12px",
+        padding: "5px 7px",
         borderRadius: 22,
-        background: "linear-gradient(180deg, rgba(255,253,248,0.62), rgba(255,248,236,0.5))",
-        backdropFilter: "blur(16px) saturate(1.35)",
-        WebkitBackdropFilter: "blur(16px) saturate(1.35)",
-        border: "1px solid rgba(255,255,255,0.72)",
-        boxShadow:
-          "0 8px 22px rgba(90,74,58,0.2), 0 2px 6px rgba(90,74,58,0.09), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(90,74,58,0.05)",
+        background: "rgba(243, 243, 243, 0.94)",
+        border: "1px solid #ffffff",
+        boxShadow: "0 4px 14px rgba(32, 29, 47, 0.12)",
+        backdropFilter: "blur(40px) saturate(1.4)",
+        WebkitBackdropFilter: "blur(40px) saturate(1.4)",
+        isolation: "isolate",
         width: "fit-content",
-        margin: "0 auto",
+        flexShrink: 0,
       }}
     >
-      {items.map((it) => (
-        <button
-          key={it.label}
-          onClick={it.onClick}
-          title={it.label}
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: "50%",
-            border: `2px solid ${it.color}`,
-            background: it.active ? it.color : "rgba(255, 250, 240, 0.97)",
-            boxShadow: "0 2px 6px rgba(90, 70, 40, 0.2)",
-            fontSize: 14,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 0,
-            transform: it.active ? "scale(1.12)" : "scale(1)",
-            transition: "transform 0.15s, background 0.15s",
-          }}
-        >
-          {it.icon}
-        </button>
-      ))}
+      {items.map((it) => {
+        const hot = it.active || hovered === it.label;
+        return (
+          <button
+            key={it.label}
+            onClick={it.onClick}
+            title={it.label}
+            onMouseEnter={() => setHovered(it.label)}
+            onMouseLeave={() => setHovered(null)}
+            style={{
+              width: BTN,
+              height: BTN,
+              borderRadius: 14,
+              border: "none",
+              background: hot ? ACCENT : "#ffffff",
+              color: hot ? "#ffffff" : ACCENT,
+              boxShadow: BTN_SHADOW,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+              transform: hot ? "scale(1.06)" : "scale(1)",
+              transition: "background 0.18s ease, color 0.18s ease, transform 0.15s ease",
+            }}
+          >
+            <MenuIcon id={it.icon} size={ICON} />
+          </button>
+        );
+      })}
     </div>
   );
 }

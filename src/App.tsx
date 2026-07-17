@@ -9,6 +9,7 @@ import NudgeBubble from "./ui/NudgeBubble";
 import QuickNav from "./ui/QuickNav";
 import Showcase from "./ui/Showcase";
 import SettingsPanel from "./ui/SettingsPanel";
+import PanelResizeHandles from "./ui/PanelResizeHandles";
 import { formatDue, parseWhen } from "./reminders";
 import { useCharacter } from "./character/useCharacter";
 import { AppData, emptyData, loadData, saveData, sproutStageFor, today } from "./store";
@@ -25,8 +26,9 @@ declare global {
       hide: () => void;
       quit: () => void;
       dataLoad: () => Promise<unknown>;
-      dataSave: (data: unknown) => void;
+      dataSave: (data: unknown) => Promise<unknown> | void;
       layoutInfo: () => Promise<unknown>;
+      setWindowSize: (size: { width: number; height: number }) => Promise<unknown>;
       ensureMic: () => Promise<unknown>;
       idleSeconds: () => Promise<unknown>;
       transcribe: (audioBuffer: ArrayBuffer) => Promise<unknown>;
@@ -50,16 +52,30 @@ const hoverable = {
   onMouseLeave: () => window.companion?.setClickThrough(true),
 };
 
+type Clip = { clipLeft: number; clipRight: number; clipTop: number; clipBottom: number };
+const EMPTY_CLIP: Clip = { clipLeft: 0, clipRight: 0, clipTop: 0, clipBottom: 0 };
+
+function normalizeClip(raw: Partial<Clip> | null | undefined): Clip {
+  return {
+    clipLeft: Math.max(0, Number(raw?.clipLeft) || 0),
+    clipRight: Math.max(0, Number(raw?.clipRight) || 0),
+    clipTop: Math.max(0, Number(raw?.clipTop) || 0),
+    clipBottom: Math.max(0, Number(raw?.clipBottom) || 0),
+  };
+}
+
 export default function App() {
   const { state, set } = useCharacter();
   const [data, setData] = useState<AppData>(emptyData());
   const [open, setOpen] = useState<"none" | "menu" | "tasks" | "chat" | "settings">("none");
-  const [clip, setClip] = useState({ clipLeft: 0, clipRight: 0 });
+  const [clip, setClip] = useState<Clip>(EMPTY_CLIP);
   const [firedQueue, setFiredQueue] = useState<FiredReminder[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
   const [showcase, setShowcase] = useState(false);
   const [dragging, setDragging] = useState(false);
+  // Live panel scale while edge-dragging (committed to settings on mouseup).
+  const [livePanelScale, setLivePanelScale] = useState<number | null>(null);
   const mouseDownAt = useRef<{ x: number; y: number } | null>(null);
 
   // Scribbling: pen moves while the user types (short debounce) or records.
@@ -72,6 +88,15 @@ export default function App() {
     pulseTimer.current = window.setTimeout(() => setTypePulse(false), 1500);
   };
   const scribbling = typePulse || recording;
+
+  const refreshClip = async () => {
+    try {
+      const raw = await window.companion.layoutInfo();
+      setClip(normalizeClip(raw as Partial<Clip>));
+    } catch {
+      /* ignore */
+    }
+  };
 
   useEffect(() => {
     loadData().then((d) => {
@@ -131,18 +156,31 @@ export default function App() {
     openRef.current = open;
   }, [open]);
 
-  // Spontaneous life: while calmly idling he hops once in a while (avg ~40s),
-  // and every 10-15 minutes settles into a little ACTIVITY — lounging,
-  // hammock, meditation, picnic, music, hula — for a spell, then back to calm.
-  const nextActivityAt = useRef(Date.now() + (10 + Math.random() * 5) * 60_000);
+  // Spontaneous life (PRD: "subtle randomized idle variations"):
+  // every 10 minutes the resting default rotates through living poses,
+  // and while on calm idle he still hops once in a while (avg ~40s).
+  const REST_POSES: CharacterState[] = [
+    "idle",
+    "lying",
+    "hammock",
+    "meditate",
+    "picnic",
+    "groove",
+    "hula",
+  ];
+  const restIdx = useRef(0);
+  const nextRestAt = useRef(Date.now() + 10 * 60_000);
   useEffect(() => {
-    const ACTIVITIES: CharacterState[] = ["lying", "hammock", "meditate", "picnic", "groove", "hula"];
     const id = window.setInterval(() => {
-      if (stateRef.current !== "idle" || openRef.current !== "none") return;
-      if (Date.now() >= nextActivityAt.current) {
-        set(ACTIVITIES[Math.floor(Math.random() * ACTIVITIES.length)]);
-        nextActivityAt.current = Date.now() + (10 + Math.random() * 5) * 60_000;
-      } else if (Math.random() < 0.2) {
+      if (openRef.current !== "none") return;
+      const s = stateRef.current;
+      const resting = REST_POSES.includes(s) || s === "idlehop";
+      if (!resting) return;
+      if (Date.now() >= nextRestAt.current) {
+        restIdx.current = (restIdx.current + 1) % REST_POSES.length;
+        set(REST_POSES[restIdx.current]);
+        nextRestAt.current = Date.now() + 10 * 60_000;
+      } else if (s === "idle" && Math.random() < 0.2) {
         set("idlehop");
       }
     }, 8000);
@@ -247,6 +285,14 @@ export default function App() {
   const [chatBusy, setChatBusy] = useState(false);
   const streamRef = useRef("");
 
+  // While chat is open, stay on coffee sip — timed poses (celebrate/write)
+  // auto-return to idle; nudge back so the yellow blob never shows.
+  useEffect(() => {
+    if (open === "chat" && !chatBusy && (state === "idle" || state === "thinking" || state === "listening")) {
+      set("coffee");
+    }
+  }, [open, chatBusy, state, set]);
+
   useEffect(() => {
     (window.companion.brainStatus() as Promise<{ connected: boolean }>).then((s) =>
       setBrainConnected(!!s?.connected),
@@ -312,7 +358,7 @@ export default function App() {
         set("writing");
         chirp("pop");
       } else {
-        set("idle");
+        set("coffee");
         chirp("msg");
       }
     });
@@ -334,7 +380,7 @@ export default function App() {
       streamRef.current = "";
       setStreamText(null);
       setChatBusy(false);
-      set("idle");
+      set("coffee");
     });
     return () => {
       offChunk();
@@ -355,7 +401,7 @@ export default function App() {
     setChatBusy(true);
     streamRef.current = "";
     setStreamText("");
-    set("thinking");
+    set("coffee");
     void window.companion.chatSend({
       id: crypto.randomUUID(),
       system: buildSystem(draft),
@@ -559,107 +605,200 @@ export default function App() {
   const sproutStage = sproutStageFor(data.sprout.points);
   const panelOpen = open === "tasks" || open === "chat" || open === "settings";
 
+  // Panel size when fully on-screen. Near a screen edge, shrink width
+  // to the visible band so chat/tasks aren't clipped (plant stays put).
+  // panelScale grows chat/tasks/settings; window expands upward to match.
+  const BASE_W = 384;
+  const BASE_H = 600;
+  const BASE_PANEL_H = 310;
+  const CHAR_H = 240;
+  const uiPad = 6;
+  const PLANT_GAP = 10; // space between panel bottom and plant top
+  const STACK_GAP = 6; // space between QuickNav and panel
+  const NAV_H = 40;
+  const plantScale = data.settings.plantScale ?? 1;
+  const savedPanelScale = Math.min(1.45, Math.max(0.85, data.settings.panelScale ?? 1));
+  const panelScale = livePanelScale ?? savedPanelScale;
+  const WIN_W = Math.round(BASE_W * (1 + (panelScale - 1) * 0.55));
+  const PANEL_H = Math.round(BASE_PANEL_H * panelScale);
+  const plantH = CHAR_H * plantScale;
+  const WIN_H = Math.max(
+    BASE_H,
+    Math.ceil(plantH + PLANT_GAP + PANEL_H + STACK_GAP + NAV_H + 20),
+  );
+  const PANEL_W = WIN_W - uiPad * 2;
+  const visL = clip.clipLeft + uiPad;
+  const visR = WIN_W - clip.clipRight - uiPad;
+  const availW = Math.max(0, visR - visL);
+  const panelW = availW > 0 ? Math.min(PANEL_W, availW) : PANEL_W;
+  let panelLeft = uiPad;
+  if (panelLeft < visL) panelLeft = visL;
+  if (panelLeft + panelW > visR) panelLeft = Math.max(visL, visR - panelW);
+  // Distance from window bottom → keeps stack glued to the plant.
+  const stackBottom = plantH + PLANT_GAP;
+
+  // Keep Electron window sized for the chosen panel scale (grow up from plant).
+  useEffect(() => {
+    void (async () => {
+      try {
+        const raw = await window.companion.setWindowSize({ width: WIN_W, height: WIN_H });
+        setClip(normalizeClip(raw as Partial<Clip>));
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [WIN_W, WIN_H]);
+
+  // Refresh edge clips when UI opens — never nudge the window/plant.
+  useEffect(() => {
+    if (panelOpen || open === "menu" || showcase) void refreshClip();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelOpen, open, showcase]);
+
   return (
     <div style={{ width: "100%", height: "100%", position: "relative", pointerEvents: "none" }}>
       {panelOpen && (
-        <>
-        <div style={{ position: "absolute", top: 4, left: 0, right: 0, pointerEvents: "none" }}>
+        <div
+          style={{
+            position: "absolute",
+            left: panelLeft,
+            width: panelW,
+            bottom: stackBottom,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: STACK_GAP,
+            pointerEvents: "none",
+          }}
+        >
           <QuickNav
             items={[
-              { icon: "💬", label: "chat", color: "#FF8A7A", active: open === "chat", onClick: () => { setOpen("chat"); if (!chatBusy) set("idle"); } },
-              { icon: "📝", label: "tasks", color: "#FFD75E", active: open === "tasks", onClick: () => { setOpen("tasks"); set("noting"); } },
-              { icon: "⚙️", label: "settings", color: "#93C46F", active: open === "settings", onClick: () => { setOpen("settings"); set("idle"); } },
-              { icon: "💤", label: "tuck away", color: "#7FB8E8", onClick: () => { setOpen("none"); window.companion?.hide(); } },
+              { icon: "chat", label: "chat", active: open === "chat", onClick: () => { setOpen("chat"); if (!chatBusy) set("coffee"); } },
+              { icon: "tasks", label: "tasks", active: open === "tasks", onClick: () => { setOpen("tasks"); set("noting"); } },
+              { icon: "settings", label: "settings", active: open === "settings", onClick: () => { setOpen("settings"); set("idle"); } },
+              { icon: "tuck", label: "nap", onClick: () => { setOpen("none"); window.companion?.hide(); } },
             ]}
           />
+          <div
+            {...hoverable}
+            style={{
+              position: "relative",
+              width: "100%",
+              height: PANEL_H,
+              pointerEvents: "auto",
+              flexShrink: 0,
+            }}
+          >
+            <PanelResizeHandles
+              scale={panelScale}
+              onScaleLive={setLivePanelScale}
+              onScaleCommit={(v) => {
+                setLivePanelScale(null);
+                patchSettings({ panelScale: v });
+              }}
+            />
+            {open === "tasks" && (
+              <TaskPanel
+                todos={data.todos}
+                sproutStage={sproutStage}
+                onAdd={addTask}
+                onActivity={noteActivity}
+                onMicPhase={setRecording}
+                onEdit={editTask}
+                onToggle={toggleTask}
+                onDelete={deleteTask}
+                onClose={() => {
+                  setOpen("none");
+                  set("idle");
+                }}
+              />
+            )}
+            {open === "settings" && (
+              <SettingsPanel
+                settings={data.settings}
+                facts={data.chat.facts}
+                onPatch={patchSettings}
+                onDeleteFact={(f) =>
+                  update((d) => {
+                    d.chat.facts = d.chat.facts.filter((x) => x !== f);
+                    return d;
+                  })
+                }
+                onClearChat={async () => {
+                  const next = structuredClone(dataRef.current);
+                  next.chat.messages = [];
+                  next.chat.summary = "";
+                  dataRef.current = next;
+                  setData(next);
+                  setStreamText(null);
+                  await window.companion.dataSave(next);
+                }}
+                onChangeKey={async () => {
+                  await window.companion.brainDisconnect();
+                  setBrainConnected(false);
+                  setOpen("chat");
+                  set("coffee");
+                }}
+                onDeleteAll={() => {
+                  void window.companion.dataReset();
+                }}
+                onClose={() => {
+                  setOpen("none");
+                  set("idle");
+                }}
+              />
+            )}
+            {open === "chat" && (
+              <ChatPanel
+                messages={data.chat.messages}
+                streamText={streamText}
+                busy={chatBusy}
+                connected={brainConnected}
+                onConnectKey={connectBrain}
+                onSend={sendChat}
+                onClose={() => {
+                  setOpen("none");
+                  if (!chatBusy) set("idle");
+                }}
+                onBlobState={() => {
+                  // Stay in coffee sip while chat is open (ignore focus idle/listening).
+                  if (!chatBusy) set("coffee");
+                }}
+              />
+            )}
+          </div>
         </div>
-        <div {...hoverable} style={{ position: "absolute", top: 40, left: 6, right: 6, height: 258, pointerEvents: "auto" }}>
-          {open === "tasks" && (
-            <TaskPanel
-              todos={data.todos}
-              sproutStage={sproutStage}
-              onAdd={addTask}
-              onActivity={noteActivity}
-              onMicPhase={setRecording}
-              onEdit={editTask}
-              onToggle={toggleTask}
-              onDelete={deleteTask}
-              onClose={() => {
-                setOpen("none");
-                set("idle");
-              }}
-            />
-          )}
-          {open === "settings" && (
-            <SettingsPanel
-              settings={data.settings}
-              facts={data.chat.facts}
-              onPatch={patchSettings}
-              onDeleteFact={(f) =>
-                update((d) => {
-                  d.chat.facts = d.chat.facts.filter((x) => x !== f);
-                  return d;
-                })
-              }
-              onClearChat={() => {
-                update((d) => {
-                  d.chat.messages = [];
-                  d.chat.summary = "";
-                  return d;
-                });
-                showToast("chats forgotten 🤍");
-              }}
-              onChangeKey={async () => {
-                await window.companion.brainDisconnect();
-                setBrainConnected(false);
-                setOpen("chat");
-              }}
-              onDeleteAll={() => {
-                void window.companion.dataReset();
-              }}
-              onClose={() => {
-                setOpen("none");
-                set("idle");
-              }}
-            />
-          )}
-          {open === "chat" && (
-            <ChatPanel
-              messages={data.chat.messages}
-              streamText={streamText}
-              busy={chatBusy}
-              connected={brainConnected}
-              onConnectKey={connectBrain}
-              onSend={sendChat}
-              onClose={() => {
-                setOpen("none");
-                if (!chatBusy) set("idle");
-              }}
-              onBlobState={(s) => {
-                if (!chatBusy) set(s as CharacterState);
-              }}
-            />
-          )}
-        </div>
-        </>
       )}
 
       {showcase && (
-        <Showcase
-          onPlay={(s) => {
-            if (!chatBusy) set(s);
+        <div
+          style={{
+            position: "absolute",
+            left: panelLeft,
+            width: panelW,
+            bottom: stackBottom,
+            zIndex: 30,
           }}
-          onClose={() => {
-            setShowcase(false);
-            set("idle");
-          }}
-        />
+        >
+          <Showcase
+            onPlay={(s) => {
+              if (!chatBusy) set(s);
+            }}
+            onClose={() => {
+              setShowcase(false);
+              set("idle");
+            }}
+          />
+        </div>
       )}
 
       {open === "menu" && (
         <RadialMenu
           clipLeft={clip.clipLeft}
           clipRight={clip.clipRight}
+          clipTop={clip.clipTop}
+          clipBottom={clip.clipBottom}
+          plantScale={data.settings.plantScale ?? 1}
           onDismiss={() => {
             setOpen("none");
             set("idle");
@@ -671,19 +810,19 @@ export default function App() {
             chirp("giggle");
           }}
           items={[
-            { icon: "💬", label: "chat", onClick: () => setOpen("chat") },
+            { icon: "chat", label: "chat", onClick: () => { setOpen("chat"); set("coffee"); } },
             {
-              icon: "📝",
+              icon: "tasks",
               label: "tasks",
               onClick: () => {
                 setOpen("tasks");
                 set("noting"); // notepad out, spectacles on, pen ready
               },
             },
-            { icon: "⚙️", label: "settings", onClick: () => setOpen("settings") },
+            { icon: "settings", label: "settings", onClick: () => setOpen("settings") },
             {
-              icon: "💤",
-              label: "tuck away",
+              icon: "tuck",
+              label: "nap",
               onClick: () => {
                 setOpen("none");
                 window.companion?.hide();
@@ -819,11 +958,7 @@ export default function App() {
               return;
             }
             if (open === "none") {
-              const info = (await window.companion.layoutInfo()) as {
-                clipLeft: number;
-                clipRight: number;
-              };
-              setClip(info);
+              await refreshClip();
               setOpen("menu");
               set("idlehop"); // he jumps, the bar rises above him
               chirp("boop");
@@ -844,13 +979,23 @@ export default function App() {
           bottom: 0,
           left: "50%",
           transform: "translateX(-50%)",
-          width: 170,
-          height: 200,
+          width: 204,
+          height: 240,
           cursor: dragging ? "grabbing" : "grab",
           pointerEvents: "auto",
         }}
       >
-        <Blob state={state} sproutStage={sproutStage} scribbling={scribbling} />
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            transform: `scale(${data.settings.plantScale ?? 1})`,
+            transformOrigin: "bottom center",
+            transition: "transform 0.2s ease",
+          }}
+        >
+          <Blob state={state} sproutStage={sproutStage} scribbling={scribbling} />
+        </div>
       </div>
 
       {debugOpen && (

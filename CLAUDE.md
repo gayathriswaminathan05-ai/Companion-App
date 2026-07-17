@@ -181,10 +181,8 @@ session — it is the cross-session memory.**
   the word "juggling" in prompts makes Kling paint white balls in) → code
   balls launch alternately from HAND_L/HAND_R consts → converge + tint to
   brown = ONE ball above head → glass pill stretches sideways, balls slide to
-  slots (her Pinterest reference). Frosted-glass style (translucent gradient +
-  backdrop-filter + inset highlights; true wallpaper blur impossible in
-  Electron web layer — she accepted the approximation) on menu pill, QuickNav,
-  and a small ✕ dismiss button (onDismiss prop) off the pill's right end.
+  slots (her Pinterest reference).   Liquid glass experiment reverted (broke menu/chat layout); panels use
+  frosted glass at ~88% opacity instead. Menu ✕ dismiss stays off pill right.
   Labels are hover-only now. Drag SOUNDS: sounds.ts startDangle/stopDangle —
   chipmunk "eep-eep!" pickup + trembling hum + squeak-down landing (tuned
   softer once; she called v1 "too squeaky"). Dock icon = real character
@@ -200,8 +198,9 @@ session — it is the cross-session memory.**
   eyes + tall green paddle leaves (mascot-options/8-disney-eyes-succulent.png;
   master ref standing = mascot-options/master-ref-standing.png, Higgsfield job
   104f213b-f336-4bcb-96ad-39ce66c0b28d — anchor for ALL generations).
-  STATES LIVE: idle(breathe)+idlehop(spontaneous, ~40s)+ACTIVITIES rotating
-  every 10-15min (lying/hammock/meditate/picnic/groove/hula, TIMED 25-45s),
+  STATES LIVE: idle(breathe)+idlehop(spontaneous, ~40s)+REST POSES rotating
+  every 10min as the default (idle→lying→hammock→meditate→picnic→groove→hula→…;
+  each sticks until next swap; interrupted by panels/sleep/nudges),
   stretching(real workout: side bends+cross-body), watering(self-water = water
   nudge), dragged(v1 take, trimmed 2.15-4.8). Raw mp4s in assets/clips/
   (REPROCESSABLE FREE — never regenerate before exhausting keyer fixes:
@@ -212,11 +211,28 @@ session — it is the cross-session memory.**
   trap); "conducting music" ≠ juggling; white bg + bright sheen = use T=15
   (T=8 no better); Kling can lift character out of frame (check RAW frames
   before blaming keying!). Showcase: hidden ✦ at menu bar's left end → plays
-  any animation (src/ui/Showcase.tsx). Old tree states remaining: juggling
-  (menu gesture) only. TODO: celebrations x5 (champagne etc.), sleeping/
-  waking/waving/listening/thinking/writing, combing (overgrown still ready:
-  mascot-poses/), growth stills, new voice, Dock icon + landing refresh.
-  Credits: ~430 left on her pro plan.
+  (menu gesture) only. **celebrating** ✅ champagne cork-PULL + spill (human-style):
+  still 04ebbaaf; video 4394ad33 (7.5cr) — hand twists/pulls cork, foam spills
+  over bottle; trimmed 0–3.55s (cut loop reseal); CLIP_T=15 CLIP_GLOBAL=off;
+  45 frames, pingpong=false, TIMED 3.6s. Raw full: celebrating-pull.mp4.
+  Alt older hop-pop: celebrating-t1.mp4. **noting** ✅ glasses+notepad+pencil
+  still 298045f0; scribble loop video 4b072007 (7.5cr); CLIP_T=15
+  CLIP_GLOBAL=off; 61 frames pingpong; writing state reuses noting sprites.
+  Showcase has notes. **coffee** ✅ sit+sip for chat open/thinking (still
+  coffee-a; video 2740341c; CLIP_T=15 CLIP_GLOBAL=off; 61 frames pingpong).
+  **sleeping** ✅ yawn→flop→pull cobalt moon/stars blanket (still 7ead4afa;
+  video 19a173a8 7.5cr — yawn start still d77872c0 eyes SQUEEZED shut + wide
+  mouth; v1 9dfa996d had open eyes = looked like surprise; 61 frames,
+  pingpong=false holdLast=true). Showcase + bedtime nudge.
+  Yellow procedural blob retired as fallback — missing states use idle/coffee
+  plant sprites. Yellow chair deferred (Soul drifts identity). TODO: more
+  celebrations x4, waking/waving/listening, noting pencil-on-page redo,
+  combing, growth stills, new voice, landing refresh.
+  Credits: ~400 left. **CREDIT DISCIPLINE (owner, July 17):** spend carefully — always
+  `get_cost:true` first; fix with FREE keyer/trim reprocess before regenerating;
+  prefer 1 video take over parallel takes; stills before video for any prop;
+  ask before jobs that cost >~5 credits unless she already approved the shot.
+  LESSON: start=end loop reseals story clips — trim before process.
 
 ## Status: PAUSED for Figma design refinement (July 2026)
 Gayathri is refining all UI designs in Figma. When she returns with links, use

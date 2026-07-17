@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Todo } from "../store";
 import { parseReminder, parseWhen, formatDue } from "../reminders";
-import { panel, smallBtn } from "./theme";
+import { COLORS, panel, smallBtn, primaryBtn, ghostClose, inputBar, field, chip } from "./theme";
 import MicButton from "./MicButton";
 
 const STAGE_EMOJI: Record<string, string> = {
@@ -74,57 +74,77 @@ export default function TaskPanel({
 
   const saveEdit = () => {
     if (!editingId || !editText.trim()) return;
-    if (editWhen.trim() && !editDue) return; // wrote a time but we can't read it
+    if (editWhen.trim() && !editDue) return;
     onEdit(editingId, editText.trim(), editWhen.trim() ? editDue : null);
     setEditingId(null);
   };
 
   const rowProps = { onToggle, onDelete, startEdit };
+  const canAdd = Boolean(text.trim());
 
   return (
-    <div style={{ ...panel, display: "flex", flexDirection: "column", height: "100%", padding: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 600 }}>
+    <div style={{ ...panel, display: "flex", flexDirection: "column", height: "100%", padding: 12, gap: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingRight: 4 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>
           today {STAGE_EMOJI[sproutStage] ?? "🌱"}
-          <span style={{ fontWeight: 400, color: "#a08e70", marginLeft: 6, fontSize: 11 }}>
+          <span style={{ fontWeight: 400, color: COLORS.textSoft, marginLeft: 6, fontSize: 11 }}>
             {doneToday.length === 0 ? "let's grow the sprout" : `${doneToday.length} done — sprout is happy`}
           </span>
         </span>
-        <button style={{ ...smallBtn, padding: "2px 8px" }} onClick={onClose}>✕</button>
+        <button style={ghostClose} onClick={onClose} title="close">✕</button>
       </div>
 
-      <div style={{ display: "flex", gap: 6 }}>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 2, border: "1px solid #d8c9ac", borderRadius: 8, background: "#fffdf7", padding: "2px 4px 2px 8px" }}>
+      <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ ...inputBar, flex: 1, padding: "6px 10px", minWidth: 0 }}>
           <input
             value={text}
             onChange={(e) => { setText(e.target.value); onActivity(); }}
             onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder="buy milk · call amma at 6pm (hold 🎤)"
-            style={{ flex: 1, fontSize: 12, padding: "5px 0", border: "none", outline: "none", fontFamily: "inherit", background: "transparent", color: "#5a4a3a" }}
+            placeholder="buy milk · call amma at 6pm"
+            style={{
+              flex: 1,
+              fontSize: 12,
+              padding: "4px 0",
+              border: "none",
+              outline: "none",
+              fontFamily: "inherit",
+              background: "transparent",
+              color: COLORS.text,
+              minWidth: 0,
+            }}
           />
           <MicButton key={micKey} bare current={text} onTranscript={(t) => { setText(t); onActivity(); }} onSpeaking={onMicPhase} />
         </div>
-        <button style={smallBtn} onClick={submit}>add</button>
+        <button
+          style={{
+            ...smallBtn,
+            ...(canAdd ? primaryBtn : {}),
+            opacity: canAdd ? 1 : 0.55,
+            alignSelf: "stretch",
+          }}
+          onClick={submit}
+        >
+          add
+        </button>
       </div>
 
-      <div style={{ minHeight: parsed ? 26 : 6, margin: "5px 0" }}>
+      <div style={{ minHeight: parsed ? 26 : 0 }}>
         {parsed && (
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <span
-              style={{
-                fontSize: 11,
-                background: "#eaf3df",
-                border: "1px solid #c9dfb2",
-                color: "#5a7a42",
-                borderRadius: 8,
-                padding: "3px 8px",
-              }}
-            >
+            <span style={chip}>
               ⏰ {formatDue(parsed.due)}
               {parsed.recurring ? " · every day" : ""} — {parsed.title}
             </span>
             <button
-              style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 10.5, color: "#b3a284", textDecoration: "underline" }}
+              style={{
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                fontSize: 10.5,
+                color: COLORS.textSoft,
+                textDecoration: "underline",
+                fontFamily: "inherit",
+              }}
               onClick={submitPlain}
             >
               no, just add it
@@ -133,14 +153,14 @@ export default function TaskPanel({
         )}
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, minHeight: 0 }}>
         {timed.length + plain.length + doneToday.length + doneOlder.length === 0 && (
-          <div style={{ fontSize: 12, color: "#a08e70", textAlign: "center", marginTop: 20 }}>
+          <div style={{ fontSize: 12, color: COLORS.placeholder, textAlign: "center", marginTop: 20, lineHeight: 1.5 }}>
             nothing here yet — one small thing at a time 🌱
           </div>
         )}
         {timed.length + plain.length === 0 && doneToday.length > 0 && (
-          <div style={{ fontSize: 12, color: "#8fae6e", textAlign: "center", margin: "8px 0" }}>
+          <div style={{ fontSize: 12, color: COLORS.accent, textAlign: "center", margin: "8px 0" }}>
             all done for today — I'm so proud of us 🌸
           </div>
         )}
@@ -163,7 +183,7 @@ export default function TaskPanel({
         )}
 
         {doneToday.length > 0 && (
-          <div style={{ fontSize: 10, color: "#b3a284", marginTop: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <div style={{ fontSize: 10, color: COLORS.textSoft, marginTop: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
             done today ✨
           </div>
         )}
@@ -171,7 +191,7 @@ export default function TaskPanel({
           <Row key={t.id} todo={t} {...rowProps} />
         ))}
         {doneOlder.length > 0 && (
-          <div style={{ fontSize: 10, color: "#c5b696", marginTop: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <div style={{ fontSize: 10, color: COLORS.placeholder, marginTop: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
             earlier
           </div>
         )}
@@ -206,27 +226,18 @@ function EditRow({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 5,
-        padding: 7,
-        borderRadius: 8,
-        background: "#fdf6e8",
-        border: "1px solid #e0cfa8",
+        gap: 6,
+        padding: 10,
+        borderRadius: 12,
+        background: COLORS.accentSoft,
+        border: "1px solid rgba(106, 83, 231, 0.12)",
       }}
     >
       <input
         value={editText}
         onChange={(e) => setEditText(e.target.value)}
         autoFocus
-        style={{
-          fontSize: 12,
-          padding: "5px 7px",
-          borderRadius: 6,
-          border: "1px solid #d8c9ac",
-          outline: "none",
-          fontFamily: "inherit",
-          background: "#fffdf7",
-          color: "#5a4a3a",
-        }}
+        style={{ ...field, width: "100%", boxSizing: "border-box" }}
       />
       <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
         <input
@@ -235,26 +246,24 @@ function EditRow({
           onKeyDown={(e) => e.key === "Enter" && onSave()}
           placeholder="time (optional) — e.g. tomorrow 8am"
           style={{
+            ...field,
             flex: 1,
-            fontSize: 11.5,
-            padding: "5px 7px",
-            borderRadius: 6,
-            border: `1px solid ${whenOk ? "#c9dfb2" : "#e8b8b0"}`,
-            outline: "none",
-            fontFamily: "inherit",
-            background: "#fffdf7",
-            color: "#5a4a3a",
+            borderColor: whenOk ? "rgba(106, 83, 231, 0.2)" : COLORS.dangerBorder,
           }}
         />
         {editDue && (
-          <span style={{ fontSize: 10, color: "#5a7a42", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 10, color: COLORS.accent, whiteSpace: "nowrap" }}>
             → {formatDue(editDue)}
           </span>
         )}
       </div>
       <div style={{ display: "flex", gap: 5 }}>
         <button
-          style={{ ...smallBtn, flex: 1, borderColor: "#c9dfb2", background: "#eaf3df", opacity: editText.trim() && whenOk ? 1 : 0.5 }}
+          style={{
+            ...primaryBtn,
+            flex: 1,
+            opacity: editText.trim() && whenOk ? 1 : 0.5,
+          }}
           onClick={onSave}
         >
           save ✓
@@ -282,10 +291,11 @@ function Row({
         display: "flex",
         alignItems: "center",
         gap: 8,
-        padding: "6px 8px",
-        borderRadius: 10,
-        background: todo.done ? "#f4eddd" : "#fffdf7",
-        border: "1px solid #eee2c8",
+        padding: "8px 10px",
+        borderRadius: 12,
+        background: todo.done ? "rgba(255,255,255,0.45)" : COLORS.inputBg,
+        border: "1px solid rgba(32, 29, 47, 0.06)",
+        boxShadow: todo.done ? "none" : "0 1px 2px rgba(12, 12, 13, 0.05)",
       }}
     >
       <button
@@ -297,8 +307,8 @@ function Row({
           height: 20,
           minWidth: 20,
           borderRadius: "50%",
-          border: todo.done ? "1.5px solid #8fae6e" : "1.5px solid #d8c9ac",
-          background: todo.done ? "#93C46F" : "#fffdf7",
+          border: todo.done ? `1.5px solid ${COLORS.accent}` : "1.5px solid rgba(32, 29, 47, 0.18)",
+          background: todo.done ? COLORS.accent : "#fff",
           color: "#fff",
           fontSize: 12,
           lineHeight: 1,
@@ -316,24 +326,13 @@ function Row({
           flex: 1,
           fontSize: 12.5,
           textDecoration: todo.done ? "line-through" : "none",
-          color: todo.done ? "#b3a284" : "#5a4a3a",
+          color: todo.done ? COLORS.textSoft : COLORS.text,
           wordBreak: "break-word",
         }}
       >
         {todo.text}
         {todo.due && !todo.done && (
-          <span
-            style={{
-              fontSize: 10,
-              background: "#eaf3df",
-              border: "1px solid #c9dfb2",
-              color: "#5a7a42",
-              borderRadius: 6,
-              padding: "1px 5px",
-              marginLeft: 6,
-              whiteSpace: "nowrap",
-            }}
-          >
+          <span style={{ ...chip, marginLeft: 6, whiteSpace: "nowrap", fontSize: 10, padding: "1px 5px" }}>
             ⏰ {formatDue(new Date(todo.due))}
             {todo.recurring ? " ↻" : ""}
           </span>
@@ -343,14 +342,14 @@ function Row({
         <button
           onClick={() => startEdit(todo)}
           title="edit"
-          style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 11 }}
+          style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 11, opacity: 0.7 }}
         >
           ✏️
         </button>
       )}
       <button
         onClick={() => onDelete(todo.id)}
-        style={{ border: "none", background: "transparent", cursor: "pointer", color: "#c9b89a", fontSize: 12 }}
+        style={{ border: "none", background: "transparent", cursor: "pointer", color: COLORS.placeholder, fontSize: 12 }}
       >
         ✕
       </button>

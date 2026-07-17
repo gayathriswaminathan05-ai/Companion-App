@@ -17,9 +17,11 @@ const SHOW: { state: CharacterState; icon: string; label: string }[] = [
   { state: "dragged", icon: "✋", label: "dangle" },
   { state: "juggling", icon: "🤹", label: "juggle" },
   { state: "celebrating", icon: "🎉", label: "party" },
+  { state: "noting", icon: "📝", label: "notes" },
   { state: "sleeping", icon: "😴", label: "sleep" },
   { state: "waving", icon: "👋", label: "wave" },
   { state: "thinking", icon: "💭", label: "think" },
+  { state: "coffee", icon: "☕", label: "coffee" },
 ];
 
 export default function Showcase({
@@ -34,10 +36,8 @@ export default function Showcase({
       onMouseEnter={() => window.companion?.setClickThrough(false)}
       onMouseLeave={() => window.companion?.setClickThrough(true)}
       style={{
-        position: "absolute",
-        top: 8,
-        left: 10,
-        right: 10,
+        position: "relative",
+        width: "100%",
         zIndex: 30,
         display: "flex",
         flexWrap: "wrap",
