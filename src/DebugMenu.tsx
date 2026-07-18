@@ -1,28 +1,30 @@
-import { ALL_STATES, SPROUT_STAGES } from "./character/types";
-import type { CharacterState, SproutStage } from "./character/types";
+import { ALL_STATES } from "./character/types";
+import type { CharacterState } from "./character/types";
+import { GROWTH_EMOJI, GROWTH_LABEL, type GrowthStage } from "./growth";
 
-// Temporary Day 2 panel for previewing every animation state.
-// Replaced by the real character menu on Day 3.
+const GROWTH_STAGES: GrowthStage[] = [1, 2, 3, 4, 5, 6];
+
+// Temporary panel for previewing every animation state + growth stages.
 export default function DebugMenu({
   onState,
   onTestNudge,
   onTestJoke,
   soundsOn,
   onToggleSounds,
-  onSprout,
+  onGrowthStage,
   onClose,
   current,
-  sprout,
+  growthStage,
 }: {
   onState: (s: CharacterState) => void;
   onTestNudge: (k: "stretch" | "water" | "bedtime") => void;
   onTestJoke: () => void;
   soundsOn: boolean;
   onToggleSounds: () => void;
-  onSprout: (s: SproutStage) => void;
+  onGrowthStage: (s: GrowthStage) => void;
   onClose: () => void;
   current: CharacterState;
-  sprout: SproutStage;
+  growthStage: GrowthStage;
 }) {
   const btn: React.CSSProperties = {
     fontSize: 11,
@@ -54,7 +56,7 @@ export default function DebugMenu({
         {ALL_STATES.map((s) => (
           <button
             key={s}
-            style={{ ...btn, background: s === current ? "#ffe9c2" : btn.background as string }}
+            style={{ ...btn, background: s === current ? "#ffe9c2" : (btn.background as string) }}
             onClick={() => onState(s)}
           >
             {s}
@@ -62,26 +64,49 @@ export default function DebugMenu({
         ))}
       </div>
       <div style={{ fontSize: 11, fontWeight: 600, color: "#8a7a5e", margin: "8px 0 6px" }}>
-        sprout
+        growth (idle)
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-        {SPROUT_STAGES.map((s) => (
+        {GROWTH_STAGES.map((s) => (
           <button
             key={s}
-            style={{ ...btn, background: s === sprout ? "#dff0cf" : btn.background as string }}
-            onClick={() => onSprout(s)}
+            style={{ ...btn, background: s === growthStage ? "#dff0cf" : (btn.background as string) }}
+            onClick={() => onGrowthStage(s)}
+            title={GROWTH_LABEL[s]}
           >
-            {s}
+            {GROWTH_EMOJI[s]} {s}
           </button>
         ))}
       </div>
       <div style={{ fontSize: 11, fontWeight: 600, color: "#8a7a5e", margin: "8px 0 6px" }}>nudges (test)</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
         {(["stretch", "water", "bedtime"] as const).map((k) => (
-          <button key={k} style={btn} onClick={() => { onTestNudge(k); onClose(); }}>{k}</button>
+          <button
+            key={k}
+            style={btn}
+            onClick={() => {
+              onTestNudge(k);
+              onClose();
+            }}
+          >
+            {k}
+          </button>
         ))}
-        <button style={btn} onClick={() => { onTestJoke(); onClose(); }}>joke</button>
-        <button style={{ ...btn, background: soundsOn ? "#dff0cf" : (btn.background as string) }} onClick={onToggleSounds}>{soundsOn ? "sounds: on" : "sounds: off"}</button>
+        <button
+          style={btn}
+          onClick={() => {
+            onTestJoke();
+            onClose();
+          }}
+        >
+          joke
+        </button>
+        <button
+          style={{ ...btn, background: soundsOn ? "#dff0cf" : (btn.background as string) }}
+          onClick={onToggleSounds}
+        >
+          {soundsOn ? "sounds: on" : "sounds: off"}
+        </button>
       </div>
       <button style={{ ...btn, marginTop: 10, width: "100%" }} onClick={onClose}>
         close

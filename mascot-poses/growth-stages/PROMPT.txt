@@ -1,0 +1,71 @@
+# Per-stage idle loops — Kling 3.0
+# Use each stage-N.png as BOTH start_image and end_image.
+# Settings: aspect 1:1, duration 5s, mode std, sound off.
+# Cost: ~7.5 credits each × 6 ≈ 45 credits total.
+
+## SHARED PROMPT (paste for every stage; only the STAGE LINE changes)
+
+Same exact terracotta pot succulent character as the start/end image. Solid flat hot magenta #FF00FF background — pure uniform chroma, no gradient. Camera completely static. Full body always in frame, generous headroom for the plant.
+
+MOTION ONLY — slow, minimal, crisp:
+1) Calm gentle breathing: tiny soft inhale/exhale pulse on the pot body (almost still; no bouncing, no hopping).
+2) Exactly TWO complete eye blinks: full close with soft peach eyelids, then reopen; short calm pause between the two blinks; eyes open the rest of the time.
+
+CRITICAL LOCKS — everything else stays identical to the start image:
+- Keep EXACT leaf count, shape, size, spacing, and arrangement — do not grow, shrink, sway differently, or redraw leaves
+- Keep EXACT flower or bud (or no flower) from the start image — do not add/remove/change petals
+- Keep EXACT pot color, soil, arms, feet, blush, smile shape
+- Do NOT change facial expression except eyelids for the two blinks
+- Do NOT add props, hands, text, sparkles, or camera moves
+- End frame must match the start frame plant and pose (loop-safe)
+
+STAGE LINE (append one):
+- Stage 1: Plant is tiny paddle sprouts only.
+- Stage 2: Plant is small little leaves.
+- Stage 3: Plant is filling out / medium rosette.
+- Stage 4: Plant is looking lush with a small pink bud.
+- Stage 5: Plant is dense with a clearer flower/bud on top.
+- Stage 6: Plant has the open soft pink bloom with yellow center.
+
+## FILES
+- stage-1.png … stage-6.png in this folder
+
+## JOBS (July 19 2026) — kling3_0, 7.5cr each — IDLE loops
+- Stage 1: 4c0ec9a2-ac76-4734-9d1d-908f70765ed2  still b653288d
+- Stage 2: d0704394-9ca6-4802-856c-add07ff3256f  still a3c39bbf
+- Stage 3: be146e07-f26c-4800-8bdf-dafbb65a79bc  still b5467757
+- Stage 4: 19d6dfef-cf99-4c92-8703-f2741395c6a4  still 919f9040
+- Stage 5: 5d4a2b5f-337b-4301-88ec-63600b920acb  still eadf473f
+- Stage 6: e4e20b01-ca66-43ac-9e6c-22cca482ff38  still c83a8fca
+
+---
+
+# Per-stage DRAG loops — Kling 3.0
+# Same stage stills as start+end. Prefer WHITE plate (not magenta) for cleaner edges.
+# Settings: aspect 1:1, duration 5s, mode std, sound off. ~7.5cr × 6 ≈ 45cr.
+
+## SHARED DRAG PROMPT
+
+Same exact terracotta pot succulent as start/end image.
+
+POSE CHANGE ONLY: DRAGGED/dangling — slight tilt, arms and feet dangling loosely,
+surprised wide eyes and open mouth. He floats alone — NO human hand, NO fingers.
+
+BACKGROUND: pure solid white #FFFFFF — flat uniform, no magenta, no gradient,
+no floor, no drop shadow on the background, no scenery. Character fully isolated on white.
+
+MOTION: slow, minimal, crisp gentle sway/dangle only.
+
+CRITICAL PLANT LOCK: EXACT leaf count/shape/size/arrangement (and flower/bud if any)
+from start — do NOT grow, shrink, or redraw leaves. Keep exact soil/pot/blush.
+End plant matches start plant. Only pose/face change to dangling+surprised.
+
+## DRAG JOBS (July 19 2026)
+- Stage 1: 0a95b46a-a8b4-4e9a-bda9-ff3a685026e7  (white mid trim 1.2–3.4s)
+- Stage 2: e53189b9-712f-48dd-9322-71c326ba1947  (stayed magenta; trim ~2.2–3.8s)
+- Stage 3: 1b7e5a9b-7934-4f5e-838d-b0f03ffdb419  (white mid trim 0.8–4.0s)
+- Stage 4: 1b778808-3694-407e-a118-ab5511bd5e97  (stayed magenta; mid trim)
+- Stage 5: 37aeedc3-a9dd-42ee-b2cd-dd186b6c2a4b  (white mid trim 1.4–3.8s)
+- Stage 6: 2cba96dd-061f-45ce-8d42-81511c22fba7  (stayed magenta; mid trim)
+Clips: assets/clips/draggedgrowth1..6.mp4 (+ *-full.mp4 raws)
+Sprites: public/character/draggedgrowth1..6

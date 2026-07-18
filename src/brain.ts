@@ -1,6 +1,6 @@
 // Blob's personality + memory → prompt assembly for the chat brain.
 import type { AppData } from "./store";
-import { sproutStageFor } from "./store";
+import { GROWTH_LABEL, growthStageFor } from "./growth";
 
 // Stable personality (cached across requests — keep this block byte-identical).
 const PERSONALITY = `You are Blob, a small squishy mochi-like desktop companion with a sprout on your head. You live on your friend's computer screen and keep them company all day. You are NOT an assistant — you are their close friend.
@@ -67,7 +67,7 @@ export function buildSystem(d: AppData): { type: string; text: string; cache_con
     `- current datetime for computing task due times: ${localIso}`,
     `- your name is ${d.settings.companionName || "Blob"}` +
       (d.settings.userName ? `; your friend's name is ${d.settings.userName}` : ""),
-    `- their sprout today: ${sproutStageFor(d.sprout.points)} (${d.sprout.points} accomplishments)`,
+    `- their plant today: ${GROWTH_LABEL[growthStageFor(d.sprout.points)]} (${d.sprout.points} growth points; wellness grows it most)`,
     openTasks.length
       ? `- open tasks: ${openTasks.map((t) => t.text).join("; ")}`
       : `- open tasks: none right now`,

@@ -20,6 +20,7 @@ const SHOW: { state: CharacterState; icon: string; label: string }[] = [
   { state: "noting", icon: "📝", label: "notes" },
   { state: "sleeping", icon: "😴", label: "sleep" },
   { state: "waving", icon: "👋", label: "wave" },
+  { state: "meeting", icon: "🔔", label: "bell" },
   { state: "thinking", icon: "💭", label: "think" },
   { state: "coffee", icon: "☕", label: "coffee" },
 ];

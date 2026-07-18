@@ -1,5 +1,7 @@
 // App data: shape + load/save through the main process (one JSON file on disk).
 
+import { ensureWeek, emptyWeekStats, type WeekStats } from "./growth";
+
 export interface Todo {
   id: string;
   text: string;
@@ -32,6 +34,10 @@ export interface Settings {
   autoHideOnCalls: boolean;
   plantScale: number; // visual size of the plant (0.6–1.2); default 1
   panelScale: number; // chat/tasks/settings height+width (0.85–1.45); default 1
+  /** Meeting pings from Google Calendar (events never saved to disk / never sent to Claude). */
+  calendarReminders: boolean;
+  /** Minutes before a meeting to nudge (5–60). */
+  calendarLeadMins: number;
 }
 
 export interface Wellness {
@@ -51,8 +57,10 @@ export interface ChatState {
 export interface AppData {
   todos: Todo[];
   reminders: Reminder[];
-  // Sprout progress for TODAY. Only ever grows; resets fresh each morning.
+  // Growth for TODAY. Only ever grows; resets fresh each morning. Cap in growth.ts.
   sprout: { date: string; points: number };
+  /** Gentle weekly totals for the report card (no shame metrics). */
+  week: WeekStats;
   settings: Settings;
   wellness: Wellness;
   chat: ChatState;
@@ -69,6 +77,8 @@ export const defaultSettings = (): Settings => ({
   autoHideOnCalls: true,
   plantScale: 1,
   panelScale: 1,
+  calendarReminders: true,
+  calendarLeadMins: 10,
 });
 
 export const emptyWellness = (): Wellness => ({
@@ -89,6 +99,7 @@ export const emptyData = (): AppData => ({
   todos: [],
   reminders: [],
   sprout: { date: today(), points: 0 },
+  week: emptyWeekStats(),
   settings: defaultSettings(),
   wellness: emptyWellness(),
   chat: emptyChat(),
@@ -114,12 +125,20 @@ export async function loadData(): Promise<AppData> {
   data.settings.plantScale = Number.isFinite(s) ? Math.min(1.2, Math.max(0.6, s)) : 1;
   const ps = Number(data.settings.panelScale);
   data.settings.panelScale = Number.isFinite(ps) ? Math.min(1.45, Math.max(0.85, ps)) : 1;
+  const lead = Number(data.settings.calendarLeadMins);
+  data.settings.calendarLeadMins = Number.isFinite(lead)
+    ? Math.min(60, Math.max(5, Math.round(lead)))
+    : 10;
+  if (typeof data.settings.calendarReminders !== "boolean") {
+    data.settings.calendarReminders = true;
+  }
   data.chat = { ...emptyChat(), ...(data.chat ?? {}) };
   if (data.chat.messages.length > 60) data.chat.messages = data.chat.messages.slice(-60);
   if (data.chat.facts.length > 40) data.chat.facts = data.chat.facts.slice(-40);
   if (!data.wellness || data.wellness.date !== today()) {
     data.wellness = { ...emptyWellness(), bedtimeDate: data.wellness?.bedtimeDate ?? null };
   }
+  data.week = ensureWeek(data.week);
   // Migration: fold old separate reminders into the unified task list.
   if (data.reminders.length > 0) {
     for (const r of data.reminders) {
@@ -143,10 +162,11 @@ export function saveData(data: AppData) {
   window.companion.dataSave(data);
 }
 
-// Growth thresholds — generous: an ordinary day should reach bloom.
+// Legacy 4-name stages (chat brain / old UI). Prefer growthStageFor from growth.ts.
 export function sproutStageFor(points: number): "bud" | "leaf" | "leaves" | "bloom" {
-  if (points >= 5) return "bloom";
-  if (points >= 3) return "leaves";
-  if (points >= 1) return "leaf";
+  const g = Math.min(6, Math.max(1, Math.floor(points / 2) + 1));
+  if (g >= 6) return "bloom";
+  if (g >= 4) return "leaves";
+  if (g >= 2) return "leaf";
   return "bud";
 }

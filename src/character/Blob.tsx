@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { CharacterState, SproutStage } from "./types";
+import { growthStageBand, type GrowthStage } from "../growth";
 import { SPRITES, SpriteAnim as SpriteAnimDef } from "../generated/sprites";
+
+function growthToLegacy(g: GrowthStage): SproutStage {
+  if (g >= 6) return "bloom";
+  if (g >= 4) return "leaves";
+  if (g >= 2) return "leaf";
+  return "bud";
+}
 
 // Warm EVERY state's frames once at startup, so the very first switch into
 // any state (e.g. grabbing the blob) shows its first frame with zero lag.
@@ -16,21 +24,25 @@ function warmAllSprites() {
   }
 }
 
-// Plays AI-generated frame animations (ping-pong loop) for states that have
-// them; all other states fall back to the procedural drawing below.
-function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
-  const [idx, setIdx] = useState(0);
-  const dirRef = useRef(1);
-
-  // Show every state at the same TRUE character scale: a clip cropped to a
-  // bigger source box (e.g. covering swing travel) packs the character smaller
-  // into its frames, so we compensate relative to idle's crop box.
+function spriteScale(anim: SpriteAnimDef): number {
   const base = SPRITES.idle;
   let scale = 1;
   if (anim !== base && anim.srcW && anim.srcH && base?.srcW && base?.srcH) {
     const fit = (a: SpriteAnimDef) => Math.min(408 / a.srcW!, 480 / a.srcH!);
     scale = Math.max(0.7, Math.min(1.45, fit(base) / fit(anim)));
   }
+  if (anim.frames[0]?.includes("/meeting/")) {
+    scale = Math.min(1.45, scale * 1.28);
+  }
+  return scale;
+}
+
+// Plays AI-generated frame animations (ping-pong loop) for states that have
+// them; all other states fall back to the procedural drawing below.
+function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
+  const [idx, setIdx] = useState(0);
+  const dirRef = useRef(1);
+  const scale = spriteScale(anim);
 
   useEffect(() => {
     warmAllSprites();
@@ -76,6 +88,213 @@ function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
       }}
       alt=""
     />
+  );
+}
+
+// Per-pose hold frames survive unmount so level-up can scrub forward.
+const growthHoldByKey: Record<string, number | null> = {};
+
+/**
+ * One continuous growth clip → 6 stage bands.
+ * Idle: loop each stage's pause/blink hold (not the growth morph).
+ * Plays baked blinks twice per cycle when the clip has them; soft peach lids
+ * otherwise. Drag: freeze on rest frame.
+ */
+function GrowthStageAnim({
+  anim,
+  stage,
+  holdKey,
+  breathe = false,
+  scrubOnLevelUp = true,
+  /** Idle: play stage hold loop with blinks. Off while dragged. */
+  playBlinks = false,
+}: {
+  anim: SpriteAnimDef;
+  stage: GrowthStage;
+  holdKey: string;
+  breathe?: boolean;
+  scrubOnLevelUp?: boolean;
+  playBlinks?: boolean;
+}) {
+  const band = growthStageBand(stage, anim.frames.length);
+  const { end, loopFrom, loopTo, blinks } = band;
+  const blinkKey = blinks.map((b) => `${b.from}-${b.to}`).join(",");
+  const useSoftLids = playBlinks && blinks.length === 0;
+  const [idx, setIdx] = useState(end);
+  const [lids, setLids] = useState(false);
+  const [settled, setSettled] = useState(true);
+  const scale = spriteScale(anim);
+  const frameMs = 1000 / Math.max(1, anim.fps);
+
+  useEffect(() => {
+    warmAllSprites();
+    const prev = growthHoldByKey[holdKey];
+    // Drag / first paint: jump to stage rest (no leaf morph while dangling).
+    if (prev === null || prev === undefined || !scrubOnLevelUp) {
+      growthHoldByKey[holdKey] = end;
+      setIdx(end);
+      setSettled(true);
+      return;
+    }
+    const from = Math.min(prev, end);
+    growthHoldByKey[holdKey] = end;
+    if (from < end) {
+      setSettled(false);
+      setIdx(from);
+      let i = from;
+      const timer = window.setInterval(() => {
+        i += 1;
+        if (i >= end) {
+          setIdx(end);
+          setSettled(true);
+          clearInterval(timer);
+        } else {
+          setIdx(i);
+        }
+      }, frameMs);
+      return () => clearInterval(timer);
+    }
+    setIdx(end);
+    setSettled(true);
+  }, [stage, end, frameMs, holdKey, scrubOnLevelUp]);
+
+  // Idle: cycle the stage hold — blink twice (baked or soft), pause, repeat.
+  useEffect(() => {
+    if (!playBlinks || !settled) return;
+    let alive = true;
+    let frameTimer: number | undefined;
+    let waitTimer: number | undefined;
+
+    const wait = (ms: number) =>
+      new Promise<void>((resolve) => {
+        waitTimer = window.setTimeout(() => resolve(), ms);
+      });
+
+    const playSpan = (from: number, to: number) =>
+      new Promise<void>((resolve) => {
+        let i = from;
+        setIdx(i);
+        frameTimer = window.setInterval(() => {
+          i += 1;
+          if (i > to) {
+            clearInterval(frameTimer);
+            resolve();
+          } else {
+            setIdx(i);
+          }
+        }, frameMs);
+      });
+
+    const softBlink = () =>
+      new Promise<void>((resolve) => {
+        setLids(true);
+        waitTimer = window.setTimeout(() => {
+          setLids(false);
+          waitTimer = window.setTimeout(() => resolve(), 280);
+        }, 150);
+      });
+
+    const cycle = async () => {
+      while (alive) {
+        if (blinks.length > 0) {
+          // Clip often has one blink per chapter — play it twice with a pause.
+          const times = Math.max(2, blinks.length);
+          for (let t = 0; t < times; t++) {
+            if (!alive) return;
+            const b = blinks[t % blinks.length];
+            await playSpan(b.from, b.to);
+            setIdx(end);
+            await wait(320);
+          }
+        } else {
+          for (let t = 0; t < 2; t++) {
+            if (!alive) return;
+            await softBlink();
+          }
+        }
+        // Settle on the pause frames at the end of the stage hold.
+        if (alive && loopTo > loopFrom) {
+          await playSpan(Math.max(loopFrom, end - 4), loopTo);
+        }
+        if (!alive) return;
+        setIdx(end);
+        await wait(900);
+      }
+    };
+
+    void cycle();
+    return () => {
+      alive = false;
+      clearInterval(frameTimer);
+      clearTimeout(waitTimer);
+    };
+    // blinkKey stands in for blinks[] so the loop doesn't restart every render.
+  }, [playBlinks, settled, blinkKey, blinks, end, loopFrom, loopTo, frameMs, stage]);
+
+  return (
+    <div
+      className={breathe ? "growth-breathe" : undefined}
+      style={{ position: "relative", width: 204, height: 240 }}
+    >
+      <img
+        src={anim.frames[idx] ?? anim.frames[end]}
+        width={204}
+        height={240}
+        draggable={false}
+        style={{
+          objectFit: "contain",
+          objectPosition: "bottom center",
+          display: "block",
+          transform: scale !== 1 ? `scale(${scale})` : undefined,
+          transformOrigin: "bottom center",
+        }}
+        alt=""
+      />
+      {useSoftLids && lids && (
+        <>
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: 84,
+              top: 118,
+              width: 28,
+              height: 12,
+              borderRadius: "14px 14px 8px 8px",
+              background: "linear-gradient(180deg, #f0b4a0 0%, #e09888 100%)",
+              boxShadow: "inset 0 -1px 0 rgba(90,50,40,0.35)",
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: 118,
+              top: 118,
+              width: 28,
+              height: 12,
+              borderRadius: "14px 14px 8px 8px",
+              background: "linear-gradient(180deg, #f0b4a0 0%, #e09888 100%)",
+              boxShadow: "inset 0 -1px 0 rgba(90,50,40,0.35)",
+              pointerEvents: "none",
+            }}
+          />
+        </>
+      )}
+      {breathe && (
+        <style>{`
+          .growth-breathe {
+            animation: growthBreathe 3.2s ease-in-out infinite;
+            transform-origin: bottom center;
+          }
+          @keyframes growthBreathe {
+            0%, 100% { transform: scaleX(1) scaleY(1); }
+            50% { transform: scaleX(1.012) scaleY(0.985); }
+          }
+        `}</style>
+      )}
+    </div>
   );
 }
 
@@ -192,15 +411,17 @@ function AsleepBody({ sproutStage }: { sproutStage: SproutStage }) {
 
 export default function Blob({
   state,
-  sproutStage,
+  growthStage = 1,
   scribbling = false,
 }: {
   state: CharacterState;
-  sproutStage: SproutStage;
+  /** Today's plant fullness (1–6). Idle uses continuous growth clip bands. */
+  growthStage?: GrowthStage;
   // In the persistent "noting" pose: pen moves only while the user is
   // actively typing or speaking.
   scribbling?: boolean;
 }) {
+  const sproutStage = growthToLegacy(growthStage);
   const [blink, setBlink] = useState(false);
   const [wiggle, setWiggle] = useState(false);
   const [sleepPhase, setSleepPhase] = useState<"yawn" | "asleep">("yawn");
@@ -298,7 +519,72 @@ export default function Blob({
   // Prefer this state's AI clip. Fallbacks stay on the plant — never the old
   // yellow procedural blob (retired with the succulent mascot).
   // writing → noting notepad; thinking/listening → coffee sip; else idle.
+  // Idle: one short loop per growth stage (blink + breathe baked in).
+  // Drag: matching per-stage dangle loop (same plant identity as idle).
+  // FOR NOW: ignore the per-growth-stage clips (growth1..6 / draggedgrowth1..6)
+  // and use the single polished idle clip as the default, plus the single
+  // dragged clip (its own dangle) when grabbed. Flip back to true once the
+  // regenerated 6-stage growth video is processed and wired in.
+  const USE_GROWTH_ART = false;
+  const growthKey = `growth${growthStage}`;
+  const dragKey = `draggedgrowth${growthStage}`;
+  const stageLoop = USE_GROWTH_ART ? SPRITES[growthKey] : undefined;
+  const dragLoop = USE_GROWTH_ART ? SPRITES[dragKey] : undefined;
+  if (state === "dragged" && dragLoop?.frames?.length) {
+    return (
+      <div className="growth-dangle">
+        <SpriteAnim key={dragKey} anim={dragLoop} />
+        <style>{`
+          .growth-dangle {
+            animation: growthDangle 0.55s ease-in-out infinite;
+            transform-origin: top center;
+          }
+          @keyframes growthDangle {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+  if (state === "idle" && stageLoop?.frames?.length) {
+    return <SpriteAnim key={growthKey} anim={stageLoop} />;
+  }
+  // Fallback: freeze idle stage frame + CSS dangle if drag clip missing.
+  if (state === "dragged" && stageLoop?.frames?.length) {
+    const scale = spriteScale(stageLoop);
+    return (
+      <div className="growth-dangle">
+        <img
+          src={stageLoop.frames[0]}
+          width={204}
+          height={240}
+          draggable={false}
+          alt=""
+          style={{
+            objectFit: "contain",
+            objectPosition: "bottom center",
+            display: "block",
+            transform: scale !== 1 ? `scale(${scale})` : undefined,
+            transformOrigin: "bottom center",
+          }}
+        />
+        <style>{`
+          .growth-dangle {
+            animation: growthDangle 0.55s ease-in-out infinite;
+            transform-origin: top center;
+          }
+          @keyframes growthDangle {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+  const idleSprite = state === "idle" ? SPRITES.idle : undefined;
   const sprite =
+    idleSprite ||
     SPRITES[state] ||
     (state === "writing" ? SPRITES.noting : undefined) ||
     (state === "thinking" || state === "listening" ? SPRITES.coffee : undefined) ||
@@ -356,6 +642,25 @@ export default function Blob({
             }
             .c1 { --dx: -12px; } .c2 { --dx: 6px; } .c3 { --dx: -4px; }
             .c4 { --dx: 14px; } .c5 { --dx: -8px; } .c6 { --dx: 4px; }
+          `}</style>
+        </div>
+      );
+    }
+    // Soft breathe on single-frame growth stills (no video spend).
+    const isGrowthStill = state === "idle" && growthStage < 6 && sprite.frames.length === 1;
+    if (isGrowthStill) {
+      return (
+        <div className="growth-breathe" style={{ width: 204, height: 240 }}>
+          <SpriteAnim anim={sprite} />
+          <style>{`
+            .growth-breathe {
+              animation: growthBreathe 3.2s ease-in-out infinite;
+              transform-origin: bottom center;
+            }
+            @keyframes growthBreathe {
+              0%, 100% { transform: scaleX(1) scaleY(1); }
+              50% { transform: scaleX(1.012) scaleY(0.985); }
+            }
           `}</style>
         </div>
       );

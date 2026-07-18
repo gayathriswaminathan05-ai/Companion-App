@@ -69,8 +69,26 @@ app.whenReady().then(async () => {
           palette.push(col);
         }
       }
+      // Soft pink petals / blush sit near magenta in RGB but have real green —
+      // never treat them as chroma BG (or the flower gets chewed at the edges).
+      const isProtectedFg = (r, g, b) => {
+        if (r > 170 && g > 95 && b > 130) return true; // pink petals / blush
+        if (r > 150 && g > 70 && b > 100 && r > g && g > 60) return true; // darker pink bud folds
+        // Shaded pink bud folds (low-ish green, still petal — NOT plate magenta).
+        if (r > 155 && b > 110 && g >= 55 && g <= 130 && r > g + 25 && b > g + 15) return true;
+        if (r > 180 && g > 140 && b < 140) return true; // yellow flower centers
+        // Pot soil / dark creases — not chroma black backdrop.
+        if (r > 25 && r < 110 && g < 85 && b < 75 && r >= g - 5) return true;
+        return false;
+      };
+      // True chroma magenta plate (#FF00FF family): hot R+B, VERY low green.
+      // Looser thresholds used to eat shaded pink bud folds → black holes.
+      const isChromaMagenta = (r, g, b) =>
+        r > 180 && b > 160 && g < 75 && g < r - 100 && g < b - 90;
+
       const isBgColor = (pi) => {
         const r = px[pi], g = px[pi+1], b = px[pi+2];
+        if (isProtectedFg(r, g, b)) return false;
         for (const p of palette) {
           if ((r-p.r)**2 + (g-p.g)**2 + (b-p.b)**2 < T*T) return true;
         }
@@ -117,11 +135,14 @@ app.whenReady().then(async () => {
         const pi = i * 4;
         const r = px[pi], g = px[pi+1], b = px[pi+2];
         if (px[pi+3] === 0) continue;
-        const magenta = r > 140 && b > 120 && g < r - 70 && g < b - 50;
+        if (isProtectedFg(r, g, b)) continue;
+        const magenta = isChromaMagenta(r, g, b);
         const cardWhite = r > 246 && g > 244 && b > 244 && Math.max(r,g,b) - Math.min(r,g,b) < 8;
-        // Pure-black backdrops (Kling): darkest character features (pupils,
-        // mouth) measure ≥ ~40 red — 28 leaves a safe gap.
-        const nearBlack = r < 28 && g < 28 && b < 28;
+        // Pure-black backdrops (Kling). Skip on magenta plates — it eats soil
+        // and dark folds in pink buds (CLIP_NO_NEAR_BLACK=1 or GLOBAL=off).
+        const nearBlackOff =
+          process.env.CLIP_NO_NEAR_BLACK === "1" || process.env.CLIP_GLOBAL === "off";
+        const nearBlack = !nearBlackOff && r < 28 && g < 28 && b < 28;
         if (magenta || cardWhite || nearBlack) {
           px[pi+3] = 0;
           mask[i] = 1;
@@ -342,10 +363,13 @@ app.whenReady().then(async () => {
         const img = await loadImage(path.join(IN, files[i]));
         const { canvas } = keyFrame(img, bg);
         const b = smooth[i];
-        const padX = (b.maxX - b.minX) * 0.03;
-        const padY = (b.maxY - b.minY) * 0.03;
+        // Extra top pad so tall blooms / buds aren't clipped after crop.
+        const padX = (b.maxX - b.minX) * 0.04;
+        const padY = (b.maxY - b.minY) * 0.04;
+        const padTopMul = parseFloat(process.env.CLIP_PAD_TOP || "") || 0.12;
+        const padTop = (b.maxY - b.minY) * padTopMul;
         const sx = Math.max(0, b.minX - padX);
-        const sy = Math.max(0, b.minY - padY);
+        const sy = Math.max(0, b.minY - padTop);
         const sw = Math.min(canvas.width, b.maxX + padX) - sx;
         const sh = Math.min(canvas.height, b.maxY + padY) - sy;
         const scale = Math.min(W / sw, H / sh);

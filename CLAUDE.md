@@ -53,7 +53,9 @@ session — it is the cross-session memory.**
 - Unfinished tasks: stay silently in one list, NO date-guilt-piles; AI asks gently
   after ~3 days (Day 8+).
 - Privacy = PRD §6b (binding): local-first, voice never leaves device, chat is the
-  only network flow (via proxy, no content logging), no tracking, delete-all.
+  only network flow to Claude (via proxy, no content logging), no tracking,
+  delete-all. Calendar: Google read-only fetch stays in Electron RAM for meeting
+  pings only — never saved, never included in Claude prompts.
 - Voice: local Whisper forever-free; bundle model INTO installer on Day 13
   (BUILD_PLAN has it). Cloud STT = optional quality upgrade later.
 - Monetization (PRD §12): free = 15 msgs/day + short memory; paid $4.99/mo =
@@ -227,12 +229,45 @@ session — it is the cross-session memory.**
   Yellow procedural blob retired as fallback — missing states use idle/coffee
   plant sprites. Yellow chair deferred (Soul drifts identity). TODO: more
   celebrations x4, waking/waving/listening, noting pencil-on-page redo,
-  combing, growth stills, new voice, landing refresh.
-  Credits: ~400 left. **CREDIT DISCIPLINE (owner, July 17):** spend carefully — always
+  combing, new voice, landing refresh.
+  Credits: ~246 left (July 18). **CREDIT DISCIPLINE (owner, July 17):** spend carefully — always
   `get_cost:true` first; fix with FREE keyer/trim reprocess before regenerating;
   prefer 1 video take over parallel takes; stills before video for any prop;
   ask before jobs that cost >~5 credits unless she already approved the shot.
   LESSON: start=end loop reseals story clips — trim before process.
+
+- **Plant growth (July 18)** ✅ Wellness (stretch/water) = main path (+2 pts);
+  timed-task complete = small bonus (+1); plain tasks celebrate only. Cap 10 pts /
+  **6 stages** / day (resets 4am). Art: ONE continuous idle growth clip
+  (`public/character/growth`, 61 frames) sliced into 6 frame bands. v3
+  (3443d0a0; start df994607 / end 8d42ea21, ~10.5cr): magenta plate + tiny
+  paddles → lush → pink BUD (stage 5) → soft pink BLOOM (stage 6). Soft pink
+  (not magenta) so keyer keeps petals. Gradient BG would NOT help — flood-fill
+  needs solid chroma. Level-up scrubs forward; idle holds + breathe. Rest-pose
+  rotation off. Weekly stats in Settings. Debug → stages 1–6.
+  **growth idle (July 19)** ✅ Six SEPARATE stage loops (not one time-lapse):
+  stills from `246d81d6` → stage-1..6.png → Kling blink+breathe videos
+  (jobs 4c0ec9a2 / d0704394 / be146e07 / 19d6dfef / 5d4a2b5f / e4e20b01)
+  → `assets/clips/growth1..6.mp4` → `public/character/growth1..6` (61fr each,
+  CLIP_GLOBAL=off T=18). Idle plays `SPRITES.growthN` ping-pong.
+  **drag per stage (July 19)** ✅ Matching `draggedgrowth1..6` (jobs 0a95b46a /
+  e53189b9 / 1b7e5a9b / 1b778808 / 37aeedc3 / 2cba96dd; ~45cr). Prompted white
+  plate (avoid magenta fringe); Kling kept magenta on 2/4/6 — trimmed white
+  middles for 1/3/5, mid-drag for 2/4/6; white key CLIP_T=28 global-on; magenta
+  CLIP_T=18 GLOBAL=off + plate killer + polish-sprites. Blob drag plays
+  `SPRITES.draggedgrowthN` + soft CSS sway. LESSON: start=end still locks plant;
+  prefer white BG for keying; if start=end is idle still, trim away pose morph.
+
+- **Google Calendar meeting reminders (July 17)** ✅ Settings → Calendar:
+  connect Google (OAuth Desktop client + read-only scope). Polls next 3h of
+  timed events in main process RAM; fires a bubble N minutes early
+  (settings.calendarLeadMins). PRIVACY HARD RULE: event titles/times NEVER
+  written to companion-data.json (data-save strips calendar payloads); NEVER
+  sent to Claude (chatSend only gets brain system+messages). Disk only holds
+  OAuth tokens + Google client id/secret (userData/google-calendar*.json) and
+  the on/off + lead-mins toggles. Disconnect / delete-everything clears tokens.
+  **meeting pose** ✅ handbell ring clip (magenta plate → keyed; oneshot;
+  church-chime sound). Showcase ✦ → bell.
 
 ## Status: PAUSED for Figma design refinement (July 2026)
 Gayathri is refining all UI designs in Figma. When she returns with links, use

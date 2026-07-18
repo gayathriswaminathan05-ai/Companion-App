@@ -10,6 +10,7 @@ export type CharacterState =
   | "sleeping"
   | "waking"
   | "waving"
+  | "meeting" // calendar alert: rings a handheld bell
   | "celebrating"
   | "laughing" // joke punchline — party laugh clip
   | "writing"
@@ -38,6 +39,7 @@ export const ALL_STATES: CharacterState[] = [
   "sleeping",
   "waking",
   "waving",
+  "meeting",
   "celebrating",
   "laughing",
   "writing",

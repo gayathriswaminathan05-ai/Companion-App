@@ -29,4 +29,13 @@ contextBridge.exposeInMainWorld("companion", {
   transcribe: (audioBuffer) => ipcRenderer.invoke("transcribe", audioBuffer),
   dataLoad: () => ipcRenderer.invoke("data-load"),
   dataSave: (data) => ipcRenderer.invoke("data-save", data),
+  calendarStatus: () => ipcRenderer.invoke("calendar-status"),
+  calendarSaveClient: (creds) => ipcRenderer.invoke("calendar-save-client", creds),
+  calendarConnect: () => ipcRenderer.invoke("calendar-connect"),
+  calendarDisconnect: () => ipcRenderer.invoke("calendar-disconnect"),
+  onCalendarMeeting: (handler) => {
+    const wrapped = (_e, data) => handler(data);
+    ipcRenderer.on("calendar-meeting", wrapped);
+    return () => ipcRenderer.removeListener("calendar-meeting", wrapped);
+  },
 });

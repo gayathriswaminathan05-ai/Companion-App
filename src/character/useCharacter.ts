@@ -8,6 +8,7 @@ const TIMED: Partial<Record<CharacterState, number>> = {
   // no auto-return here so the pose sticks until the next swap (or interrupt).
   waking: 1400,
   waving: 2200,
+  meeting: 5200, // handbell ring, ~61 frames @ 12fps oneshot
   celebrating: 3900, // full cork-pull + foam spill, 45 frames at 12fps (~3.75s)
   laughing: 3400, // full party laugh for jokes (~3.4s at 18fps)
   writing: 3400,

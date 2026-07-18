@@ -18,10 +18,11 @@ const root = path.join(__dirname, "..");
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "clip-"));
 const outDir = path.join(root, "public", "character", state);
 
-console.log("1/3 extracting frames (12fps, no audio)…");
+const extractFps = parseInt(process.env.CLIP_FPS || "", 10) || 12;
+console.log(`1/3 extracting frames (${extractFps}fps, no audio)…`);
 execFileSync(ffmpeg, [
   "-i", input,
-  "-vf", "fps=12,scale=-2:540",
+  "-vf", `fps=${extractFps},scale=-2:540`,
   "-an",
   path.join(tmp, "raw-%03d.png"),
 ], { stdio: "pipe" });
@@ -50,12 +51,15 @@ for (const s of states) {
   const frames = fs.readdirSync(path.join(charDir, s)).filter((f) => f.endsWith(".png")).sort();
   // One-shot story clips must NOT ping-pong or the action reverses.
   // Sleeping plays once then freezes under the blanket (holdLast).
-  const oneshot = new Set(["celebrating", "sleeping", "laughing"]);
+  // growth = time-lapse scrubbed by stage (never ping-pong reverse).
+  const oneshot = new Set(["celebrating", "sleeping", "laughing", "meeting", "growth", "draggedgrowth"]);
   const holdLast = new Set(["sleeping"]);
   const fast = new Set(["laughing"]); // celebrating demoted to 12fps — 18 made the cork-pull feel rushed
+  // Growth often extracted at CLIP_FPS=24 so blinks stay smooth.
+  const growthFps = s === "growth" || s === "draggedgrowth" ? extractFps : 12;
   manifest[s] = {
     frames: frames.map((f) => `./character/${s}/${f}`),
-    fps: fast.has(s) ? 18 : 12,
+    fps: fast.has(s) ? 18 : growthFps,
     pingpong: !oneshot.has(s),
   };
   if (holdLast.has(s)) manifest[s].holdLast = true;

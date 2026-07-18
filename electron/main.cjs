@@ -347,6 +347,12 @@ ipcMain.handle("data-reset", () => {
   try {
     fs.unlinkSync(dataFile());
   } catch {}
+  try {
+    const { clearTokens, clearClient, stopPolling } = require("./calendar.cjs");
+    clearTokens();
+    clearClient();
+    stopPolling();
+  } catch {}
   if (win) win.reload();
   return true;
 });
@@ -401,6 +407,17 @@ ipcMain.handle("data-load", () => {
 
 ipcMain.handle("data-save", (_e, data) => {
   try {
+    // Privacy: never persist calendar event payloads (titles/times/ids).
+    // Only settings.calendarReminders / calendarLeadMins are allowed.
+    if (data && typeof data === "object") {
+      delete data.calendar;
+      delete data.calendarEvents;
+      delete data.meetings;
+      if (data.settings && typeof data.settings === "object") {
+        delete data.settings.calendarEvents;
+        delete data.settings.lastMeeting;
+      }
+    }
     fs.writeFileSync(dataFile(), JSON.stringify(data, null, 2));
     return true;
   } catch {
@@ -487,6 +504,16 @@ function createTray() {
 
 app.whenReady().then(() => {
   createWindow();
+  try {
+    const { registerCalendarIpc } = require("./calendar.cjs");
+    registerCalendarIpc({
+      getUserDataPath: () => app.getPath("userData"),
+      getWindow: () => win,
+      dataFile,
+    });
+  } catch (e) {
+    console.error("calendar ipc failed", e);
+  }
   // Menu-bar (tray) presence removed by user request — the Dock icon is the
   // app's single home: click to summon, right-click → Quit.
   // Warm up the voice model in the background so the first mic use is fast.

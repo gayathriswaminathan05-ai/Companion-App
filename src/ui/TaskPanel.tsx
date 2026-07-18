@@ -1,20 +1,14 @@
 import { useMemo, useState } from "react";
 import type { Todo } from "../store";
 import { parseReminder, parseWhen, formatDue } from "../reminders";
+import { GROWTH_EMOJI, GROWTH_LABEL, type GrowthStage } from "../growth";
 import { COLORS, panel, smallBtn, primaryBtn, ghostClose, inputBar, field, chip } from "./theme";
 import MicButton from "./MicButton";
-
-const STAGE_EMOJI: Record<string, string> = {
-  bud: "🌰",
-  leaf: "🌱",
-  leaves: "🌿",
-  bloom: "🌸",
-};
 
 // One list. Any task may carry a time — those also ring as reminders.
 export default function TaskPanel({
   todos,
-  sproutStage,
+  growthStage,
   onAdd,
   onActivity,
   onMicPhase,
@@ -24,7 +18,7 @@ export default function TaskPanel({
   onClose,
 }: {
   todos: Todo[];
-  sproutStage: string;
+  growthStage: GrowthStage;
   onAdd: (text: string, due?: Date, recurring?: "daily") => void;
   onActivity: () => void;
   onMicPhase: (recording: boolean) => void;
@@ -86,9 +80,10 @@ export default function TaskPanel({
     <div style={{ ...panel, display: "flex", flexDirection: "column", height: "100%", padding: 12, gap: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingRight: 4 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>
-          today {STAGE_EMOJI[sproutStage] ?? "🌱"}
+          today {GROWTH_EMOJI[growthStage]}
           <span style={{ fontWeight: 400, color: COLORS.textSoft, marginLeft: 6, fontSize: 11 }}>
-            {doneToday.length === 0 ? "let's grow the sprout" : `${doneToday.length} done — sprout is happy`}
+            {GROWTH_LABEL[growthStage]}
+            {doneToday.length > 0 ? ` · ${doneToday.length} done` : ""}
           </span>
         </span>
         <button style={ghostClose} onClick={onClose} title="close">✕</button>

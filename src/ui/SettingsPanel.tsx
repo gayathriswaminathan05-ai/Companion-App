@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Settings } from "../store";
+import { GROWTH_EMOJI, GROWTH_LABEL, type GrowthStage, type WeekStats } from "../growth";
 import { COLORS, panel, smallBtn, primaryBtn, ghostClose, field } from "./theme";
 
 // Settings, in Blob's own voice — frosted glass shell.
@@ -67,6 +68,8 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
 export default function SettingsPanel({
   settings,
   facts,
+  week,
+  growthStage,
   onPatch,
   onDeleteFact,
   onClearChat,
@@ -76,6 +79,8 @@ export default function SettingsPanel({
 }: {
   settings: Settings;
   facts: string[];
+  week: WeekStats;
+  growthStage: GrowthStage;
   onPatch: (patch: Partial<Settings>) => void;
   onDeleteFact: (fact: string) => void;
   onClearChat: () => void | Promise<void>;
@@ -87,10 +92,63 @@ export default function SettingsPanel({
   const [clearPhase, setClearPhase] = useState<"idle" | "clearing" | "done">("idle");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showMemory, setShowMemory] = useState(false);
+  const [calStatus, setCalStatus] = useState<{ hasClient: boolean; connected: boolean }>({
+    hasClient: false,
+    connected: false,
+  });
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [calBusy, setCalBusy] = useState(false);
+  const [calMsg, setCalMsg] = useState<string | null>(null);
 
   useEffect(() => {
     (window.companion.getLoginItem() as Promise<boolean>).then(setLoginItem);
+    void window.companion.calendarStatus?.().then(setCalStatus);
   }, []);
+
+  const refreshCal = async () => {
+    const s = await window.companion.calendarStatus?.();
+    if (s) setCalStatus(s);
+  };
+
+  const canConnect =
+    calStatus.hasClient || (!!clientId.trim() && !!clientSecret.trim());
+
+  const connectCalendar = async () => {
+    setCalBusy(true);
+    setCalMsg(null);
+    // Save keys first if she just pasted them (one-tap flow).
+    if (clientId.trim() && clientSecret.trim()) {
+      const saved = await window.companion.calendarSaveClient?.({
+        clientId: clientId.trim(),
+        clientSecret: clientSecret.trim(),
+      });
+      if (!saved?.ok) {
+        setCalBusy(false);
+        setCalMsg(saved?.error || "couldn't save keys");
+        return;
+      }
+      setClientSecret("");
+      await refreshCal();
+    }
+    setCalMsg("opening Google…");
+    const res = await window.companion.calendarConnect?.();
+    setCalBusy(false);
+    if (res?.ok) {
+      setCalMsg("connected ✓");
+      await refreshCal();
+    } else {
+      setCalMsg(res?.error || "couldn't connect");
+    }
+  };
+
+  const disconnectCalendar = async () => {
+    setCalBusy(true);
+    await window.companion.calendarDisconnect?.();
+    setCalBusy(false);
+    setCalMsg("disconnected");
+    await refreshCal();
+  };
 
   const runClearChat = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -239,6 +297,97 @@ export default function SettingsPanel({
           <Toggle on={settings.autoHideOnCalls} onChange={(v) => onPatch({ autoHideOnCalls: v })} />
         </div>
 
+        <div style={sectionTitle}>calendar</div>
+        <div style={{ fontSize: 10.5, color: COLORS.textSoft, lineHeight: 1.5, marginBottom: 6 }}>
+          meeting pings only. titles stay in memory for a moment — never saved on
+          disk, never sent to Claude. Google only sees a read-only calendar check.
+        </div>
+        <div style={row}>
+          <span>remind me before meetings</span>
+          <Toggle
+            on={settings.calendarReminders}
+            onChange={(v) => onPatch({ calendarReminders: v })}
+          />
+        </div>
+        <div style={row}>
+          <span>how early</span>
+          <select
+            style={{ ...inputStyle, width: 96 }}
+            value={String(settings.calendarLeadMins)}
+            onChange={(e) => onPatch({ calendarLeadMins: Number(e.target.value) })}
+          >
+            <option value="5">5 min</option>
+            <option value="10">10 min</option>
+            <option value="15">15 min</option>
+            <option value="30">30 min</option>
+          </select>
+        </div>
+        {!calStatus.connected && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 4 }}>
+            {!calStatus.hasClient && (
+              <>
+                <span style={{ fontSize: 10.5, color: COLORS.textSoft, lineHeight: 1.4 }}>
+                  paste your Client ID + Secret below, then tap connect. (Google
+                  Cloud → Credentials → OAuth Desktop client)
+                </span>
+                <input
+                  style={{ ...field, width: "100%", fontSize: 11 }}
+                  placeholder="Client ID"
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
+                  autoComplete="off"
+                />
+                <input
+                  style={{ ...field, width: "100%", fontSize: 11 }}
+                  placeholder="Client Secret"
+                  type="password"
+                  value={clientSecret}
+                  onChange={(e) => setClientSecret(e.target.value)}
+                  autoComplete="off"
+                />
+              </>
+            )}
+            {calStatus.hasClient && (
+              <span style={{ fontSize: 10.5, color: COLORS.textSoft }}>
+                keys saved — tap connect to sign in with Google
+              </span>
+            )}
+            <button
+              style={{
+                ...primaryBtn,
+                width: "100%",
+                opacity: canConnect && !calBusy ? 1 : 0.45,
+              }}
+              disabled={calBusy || !canConnect}
+              onClick={() => void connectCalendar()}
+            >
+              {calBusy ? "working…" : "connect Google Calendar"}
+            </button>
+            {!canConnect && (
+              <span style={{ fontSize: 10.5, color: COLORS.textSoft }}>
+                paste both keys above to unlock connect
+              </span>
+            )}
+          </div>
+        )}
+        {calStatus.connected && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 4 }}>
+            <div style={{ fontSize: 11.5, color: "#1a7a4c" }}>Google Calendar connected ✓</div>
+            <button
+              style={{ ...smallBtn, width: "100%" }}
+              disabled={calBusy}
+              onClick={() => void disconnectCalendar()}
+            >
+              disconnect
+            </button>
+          </div>
+        )}
+        {calMsg && (
+          <div style={{ fontSize: 10.5, color: COLORS.textSoft, marginTop: 4, lineHeight: 1.4 }}>
+            {calMsg}
+          </div>
+        )}
+
         <div style={sectionTitle}>what I remember</div>
         <button style={{ ...smallBtn, width: "100%" }} onClick={() => setShowMemory((s) => !s)}>
           {showMemory ? "hide my memories" : `see my ${facts.length} memories of you`}
@@ -278,6 +427,28 @@ export default function SettingsPanel({
           </div>
         )}
 
+        <div style={sectionTitle}>this week</div>
+        <div
+          style={{
+            fontSize: 11.5,
+            color: COLORS.text,
+            lineHeight: 1.55,
+            background: "rgba(32, 29, 47, 0.04)",
+            borderRadius: 10,
+            padding: "8px 10px",
+            marginBottom: 4,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>
+            {GROWTH_EMOJI[growthStage]} today: {GROWTH_LABEL[growthStage]}
+          </div>
+          <div style={{ color: COLORS.textSoft }}>
+            {week.wellness === 0 && week.taskBonus === 0
+              ? "a quiet week so far — stretch, water, or a timed task and I'll grow a little."
+              : `you cared for yourself ${week.wellness} time${week.wellness === 1 ? "" : "s"}, plus ${week.taskBonus} timed-task bonus${week.taskBonus === 1 ? "" : "es"}. peak plant: ${GROWTH_LABEL[week.stagePeak]}.`}
+          </div>
+        </div>
+
         <div style={sectionTitle}>app</div>
         <div style={row}>
           <span>wake up when your Mac starts</span>
@@ -300,6 +471,7 @@ export default function SettingsPanel({
         <div style={{ fontSize: 10.5, color: COLORS.textSoft, lineHeight: 1.5, marginBottom: 6 }}>
           everything lives on this computer. chats go to Claude only to think of a
           reply — never stored, never used for training. voice never leaves at all.
+          calendar meetings are never saved and never shared with Claude.
         </div>
         {clearPhase === "idle" && (
           <button

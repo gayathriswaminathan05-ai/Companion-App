@@ -12,10 +12,19 @@ import SettingsPanel from "./ui/SettingsPanel";
 import PanelResizeHandles from "./ui/PanelResizeHandles";
 import { formatDue, parseWhen } from "./reminders";
 import { useCharacter } from "./character/useCharacter";
-import { AppData, emptyData, loadData, saveData, sproutStageFor, today } from "./store";
+import { AppData, emptyData, loadData, saveData, today } from "./store";
+import {
+  GROWTH_EMOJI,
+  GROWTH_LABEL,
+  GROWTH_MAX_POINTS,
+  GROWTH_TASK_BONUS_POINTS,
+  GROWTH_WELLNESS_POINTS,
+  ensureWeek,
+  growthStageFor,
+  type GrowthStage,
+} from "./growth";
 import { buildSystem, buildMessages, extractOutputs, FALLBACK_JOKES } from "./brain";
 import { chirp, setSoundsEnabled, startDangle, stopDangle } from "./sounds";
-import type { CharacterState } from "./character/types";
 
 declare global {
   interface Window {
@@ -43,6 +52,13 @@ declare global {
       setLoginItem: (on: boolean) => Promise<unknown>;
       brainDisconnect: () => Promise<unknown>;
       dataReset: () => Promise<unknown>;
+      calendarStatus: () => Promise<{ hasClient: boolean; connected: boolean }>;
+      calendarSaveClient: (creds: { clientId: string; clientSecret: string }) => Promise<{ ok: boolean; error?: string }>;
+      calendarConnect: () => Promise<{ ok: boolean; error?: string }>;
+      calendarDisconnect: () => Promise<{ ok: boolean }>;
+      onCalendarMeeting: (
+        handler: (data: { id: string; title: string; minutesUntil: number }) => void,
+      ) => () => void;
     };
   }
 }
@@ -132,12 +148,29 @@ export default function App() {
     });
   };
 
-  const growSprout = () => {
+  /** Wellness = main growth; timed tasks = small bonus. Caps at full plant. */
+  const growSprout = (kind: "wellness" | "taskBonus" = "wellness") => {
+    const add = kind === "wellness" ? GROWTH_WELLNESS_POINTS : GROWTH_TASK_BONUS_POINTS;
+    let leveledUp = false;
+    let nextStage: GrowthStage = 1;
     update((d) => {
       if (d.sprout.date !== today()) d.sprout = { date: today(), points: 0 };
-      d.sprout.points += 1;
+      d.week = ensureWeek(d.week);
+      const before = growthStageFor(d.sprout.points);
+      d.sprout.points = Math.min(GROWTH_MAX_POINTS, d.sprout.points + add);
+      nextStage = growthStageFor(d.sprout.points);
+      leveledUp = nextStage > before;
+      if (kind === "wellness") d.week.wellness += 1;
+      else d.week.taskBonus += 1;
+      if (nextStage > d.week.stagePeak) d.week.stagePeak = nextStage;
       return d;
     });
+    if (leveledUp) {
+      set("celebrating");
+      chirp("celebrate");
+      showToast(`${GROWTH_EMOJI[nextStage]} ${GROWTH_LABEL[nextStage]}`);
+    }
+    return { leveledUp, stage: nextStage };
   };
 
   // --- Task engine: timed tasks ring; checks every 8s; catches up on wake ---
@@ -156,37 +189,16 @@ export default function App() {
     openRef.current = open;
   }, [open]);
 
-  // Spontaneous life (PRD: "subtle randomized idle variations"):
-  // every 10 minutes the resting default rotates through living poses,
-  // and while on calm idle he still hops once in a while (avg ~40s).
-  const REST_POSES: CharacterState[] = [
-    "idle",
-    "lying",
-    "hammock",
-    "meditate",
-    "picnic",
-    "groove",
-    "hula",
-  ];
-  const restIdx = useRef(0);
-  const nextRestAt = useRef(Date.now() + 10 * 60_000);
+  // Growth art is only for default idle — keep him there (occasional hop ok).
   useEffect(() => {
     const id = window.setInterval(() => {
       if (openRef.current !== "none") return;
-      const s = stateRef.current;
-      const resting = REST_POSES.includes(s) || s === "idlehop";
-      if (!resting) return;
-      if (Date.now() >= nextRestAt.current) {
-        restIdx.current = (restIdx.current + 1) % REST_POSES.length;
-        set(REST_POSES[restIdx.current]);
-        nextRestAt.current = Date.now() + 10 * 60_000;
-      } else if (s === "idle" && Math.random() < 0.2) {
+      if (stateRef.current === "idle" && Math.random() < 0.2) {
         set("idlehop");
       }
     }, 8000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [set]);
 
   // --- Wellness engine: notices long stretches of work, bedtime, water ---
   type NudgeKind = "stretch" | "water" | "bedtime";
@@ -306,6 +318,7 @@ export default function App() {
       const { text, sources } = d as { text: string; sources?: { title: string; url: string }[] };
       const { clean, facts, tasks, completes } = extractOutputs(text);
       let completedAny = false;
+      let timedBonusFromChat = false;
       update((x) => {
         x.chat.messages.push({ role: "assistant", text: clean || "…", at: new Date().toISOString(), sources: sources && sources.length ? sources.slice(0, 8) : undefined });
         for (const f of facts) if (!x.chat.facts.includes(f)) x.chat.facts.push(f);
@@ -342,8 +355,7 @@ export default function App() {
             match.done = true;
             match.completedAt = new Date().toISOString();
             completedAny = true;
-            if (x.sprout.date !== today()) x.sprout = { date: today(), points: 0 };
-            x.sprout.points += 1;
+            if (match.due) timedBonusFromChat = true;
           }
         }
         return x;
@@ -351,7 +363,13 @@ export default function App() {
       streamRef.current = "";
       setStreamText(null);
       setChatBusy(false);
-      if (completedAny) {
+      if (timedBonusFromChat) {
+        const r = growSprout("taskBonus");
+        if (!r.leveledUp) {
+          set("celebrating");
+          chirp("celebrate");
+        }
+      } else if (completedAny) {
         set("celebrating");
         chirp("celebrate");
       } else if (tasks.length > 0) {
@@ -425,6 +443,20 @@ export default function App() {
   useEffect(() => {
     jokeRef.current = joke;
   }, [joke]);
+
+  // Google Calendar meeting ping — RAM only; never saved / never sent to Claude.
+  const [meeting, setMeeting] = useState<{ title: string; minutesUntil: number } | null>(null);
+  useEffect(() => {
+    if (!window.companion?.onCalendarMeeting) return;
+    return window.companion.onCalendarMeeting((m) => {
+      if (!dataRef.current.settings.calendarReminders) return;
+      if (document.visibilityState === "hidden") return;
+      if (stateRef.current === "sleeping" || stateRef.current === "dragged") return;
+      setMeeting({ title: m.title, minutesUntil: m.minutesUntil });
+      set("meeting");
+      chirp("bell");
+    });
+  }, []);
 
   const tellJoke = async () => {
     let j = FALLBACK_JOKES[Math.floor(Math.random() * FALLBACK_JOKES.length)];
@@ -550,9 +582,17 @@ export default function App() {
       return d;
     });
     if (completing) {
-      set("celebrating");
-      chirp("celebrate");
-      growSprout();
+      // Timed tasks = small growth bonus; plain tasks just celebrate.
+      if (t.due) {
+        const r = growSprout("taskBonus");
+        if (!r.leveledUp) {
+          set("celebrating");
+          chirp("celebrate");
+        }
+      } else {
+        set("celebrating");
+        chirp("celebrate");
+      }
     }
   };
 
@@ -575,9 +615,11 @@ export default function App() {
         }
         return d;
       });
-      set("celebrating");
-      chirp("celebrate");
-      growSprout();
+      const r = growSprout("taskBonus");
+      if (!r.leveledUp) {
+        set("celebrating");
+        chirp("celebrate");
+      }
     } else {
       update((d) => {
         const x = d.todos.find((y) => y.id === id);
@@ -602,7 +644,8 @@ export default function App() {
     setTimeout(() => setToast(null), 2200);
   };
 
-  const sproutStage = sproutStageFor(data.sprout.points);
+  const growthStage = growthStageFor(data.sprout.points);
+  const week = ensureWeek(data.week);
   const panelOpen = open === "tasks" || open === "chat" || open === "settings";
 
   // Panel size when fully on-screen. Near a screen edge, shrink width
@@ -700,7 +743,7 @@ export default function App() {
             {open === "tasks" && (
               <TaskPanel
                 todos={data.todos}
-                sproutStage={sproutStage}
+                growthStage={growthStage}
                 onAdd={addTask}
                 onActivity={noteActivity}
                 onMicPhase={setRecording}
@@ -717,6 +760,8 @@ export default function App() {
               <SettingsPanel
                 settings={data.settings}
                 facts={data.chat.facts}
+                week={week}
+                growthStage={growthStage}
                 onPatch={patchSettings}
                 onDeleteFact={(f) =>
                   update((d) => {
@@ -783,6 +828,7 @@ export default function App() {
           <Showcase
             onPlay={(s) => {
               if (!chatBusy) set(s);
+              if (s === "meeting") chirp("bell");
             }}
             onClose={() => {
               setShowcase(false);
@@ -840,7 +886,24 @@ export default function App() {
         />
       )}
 
-      {joke && firedQueue.length === 0 && !nudge && (
+      {meeting && firedQueue.length === 0 && (
+        <NudgeBubble
+          text={
+            meeting.minutesUntil <= 0
+              ? `"${meeting.title}" is starting now`
+              : `"${meeting.title}" in ${meeting.minutesUntil} min`
+          }
+          actions={[
+            {
+              label: "got it",
+              primary: true,
+              onClick: () => setMeeting(null),
+            },
+          ]}
+        />
+      )}
+
+      {joke && firedQueue.length === 0 && !nudge && !meeting && (
         <NudgeBubble
           text={joke.revealed ? joke.punchline : joke.setup}
           actions={
@@ -877,7 +940,7 @@ export default function App() {
         />
       )}
 
-      {nudge && firedQueue.length === 0 && (
+      {nudge && firedQueue.length === 0 && !meeting && (
         <NudgeBubble
           text={NUDGE_TEXT[nudge]}
           actions={
@@ -889,9 +952,11 @@ export default function App() {
                     primary: true,
                     onClick: () => {
                       setNudge(null);
-                      set("celebrating");
-                      chirp("celebrate");
-                      growSprout();
+                      const r = growSprout("wellness");
+                      if (!r.leveledUp) {
+                        set("celebrating");
+                        chirp("celebrate");
+                      }
                     },
                   },
                   {
@@ -994,7 +1059,7 @@ export default function App() {
             transition: "transform 0.2s ease",
           }}
         >
-          <Blob state={state} sproutStage={sproutStage} scribbling={scribbling} />
+          <Blob state={state} growthStage={growthStage} scribbling={scribbling} />
         </div>
       </div>
 
@@ -1002,13 +1067,20 @@ export default function App() {
         <div style={{ position: "absolute", inset: 6, pointerEvents: "auto" }}>
           <DebugMenu
             current={state}
-            sprout={sproutStage}
+            growthStage={growthStage}
             onState={set}
             onTestNudge={(k) => triggerNudge(k)}
             onTestJoke={() => void tellJoke()}
             soundsOn={data.settings.soundsOn}
             onToggleSounds={() => update((d) => { d.settings.soundsOn = !d.settings.soundsOn; return d; })}
-            onSprout={() => showToast("sprout now grows with your day 🌱")}
+            onGrowthStage={(s) =>
+              update((d) => {
+                if (d.sprout.date !== today()) d.sprout = { date: today(), points: 0 };
+                // Jump to the minimum points for that stage (preview only).
+                d.sprout.points = s === 1 ? 0 : s === 2 ? 2 : s === 3 ? 4 : s === 4 ? 6 : s === 5 ? 8 : 10;
+                return d;
+              })
+            }
             onClose={() => setDebugOpen(false)}
           />
         </div>
