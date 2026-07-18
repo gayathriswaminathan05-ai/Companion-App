@@ -521,19 +521,15 @@ export default function Blob({
   // writing → noting notepad; thinking/listening → coffee sip; else idle.
   // Idle: one short loop per growth stage (blink + breathe baked in).
   // Drag: matching per-stage dangle loop (same plant identity as idle).
-  // FOR NOW: ignore the per-growth-stage clips (growth1..6 / draggedgrowth1..6)
-  // and use the single polished idle clip as the default, plus the single
-  // dragged clip (its own dangle) when grabbed. Flip back to true once the
-  // regenerated 6-stage growth video is processed and wired in.
-  const USE_GROWTH_ART = false;
+  // Idle plays the per-stage growth clip. On drag we reuse that SAME growth
+  // clip and simply dangle it with a CSS swing — no separate draggedgrowth
+  // clips (they distorted). Same plant identity, always in sync with idle.
   const growthKey = `growth${growthStage}`;
-  const dragKey = `draggedgrowth${growthStage}`;
-  const stageLoop = USE_GROWTH_ART ? SPRITES[growthKey] : undefined;
-  const dragLoop = USE_GROWTH_ART ? SPRITES[dragKey] : undefined;
-  if (state === "dragged" && dragLoop?.frames?.length) {
+  const stageLoop = SPRITES[growthKey];
+  if (state === "dragged" && stageLoop?.frames?.length) {
     return (
       <div className="growth-dangle">
-        <SpriteAnim key={dragKey} anim={dragLoop} />
+        <SpriteAnim key={growthKey} anim={stageLoop} />
         <style>{`
           .growth-dangle {
             animation: growthDangle 0.55s ease-in-out infinite;
@@ -549,38 +545,6 @@ export default function Blob({
   }
   if (state === "idle" && stageLoop?.frames?.length) {
     return <SpriteAnim key={growthKey} anim={stageLoop} />;
-  }
-  // Fallback: freeze idle stage frame + CSS dangle if drag clip missing.
-  if (state === "dragged" && stageLoop?.frames?.length) {
-    const scale = spriteScale(stageLoop);
-    return (
-      <div className="growth-dangle">
-        <img
-          src={stageLoop.frames[0]}
-          width={204}
-          height={240}
-          draggable={false}
-          alt=""
-          style={{
-            objectFit: "contain",
-            objectPosition: "bottom center",
-            display: "block",
-            transform: scale !== 1 ? `scale(${scale})` : undefined,
-            transformOrigin: "bottom center",
-          }}
-        />
-        <style>{`
-          .growth-dangle {
-            animation: growthDangle 0.55s ease-in-out infinite;
-            transform-origin: top center;
-          }
-          @keyframes growthDangle {
-            0%, 100% { transform: rotate(-5deg); }
-            50% { transform: rotate(5deg); }
-          }
-        `}</style>
-      </div>
-    );
   }
   const idleSprite = state === "idle" ? SPRITES.idle : undefined;
   const sprite =

@@ -261,8 +261,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 540,
-    "srcH": 540
+    "srcW": 569,
+    "srcH": 569
   },
   "draggedgrowth2": {
     "frames": [
@@ -289,8 +289,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 540,
-    "srcH": 540
+    "srcW": 423,
+    "srcH": 526
   },
   "draggedgrowth3": {
     "frames": [
@@ -322,17 +322,12 @@ export const SPRITES: Record<string, SpriteAnim> = {
       "./character/draggedgrowth3/f-026.png",
       "./character/draggedgrowth3/f-027.png",
       "./character/draggedgrowth3/f-028.png",
-      "./character/draggedgrowth3/f-029.png",
-      "./character/draggedgrowth3/f-030.png",
-      "./character/draggedgrowth3/f-031.png",
-      "./character/draggedgrowth3/f-032.png",
-      "./character/draggedgrowth3/f-033.png",
-      "./character/draggedgrowth3/f-034.png"
+      "./character/draggedgrowth3/f-029.png"
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 540,
-    "srcH": 540
+    "srcW": 383,
+    "srcH": 466
   },
   "draggedgrowth4": {
     "frames": [
@@ -363,8 +358,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 540,
-    "srcH": 540
+    "srcW": 376,
+    "srcH": 513
   },
   "draggedgrowth5": {
     "frames": [
@@ -398,8 +393,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 540,
-    "srcH": 540
+    "srcW": 569,
+    "srcH": 569
   },
   "draggedgrowth6": {
     "frames": [
@@ -430,8 +425,8 @@ export const SPRITES: Record<string, SpriteAnim> = {
     ],
     "fps": 12,
     "pingpong": true,
-    "srcW": 540,
-    "srcH": 540
+    "srcW": 406,
+    "srcH": 515
   },
   "groove": {
     "frames": [
