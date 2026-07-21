@@ -38,6 +38,8 @@ export interface Settings {
   calendarReminders: boolean;
   /** Minutes before a meeting to nudge (5–60). */
   calendarLeadMins: number;
+  /** Dev growth test strip beside the plant (hide when not testing). */
+  growthTestVisible: boolean;
 }
 
 export interface Wellness {
@@ -52,6 +54,8 @@ export interface ChatState {
   facts: string[]; // lasting memory about the user
   summary: string; // compressed older history
   jokeLastAt: string | null;
+  /** Recent joke setups (normalized) so we don't repeat the same ones. */
+  jokeRecent: string[];
 }
 
 export interface AppData {
@@ -79,6 +83,7 @@ export const defaultSettings = (): Settings => ({
   panelScale: 1,
   calendarReminders: true,
   calendarLeadMins: 10,
+  growthTestVisible: true,
 });
 
 export const emptyWellness = (): Wellness => ({
@@ -93,6 +98,7 @@ export const emptyChat = (): ChatState => ({
   facts: [],
   summary: "",
   jokeLastAt: null,
+  jokeRecent: [],
 });
 
 export const emptyData = (): AppData => ({
@@ -132,9 +138,14 @@ export async function loadData(): Promise<AppData> {
   if (typeof data.settings.calendarReminders !== "boolean") {
     data.settings.calendarReminders = true;
   }
+  if (typeof data.settings.growthTestVisible !== "boolean") {
+    data.settings.growthTestVisible = true;
+  }
   data.chat = { ...emptyChat(), ...(data.chat ?? {}) };
   if (data.chat.messages.length > 60) data.chat.messages = data.chat.messages.slice(-60);
   if (data.chat.facts.length > 40) data.chat.facts = data.chat.facts.slice(-40);
+  if (!Array.isArray(data.chat.jokeRecent)) data.chat.jokeRecent = [];
+  if (data.chat.jokeRecent.length > 40) data.chat.jokeRecent = data.chat.jokeRecent.slice(-40);
   if (!data.wellness || data.wellness.date !== today()) {
     data.wellness = { ...emptyWellness(), bedtimeDate: data.wellness?.bedtimeDate ?? null };
   }

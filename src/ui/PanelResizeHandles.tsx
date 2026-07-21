@@ -116,6 +116,7 @@ export default function PanelResizeHandles({
             cursor,
             ...style,
           }}
+          data-hit="1"
         />
       ))}
     </>

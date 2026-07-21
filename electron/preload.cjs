@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("companion", {
   setClickThrough: (ignore) => ipcRenderer.send("set-click-through", ignore),
+  cursorClientPos: () => ipcRenderer.invoke("cursor-client-pos"),
   dragStart: () => ipcRenderer.send("drag-start"),
   dragEnd: () => ipcRenderer.send("drag-end"),
   hide: () => ipcRenderer.send("hide-app"),

@@ -19,11 +19,8 @@ export default function QuickNav({ items }: { items: QuickNavItem[] }) {
 
   return (
     <div
-      onMouseEnter={() => window.companion?.setClickThrough(false)}
-      onMouseLeave={() => {
-        window.companion?.setClickThrough(true);
-        setHovered(null);
-      }}
+      data-hit="1"
+      onMouseLeave={() => setHovered(null)}
       style={{
         display: "flex",
         gap: 7,

@@ -203,8 +203,9 @@ session — it is the cross-session memory.**
   STATES LIVE: idle(breathe)+idlehop(spontaneous, ~40s)+REST POSES rotating
   every 10min as the default (idle→lying→hammock→meditate→picnic→groove→hula→…;
   each sticks until next swap; interrupted by panels/sleep/nudges),
-  stretching(real workout: side bends+cross-body), watering(self-water = water
-  nudge), dragged(v1 take, trimmed 2.15-4.8). Raw mp4s in assets/clips/
+  stretching(real workout: side bends+cross-body), watering(per-stage self-water
+  watering1..6 = water nudge; start=end stage still; oneshot TIMED 5.2s),
+  dragged(v1 take, trimmed 2.15-4.8). Raw mp4s in assets/clips/
   (REPROCESSABLE FREE — never regenerate before exhausting keyer fixes:
   CLIP_T tolerance, CLIP_GLOBAL=off solid-char mode, trim windows).
   KEYER UPGRADES: CLIP_T env, CLIP_GLOBAL=off (protects eye whites/pupils),
@@ -268,6 +269,11 @@ session — it is the cross-session memory.**
   the on/off + lead-mins toggles. Disconnect / delete-everything clears tokens.
   **meeting pose** ✅ handbell ring clip (magenta plate → keyed; oneshot;
   church-chime sound). Showcase ✦ → bell.
+  **stretch/walk (visor+high-tops)** ✅ stretching1–5 wired (Blob picks
+  stretching${growthStage}). walk1 = white-BG regenerate (~5s, easy key:
+  CLIP_T=40 + border white purge). walk2–4 magenta plates (10s). walk5 white
+  BG 10s (job d4101b46, open flower). Stage 6 still+video TODO. Prefer WHITE
+  plate for future walks — magenta fringe under shoes is painful.
 
 ## Status: PAUSED for Figma design refinement (July 2026)
 Gayathri is refining all UI designs in Figma. When she returns with links, use

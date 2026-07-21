@@ -85,7 +85,29 @@ function createWindow() {
 }
 
 ipcMain.on("set-click-through", (_e, ignore) => {
-  if (win) win.setIgnoreMouseEvents(ignore, { forward: true });
+  if (!win) return;
+  // forward:true only while ignoring — lets the page see hover and re-enable clicks
+  // on the character. When capturing, omit forward so the window behaves normally.
+  if (ignore) win.setIgnoreMouseEvents(true, { forward: true });
+  else win.setIgnoreMouseEvents(false);
+});
+
+// CSS client coords of the cursor inside the window, or null if outside.
+// Used so click-through can recover even when mouseleave / move events are missed
+// (common with transparent always-on-top windows on macOS).
+ipcMain.handle("cursor-client-pos", () => {
+  if (!win || win.isDestroyed()) return null;
+  const point = screen.getCursorScreenPoint();
+  const bounds = win.getContentBounds();
+  if (
+    point.x < bounds.x ||
+    point.y < bounds.y ||
+    point.x >= bounds.x + bounds.width ||
+    point.y >= bounds.y + bounds.height
+  ) {
+    return null;
+  }
+  return { x: point.x - bounds.x, y: point.y - bounds.y };
 });
 
 // Manual drag: while dragging, the window follows the cursor ~60x per second.

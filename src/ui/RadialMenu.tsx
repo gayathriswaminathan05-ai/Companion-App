@@ -65,6 +65,7 @@ export default function RadialMenu({
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 9 }}>
       <div
         className="menu-rise"
+        data-hit="1"
         style={{
           position: "absolute",
           left: pillLeft,
@@ -85,8 +86,6 @@ export default function RadialMenu({
           isolation: "isolate",
           pointerEvents: "auto",
         }}
-        onMouseEnter={() => window.companion?.setClickThrough(false)}
-        onMouseLeave={() => window.companion?.setClickThrough(true)}
       >
         {onSecret && (
           <button
@@ -184,13 +183,12 @@ export default function RadialMenu({
           title="close"
           className="menu-item"
           onMouseEnter={() => {
-            window.companion?.setClickThrough(false);
             setHovered("__close");
           }}
           onMouseLeave={() => {
-            window.companion?.setClickThrough(true);
             setHovered(null);
           }}
+          data-hit="1"
           style={{
             position: "absolute",
             left: pillLeft + pillW - CLOSE / 2,

@@ -3,17 +3,26 @@ import type { CharacterState } from "./types";
 
 // States that play once, then return to idle automatically (duration in ms).
 const TIMED: Partial<Record<CharacterState, number>> = {
-  idlehop: 2000, // one hop burst (24 frames at 12fps), then settle
+  idlehop: 1600, // one hop burst, then settle
   // Idle ACTIVITIES: App rotates these every 10 min as the resting default —
   // no auto-return here so the pose sticks until the next swap (or interrupt).
-  waking: 1400,
-  waving: 2200,
-  meeting: 5200, // handbell ring, ~61 frames @ 12fps oneshot
-  celebrating: 3900, // full cork-pull + foam spill, 45 frames at 12fps (~3.75s)
-  laughing: 3400, // full party laugh for jokes (~3.4s at 18fps)
-  writing: 3400,
-  stretching: 5200, // full follow-along routine (5s clip)
-  juggling: 750,
+  waking: 1100,
+  waving: 1700,
+  meeting: 4200, // handbell ring oneshot (per-stage clips ~3–4s)
+  celebrating: 3000, // cork-pull @ 16fps (~2.8s)
+  laughing: 2800,
+  writing: 2800,
+  // Per-stage stretch→walk: stage1≈5s, stage3+≈10s; holdLast freezes short clips.
+  stretching: 10500,
+  watering: 2000, // pour-only trim (~1.5–1.9s @ 12fps)
+  juggling: 600,
+  // Growth level-up: ~61 frames @ 20fps (~3.05s) + hold on idle-matched
+  // end frames so we never cut mid-settle (end flash).
+  grow1to2: 3800,
+  grow2to3: 3800,
+  grow3to4: 3800,
+  grow4to5: 3800,
+  grow5to6: 3800,
 };
 
 export function useCharacter() {

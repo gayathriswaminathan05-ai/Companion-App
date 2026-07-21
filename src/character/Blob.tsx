@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CharacterState, SproutStage } from "./types";
 import { growthStageBand, type GrowthStage } from "../growth";
 import { SPRITES, SpriteAnim as SpriteAnimDef } from "../generated/sprites";
+import { GROW_HANDOFF_SCALE } from "../generated/growHandoff";
 
 function growthToLegacy(g: GrowthStage): SproutStage {
   if (g >= 6) return "bloom";
@@ -9,6 +10,13 @@ function growthToLegacy(g: GrowthStage): SproutStage {
   if (g >= 2) return "leaf";
   return "bud";
 }
+
+/** Designer confetti burst (transparent PNG sequence). Never baked into Kling. */
+const CONFETTI_FRAMES = Array.from(
+  { length: 16 },
+  (_, i) => `./fx/confetti/f-${String(i + 1).padStart(3, "0")}.png`,
+);
+const CONFETTI_FRAME_MS = 50; // matches source GIF (~850ms total; first frame 100ms)
 
 // Warm EVERY state's frames once at startup, so the very first switch into
 // any state (e.g. grabbing the blob) shows its first frame with zero lag.
@@ -22,16 +30,68 @@ function warmAllSprites() {
       img.src = src;
     }
   }
+  for (const src of CONFETTI_FRAMES) {
+    const img = new Image();
+    img.src = src;
+  }
+}
+
+function ConfettiBurst({ burstKey }: { burstKey: string }) {
+  const [frame, setFrame] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    setFrame(0);
+    setVisible(true);
+    let i = 0;
+    const timer = window.setInterval(() => {
+      i += 1;
+      if (i >= CONFETTI_FRAMES.length) {
+        window.clearInterval(timer);
+        setVisible(false);
+        return;
+      }
+      setFrame(i);
+    }, CONFETTI_FRAME_MS);
+    return () => window.clearInterval(timer);
+  }, [burstKey]);
+
+  if (!visible) return null;
+  return (
+    <img
+      className="confetti-burst"
+      src={CONFETTI_FRAMES[frame]}
+      alt=""
+      aria-hidden
+      draggable={false}
+    />
+  );
+}
+
+function isPartyState(state: CharacterState): boolean {
+  return state === "celebrating" || /^grow\dto\d$/.test(state);
 }
 
 function spriteScale(anim: SpriteAnimDef): number {
   const base = SPRITES.idle;
+  const fit = (a: SpriteAnimDef) => Math.min(408 / a.srcW!, 480 / a.srcH!);
+
+  // Grow clips: hop headroom makes the pot draw smaller inside the PNG.
+  // Match the DESTINATION stage × potScale so the last grow frame and the
+  // next idle share on-screen size (no size jump at handoff).
+  const growTo = anim.frames[0]?.match(/\/grow\dto(\d)\//)?.[1];
+  const stage = growTo ? SPRITES[`growth${growTo}`] : undefined;
+  if (stage?.srcW && stage?.srcH && base?.srcW && base?.srcH) {
+    const stageScale = fit(base) / fit(stage);
+    const potScale = anim.potScale ?? 1;
+    return Math.max(0.7, Math.min(1.6, stageScale * potScale));
+  }
+
   let scale = 1;
   if (anim !== base && anim.srcW && anim.srcH && base?.srcW && base?.srcH) {
-    const fit = (a: SpriteAnimDef) => Math.min(408 / a.srcW!, 480 / a.srcH!);
     scale = Math.max(0.7, Math.min(1.45, fit(base) / fit(anim)));
   }
-  if (anim.frames[0]?.includes("/meeting/")) {
+  if (/\/meeting\d?\//.test(anim.frames[0] ?? "")) {
     scale = Math.min(1.45, scale * 1.28);
   }
   return scale;
@@ -39,10 +99,18 @@ function spriteScale(anim: SpriteAnimDef): number {
 
 // Plays AI-generated frame animations (ping-pong loop) for states that have
 // them; all other states fall back to the procedural drawing below.
-function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
+function SpriteAnim({
+  anim,
+  scaleOverride,
+}: {
+  anim: SpriteAnimDef;
+  /** When set, use this CSS scale instead of spriteScale(anim). */
+  scaleOverride?: number;
+}) {
   const [idx, setIdx] = useState(0);
+  const [shown, setShown] = useState(anim.frames[0] ?? "");
   const dirRef = useRef(1);
-  const scale = spriteScale(anim);
+  const scale = scaleOverride ?? spriteScale(anim);
 
   useEffect(() => {
     warmAllSprites();
@@ -50,6 +118,8 @@ function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
     // gesture clips (juggling, dragged) always play from their beginning.
     setIdx(0);
     dirRef.current = 1;
+    const first = anim.frames[0] ?? "";
+    if (first) setShown(first);
     const timer = window.setInterval(() => {
       setIdx((i) => {
         let next = i + dirRef.current;
@@ -73,9 +143,27 @@ function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
     return () => clearInterval(timer);
   }, [anim]);
 
+  // Only swap the visible src once the next frame is decoded — avoids a
+  // one-frame blank (reads as a screen flash) when jumping clips/states.
+  useEffect(() => {
+    const next = anim.frames[idx];
+    if (!next || next === shown) return;
+    const img = new Image();
+    img.src = next;
+    if (img.complete) {
+      setShown(next);
+      return;
+    }
+    img.onload = () => setShown(next);
+    return () => {
+      img.onload = null;
+    };
+  }, [anim, idx, shown]);
+
   return (
     <img
-      src={anim.frames[idx]}
+      data-char-sprite="1"
+      src={shown}
       width={204}
       height={240}
       draggable={false}
@@ -85,6 +173,7 @@ function SpriteAnim({ anim }: { anim: SpriteAnimDef }) {
         display: "block",
         transform: scale !== 1 ? `scale(${scale})` : undefined,
         transformOrigin: "bottom center",
+        pointerEvents: "none",
       }}
       alt=""
     />
@@ -237,6 +326,7 @@ function GrowthStageAnim({
       style={{ position: "relative", width: 204, height: 240 }}
     >
       <img
+        data-char-sprite="1"
         src={anim.frames[idx] ?? anim.frames[end]}
         width={204}
         height={240}
@@ -247,6 +337,7 @@ function GrowthStageAnim({
           display: "block",
           transform: scale !== 1 ? `scale(${scale})` : undefined,
           transformOrigin: "bottom center",
+          pointerEvents: "none",
         }}
         alt=""
       />
@@ -426,6 +517,70 @@ export default function Blob({
   const [wiggle, setWiggle] = useState(false);
   const [sleepPhase, setSleepPhase] = useState<"yawn" | "asleep">("yawn");
   const svgRef = useRef<SVGSVGElement>(null);
+  // Grow→idle handoff: keep last grow frame covering the plant for one paint
+  // cycle so unmounting celebrate-wrap can't flash a blank frame.
+  const prevStateRef = useRef(state);
+  const growBridgeRef = useRef<{ src: string; scale: number; underMul: number } | null>(null);
+  const [bridgeTick, setBridgeTick] = useState(0);
+  // Synchronous size lock (ref, not state). useState lagged one frame at full
+  // idle scale — that single frame was the visible "last frame resize".
+  const sizeMulRef = useRef(1);
+  const prevGrowthRef = useRef(growthStage);
+  // Bump whenever we enter a party pose so replaying the same growN→M
+  // still remounts confetti (state key alone wouldn't).
+  const confettiNonceRef = useRef(0);
+  if (isPartyState(state) && prevStateRef.current !== state) {
+    confettiNonceRef.current += 1;
+  }
+  const [encore, setEncore] = useState(false);
+  useEffect(() => {
+    if (!isPartyState(state)) {
+      setEncore(false);
+      return;
+    }
+    setEncore(false);
+    // Second burst mid-joy so confetti reads on every level-up, not just t=0.
+    const t = window.setTimeout(() => setEncore(true), 1000);
+    return () => clearTimeout(t);
+  }, [state]);
+
+  if (prevStateRef.current !== state) {
+    if (/^grow\dto\d$/.test(prevStateRef.current) && state === "idle") {
+      const prev = prevStateRef.current;
+      const spr = SPRITES[prev] as SpriteAnimDef | undefined;
+      // Cover with the LAST grow frame at grow scale — that's what the eye just
+      // saw. Underneath: dest idle scaled by sizeMul so on-screen size matches
+      // (grow4to5 end is ~10% smaller than growth5 idle).
+      if (spr?.frames?.length) {
+        const underMul = GROW_HANDOFF_SCALE[prev] ?? 1;
+        sizeMulRef.current = underMul;
+        growBridgeRef.current = {
+          src: spr.frames[spr.frames.length - 1],
+          scale: spriteScale(spr),
+          underMul,
+        };
+      }
+    }
+    prevStateRef.current = state;
+  }
+
+  useEffect(() => {
+    if (!growBridgeRef.current || state !== "idle") return;
+    const t = window.setTimeout(() => {
+      growBridgeRef.current = null;
+      setBridgeTick((n) => n + 1);
+    }, 480);
+    return () => clearTimeout(t);
+  }, [state, bridgeTick]);
+
+  // Reset size lock only when user picks a stage on the test bar while idle —
+  // NOT when level-up bumps growthStage at the start of a grow clip.
+  if (prevGrowthRef.current !== growthStage) {
+    prevGrowthRef.current = growthStage;
+    if (state === "idle" && !growBridgeRef.current) {
+      sizeMulRef.current = 1;
+    }
+  }
 
   // Sleeping is a sequence: yawn first, then flop over and sleep.
   useEffect(() => {
@@ -544,68 +699,143 @@ export default function Blob({
     );
   }
   if (state === "idle" && stageLoop?.frames?.length) {
-    return <SpriteAnim key={growthKey} anim={stageLoop} />;
+    // bridgeTick forces a re-render when the overlay clears.
+    const bridge = bridgeTick >= 0 ? growBridgeRef.current : null;
+    const idleScale = spriteScale(stageLoop);
+    // Read size lock from ref (same paint as grow→idle) — never one frame late.
+    const wrapMul = sizeMulRef.current;
+    // Stage 6's baked idle has heavy half-lid / odd blink frames that read as
+    // weird twitching when looped. Prefer a calm open-eye hold + soft breathe.
+    const calmStill = growthStage === 6;
+    // Idle MUST use its own scale. While the handoff overlay is up, freeze on
+    // frame 0 — otherwise the idle loop advances under the fade and flashes.
+    return (
+      <div
+        style={{
+          position: "relative",
+          width: 204,
+          height: 240,
+          transform: wrapMul !== 1 ? `scale(${wrapMul})` : undefined,
+          transformOrigin: "bottom center",
+        }}
+      >
+        {bridge || calmStill ? (
+          <div
+            className={calmStill && !bridge ? "growth-breathe" : undefined}
+            style={{ width: 204, height: 240 }}
+          >
+            <img
+              data-char-sprite="1"
+              src={stageLoop.frames[0]}
+              width={204}
+              height={240}
+              draggable={false}
+              alt=""
+              style={{
+                objectFit: "contain",
+                objectPosition: "bottom center",
+                display: "block",
+                transform: idleScale !== 1 ? `scale(${idleScale})` : undefined,
+                transformOrigin: "bottom center",
+                pointerEvents: "none",
+              }}
+            />
+            {calmStill && !bridge && (
+              <style>{`
+                .growth-breathe {
+                  animation: growthBreathe 3.2s ease-in-out infinite;
+                  transform-origin: bottom center;
+                }
+                @keyframes growthBreathe {
+                  0%, 100% { transform: scaleX(1) scaleY(1); }
+                  50% { transform: scaleX(1.012) scaleY(0.985); }
+                }
+              `}</style>
+            )}
+          </div>
+        ) : (
+          // Wrapper already applies wrapMul — SpriteAnim keeps normal idle scale.
+          <SpriteAnim key={growthKey} anim={stageLoop} />
+        )}
+        {bridge && (
+          <img
+            src={bridge.src}
+            width={204}
+            height={240}
+            draggable={false}
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              objectFit: "contain",
+              objectPosition: "bottom center",
+              // Cancel wrapper mul so bridge stays at true grow-end size.
+              transform: `scale(${bridge.scale / (wrapMul || 1)})`,
+              transformOrigin: "bottom center",
+              animation: "growHandoffOut 480ms ease-out forwards",
+              pointerEvents: "none",
+              zIndex: 3,
+            }}
+          />
+        )}
+        {bridge && (
+          <style>{`
+            @keyframes growHandoffOut {
+              0%, 45% { opacity: 1; }
+              100% { opacity: 0; }
+            }
+          `}</style>
+        )}
+      </div>
+    );
   }
   const idleSprite = state === "idle" ? SPRITES.idle : undefined;
+  // Water / calendar: per-stage clips (same plant as idle N).
+  const wateringSprite =
+    state === "watering"
+      ? SPRITES[`watering${growthStage}`] || SPRITES.watering
+      : undefined;
+  const meetingSprite =
+    state === "meeting"
+      ? SPRITES[`meeting${growthStage}`] || SPRITES.meeting
+      : undefined;
+  // Stretch nudge: per-stage visor+shoes walk clips when available.
+  const stretchingSprite =
+    state === "stretching"
+      ? SPRITES[`stretching${growthStage}`] || SPRITES.stretching
+      : undefined;
   const sprite =
     idleSprite ||
+    wateringSprite ||
+    meetingSprite ||
+    stretchingSprite ||
     SPRITES[state] ||
     (state === "writing" ? SPRITES.noting : undefined) ||
     (state === "thinking" || state === "listening" ? SPRITES.coffee : undefined) ||
     SPRITES.idle;
   if (sprite && sprite.frames.length > 0) {
-    // Celebration needs party energy on top of the clip (sparkles), not just the bottle open.
-    if (state === "celebrating") {
+    // All level-ups + champagne: app confetti (never baked into Kling —
+    // crop/keyer would clip particles into a box).
+    if (isPartyState(state)) {
+      const n = confettiNonceRef.current;
       return (
         <div className="celebrate-wrap" style={{ position: "relative", width: 204, height: 240 }}>
           <SpriteAnim anim={sprite} />
-          <div className="party-fx" aria-hidden>
-            <span className="burst b1">✦</span>
-            <span className="burst b2">✦</span>
-            <span className="burst b3">✧</span>
-            <span className="burst b4">✦</span>
-            <span className="burst b5">✧</span>
-            <span className="conf c1" />
-            <span className="conf c2" />
-            <span className="conf c3" />
-            <span className="conf c4" />
-            <span className="conf c5" />
-            <span className="conf c6" />
-          </div>
+          <ConfettiBurst burstKey={`a-${state}-${n}`} />
+          {encore && <ConfettiBurst burstKey={`b-${state}-${n}`} />}
           <style>{`
             .celebrate-wrap { overflow: visible; }
-            .party-fx { pointer-events: none; position: absolute; inset: 0; z-index: 2; }
-            .burst {
-              position: absolute; color: #FFD75E; font-size: 14px; font-weight: 700;
-              animation: burstpop 0.55s ease-out infinite;
-              text-shadow: 0 0 6px rgba(255, 215, 94, 0.7);
+            .confetti-burst {
+              pointer-events: none;
+              position: absolute;
+              left: 50%;
+              top: 34%;
+              width: 320px;
+              height: 320px;
+              transform: translate(-50%, -50%);
+              z-index: 2;
             }
-            .b1 { left: 12px; top: 28px; animation-delay: 0s; }
-            .b2 { right: 8px; top: 18px; animation-delay: 0.12s; font-size: 18px; color: #FF8A7A; }
-            .b3 { left: 28px; top: 8px; animation-delay: 0.22s; color: #7FB8E8; }
-            .b4 { right: 24px; top: 48px; animation-delay: 0.08s; color: #F9A8C4; }
-            .b5 { left: 48px; top: 22px; animation-delay: 0.3s; font-size: 11px; }
-            @keyframes burstpop {
-              0% { transform: scale(0.4) rotate(-12deg); opacity: 0; }
-              35% { transform: scale(1.25) rotate(8deg); opacity: 1; }
-              100% { transform: scale(0.7) translateY(-10px); opacity: 0; }
-            }
-            .conf {
-              position: absolute; width: 7px; height: 10px; border-radius: 2px;
-              animation: confetti 0.9s linear infinite;
-            }
-            .c1 { left: 20px; top: 40px; background: #FF8A7A; animation-delay: 0s; }
-            .c2 { left: 50px; top: 30px; background: #FFD75E; animation-delay: 0.15s; }
-            .c3 { left: 90px; top: 24px; background: #93C46F; animation-delay: 0.28s; }
-            .c4 { left: 120px; top: 36px; background: #7FB8E8; animation-delay: 0.1s; }
-            .c5 { left: 70px; top: 50px; background: #F9A8C4; animation-delay: 0.35s; }
-            .c6 { left: 140px; top: 55px; background: #FFCF96; animation-delay: 0.2s; }
-            @keyframes confetti {
-              0% { transform: translate(0,0) rotate(0deg); opacity: 1; }
-              100% { transform: translate(var(--dx, 8px), 70px) rotate(220deg); opacity: 0; }
-            }
-            .c1 { --dx: -12px; } .c2 { --dx: 6px; } .c3 { --dx: -4px; }
-            .c4 { --dx: 14px; } .c5 { --dx: -8px; } .c6 { --dx: 4px; }
           `}</style>
         </div>
       );

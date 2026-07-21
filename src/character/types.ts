@@ -21,7 +21,13 @@ export type CharacterState =
   | "juggling"
   | "noting"
   | "watering"
-  | "dragged";
+  | "dragged"
+  // Growth level-up transitions: clap celebration, then leaves grow to next stage.
+  | "grow1to2"
+  | "grow2to3"
+  | "grow3to4"
+  | "grow4to5"
+  | "grow5to6";
 
 export type SproutStage = "bud" | "leaf" | "leaves" | "bloom";
 

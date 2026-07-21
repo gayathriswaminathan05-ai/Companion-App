@@ -46,7 +46,7 @@ export type ChirpName =
   | "sleepy" // slow descending yawn-tones
   | "giggle" // fast wobbly tee-hee (joke punchline)
   | "msg" // very quiet blip when a chat reply lands
-  | "bell"; // soft handbell ding for meeting alerts
+  | "bell"; // church chimes (4×) for meeting alerts
 
 // Dangle voice: startled "whoop!" on pickup, then a soft wobbling hum that
 // sways with the character until stopDangle() (release) plays a landing plop.
@@ -135,16 +135,15 @@ export function chirp(name: ChirpName) {
         note(520, 580, 0, 0.07, 0.05);
         break;
       case "bell": {
-        // Soft church-bell chime: low bronze fundamental + long ringing partials.
+        // Soft church-bell chime ×4, a bit brisk.
         const a = ac();
         const chime = (t0: number, fund: number, peak: number) => {
-          // Inharmonic partials ≈ church bell (not a pure octave stack).
           for (const [mult, amp, decay] of [
-            [1, 1, 1.8],
-            [2.0, 0.45, 1.4],
-            [2.76, 0.28, 1.2],
-            [3.71, 0.16, 1.0],
-            [5.0, 0.08, 0.7],
+            [1, 1, 1.2],
+            [2.0, 0.45, 1.0],
+            [2.76, 0.28, 0.85],
+            [3.71, 0.16, 0.7],
+            [5.0, 0.08, 0.5],
           ] as const) {
             const osc = a.createOscillator();
             const gain = a.createGain();
@@ -152,16 +151,18 @@ export function chirp(name: ChirpName) {
             osc.frequency.value = fund * mult;
             const g0 = a.currentTime + t0;
             gain.gain.setValueAtTime(0.0001, g0);
-            gain.gain.exponentialRampToValueAtTime(peak * amp, g0 + 0.015);
+            gain.gain.exponentialRampToValueAtTime(peak * amp, g0 + 0.012);
             gain.gain.exponentialRampToValueAtTime(0.0001, g0 + decay);
             osc.connect(gain).connect(a.destination);
             osc.start(g0);
-            osc.stop(g0 + decay + 0.05);
+            osc.stop(g0 + decay + 0.04);
           }
         };
-        // Classic ding–dong (two strikes, a fifth apart).
-        chime(0, 262, 0.14); // C4-ish bronze
-        chime(0.85, 196, 0.16); // G3 answer
+        // Four ding–dongs, faster spacing than the old two-strike version.
+        for (let i = 0; i < 4; i++) {
+          const t = i * 0.38;
+          chime(t, i % 2 === 0 ? 262 : 196, i % 2 === 0 ? 0.13 : 0.15);
+        }
         break;
       }
     }

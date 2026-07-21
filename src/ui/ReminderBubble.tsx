@@ -19,8 +19,7 @@ export default function ReminderBubble({
 }) {
   return (
     <div
-      onMouseEnter={() => window.companion?.setClickThrough(false)}
-      onMouseLeave={() => window.companion?.setClickThrough(true)}
+      data-hit="1"
       style={{
         ...panel,
         position: "absolute",

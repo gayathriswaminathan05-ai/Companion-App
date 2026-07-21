@@ -61,12 +61,87 @@ from start — do NOT grow, shrink, or redraw leaves. Keep exact soil/pot/blush.
 End plant matches start plant. Only pose/face change to dangling+surprised.
 
 ## DRAG JOBS (July 19 2026)
-- Stage 1: 0a95b46a-a8b4-4e9a-bda9-ff3a685026e7  (white mid trim 1.2–3.4s)
-- Stage 2: e53189b9-712f-48dd-9322-71c326ba1947  (stayed magenta; trim ~2.2–3.8s)
-- Stage 3: 0c52f244-a01e-4d53-b08d-4ed1e0370ade  (REDO on magenta — white plate ate pot)
-  (old white take 1b7e5a9b kept as reference only)
-- Stage 4: 1b778808-3694-407e-a118-ab5511bd5e97  (stayed magenta; mid trim)
-- Stage 5: 37aeedc3-a9dd-42ee-b2cd-dd186b6c2a4b  (white mid trim 1.4–3.8s)
-- Stage 6: 2cba96dd-061f-45ce-8d42-81511c22fba7  (stayed magenta; mid trim)
+- Stage 1: cc6d9f13-121e-4862-8e12-39e8b7dde4f6  (REDO magenta — white ate face)
+- Stage 2: e53189b9-712f-48dd-9322-71c326ba1947  (magenta; trim ~2.2–3.8s)
+- Stage 3: 0c52f244-a01e-4d53-b08d-4ed1e0370ade  (REDO magenta — white ate pot)
+- Stage 4: 1b778808-3694-407e-a118-ab5511bd5e97  (magenta; mid trim)
+- Stage 5: fcd198d5-196e-4502-b7dd-be37a4fd7790  (REDO magenta — white ate eyes)
+- Stage 6: 2cba96dd-061f-45ce-8d42-81511c22fba7  (magenta; mid trim)
+LESSON: for this terracotta character, magenta plate + CLIP_T=15 GLOBAL=off
+ERODE=2 keys cleaner than white plate (white eats pot highlights + eye speculars).
+
+---
+
+# Growth LEVEL-UP transitions — Kling 3.0
+# HARD RULE: start_image = stage-N still, end_image = stage-(N+1) still
+# Vary joy gesture per stage. Confetti = CSS only (never in Kling).
+# Settings: 1:1, 5s, std, sound off. Magenta plate. ~7.5cr each.
+
+## JOBS
+- grow1to2: bc056436-49e0-4049-9d79-6c0bed234cc0  (~7.5cr)
+  start b653288d (stage1) → end a3c39bbf (stage2)
+  Beats: hop + laugh + clap (NO confetti in video) → grow to stage2
+  Confetti = CSS in Blob.tsx ; potScale in meta
+  clip assets/clips/grow1to2.mp4 ; sprites public/character/grow1to2
+
+- grow2to3: aef0e2ca-9f56-4943-9f53-7a2e3d3808d9  (~7.5cr)
+  start a3c39bbf (stage2) → end b5467757 (stage3)
+  Beats: hop + laugh + theatrical BOW (NO clap, NO confetti in video) → grow to stage3
+  Confetti = CSS ; potScale auto ~1.28
+  clip assets/clips/grow2to3.mp4 ; sprites public/character/grow2to3
+
+- grow3to4: 311a0394-95bd-4a7b-b56c-54fe0d609dd0  (~7.5cr)
+  start b5467757 (stage3) → end 919f9040 (stage4)
+  Beats: hop + laugh + SPIN/twirl (NO confetti in video) → grow to stage4 (pink bud)
+  Confetti = CSS ; potScale auto ~1.21 ; play @ 15fps
+  clip assets/clips/grow3to4.mp4 ; sprites public/character/grow3to4
+
+
+- grow4to5: 6da73eca-c79a-446c-af81-9ea403e0202e  (~7.5cr)
+  start 919f9040 (stage4) → end eadf473f (stage5)
+  Beats: hop + laugh + SUPERHERO LANDING (ref assets/refs/superhero-landing.png)
+  Confetti = CSS ; potScale auto ; play @ 15fps
+  clip assets/clips/grow4to5.mp4 ; sprites public/character/grow4to5
+
+
+- grow5to6: c5fb294e-c7d7-47ce-9dcf-ba1fb68b9bf6  (~7.5cr video)  ← CURRENT
+  start still e7f70679 (reupload of grow5to6-champagne-start / was 816e7b79)
+  end still 59695975 (reupload stage-6 / was c83a8fca)
+  Motion taste ref (user): hf_…3e951ccd… (clean cork-pull + foam FROM bottle mouth)
+  Beats: cork-PULL → thick foam spray FROM bottle mouth → bloom to stage6
+  Confetti = app GIF/CSS (not in video) ; CLIP_T=15 CLIP_GLOBAL=off CLIP_ERODE=2 ; 20fps
+  clip assets/clips/grow5to6.mp4 (+ grow5to6-full.mp4 raw)
+  OLD: 21d870a9 → grow5to6-prev.mp4 ; foam-from-plant reject b3cfad13 → grow5to6-old-foam.mp4
+
+## MEETING / calendar bell (per-stage) — July 20 2026
+Still approve → then video. Blob picks meeting${growthStage} || meeting.
+- Stage 1 still (bell RIGHT): 6ce370de-4554-4371-b27c-cad67e1a6f84
+  file mascot-poses/meeting-stills/stage1-bell-right.png
+- Stage 1 video: 52d01122-e68b-450c-9623-ebf316cec7f0 (~7.5cr)
+  start=end still; 2 rings; clip assets/clips/meeting1.mp4 (+ -full)
+  sprites public/character/meeting1 ; oneshot TIMED 4000ms
+
+## WATERING (per-stage self-water) — July 19 2026
+start_image = end_image = stage N still. One bright sky-blue can; other arm down.
+Key: CLIP_T=15 CLIP_GLOBAL=off CLIP_ERODE=2 (post-heal magenta kill in clip-key).
+oneshot (no pingpong). TIMED 2000ms. Blob picks watering${growthStage}.
+Trimmed to pour-only (raise/put-down cut). Fulls: wateringN-full.mp4.
+Kettle style ref (soft sky-blue + sparkle water): assets/refs/watering-kettle-ref.mp4
+(job a152f0dc — preferred look; current clips differ in blue/texture).
+
+Prompt core: LOCK plant; right arm lifts ONE sky-blue can over leaves and pours;
+left arm stays DOWN; no second can; magenta plate; slow crisp; locked camera.
+
+- watering1: 2568d598-598c-4287-aedb-f19e77a954e5  still b653288d
+- watering2: 81de10bb-6e52-4679-9894-e6435da03159  still a3c39bbf
+- watering3: 07fec535-e4dd-46fa-a279-2517ce4e2be6  still b5467757
+- watering4: dfc7aa4b-0696-4561-b101-ba3d63f54798  still 919f9040
+- watering5: 4ec924e5-aa09-42a3-8f53-0c791768de6d  still eadf473f
+- watering6: acc78079-b583-4a53-bf57-f678f2731582  still c83a8fca  (retake; v1 dual-can reject 4798aa0d)
+
+Clips: assets/clips/watering1..6.mp4
+Sprites: public/character/watering1..6
+
+Skill: .cursor/skills/companion-character-anim/SKILL.md
 Clips: assets/clips/draggedgrowth1..6.mp4 (+ *-full.mp4 raws)
 Sprites: public/character/draggedgrowth1..6

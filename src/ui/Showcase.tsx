@@ -23,6 +23,7 @@ const SHOW: { state: CharacterState; icon: string; label: string }[] = [
   { state: "meeting", icon: "🔔", label: "bell" },
   { state: "thinking", icon: "💭", label: "think" },
   { state: "coffee", icon: "☕", label: "coffee" },
+  { state: "grow1to2", icon: "🌱", label: "grow 1→2" },
 ];
 
 export default function Showcase({
@@ -34,8 +35,7 @@ export default function Showcase({
 }) {
   return (
     <div
-      onMouseEnter={() => window.companion?.setClickThrough(false)}
-      onMouseLeave={() => window.companion?.setClickThrough(true)}
+      data-hit="1"
       style={{
         position: "relative",
         width: "100%",

@@ -71,11 +71,17 @@ app.whenReady().then(async () => {
       }
       // Soft pink petals / blush sit near magenta in RGB but have real green —
       // never treat them as chroma BG (or the flower gets chewed at the edges).
+      // CLIP_NO_BUDFOLD=1 drops the bud-fold rules. They exist for the FLOWER
+      // stages, but on magenta plates they also match the plate's own shaded
+      // magenta (e.g. 235,62,219) and leave smears the flood can't touch.
+      // Use on clips with no pink flower; keep CLIP_T under the distance from
+      // the plate to any pink prop so those stay protected by tolerance alone.
+      const noBudFold = process.env.CLIP_NO_BUDFOLD === "1";
       const isProtectedFg = (r, g, b) => {
         if (r > 170 && g > 95 && b > 130) return true; // pink petals / blush
-        if (r > 150 && g > 70 && b > 100 && r > g && g > 60) return true; // darker pink bud folds
+        if (!noBudFold && r > 150 && g > 70 && b > 100 && r > g && g > 60) return true; // darker pink bud folds
         // Shaded pink bud folds (low-ish green, still petal — NOT plate magenta).
-        if (r > 155 && b > 110 && g >= 55 && g <= 130 && r > g + 25 && b > g + 15) return true;
+        if (!noBudFold && r > 155 && b > 110 && g >= 55 && g <= 130 && r > g + 25 && b > g + 15) return true;
         if (r > 180 && g > 140 && b < 140) return true; // yellow flower centers
         // Pot soil / dark creases — not chroma black backdrop.
         if (r > 25 && r < 110 && g < 85 && b < 75 && r >= g - 5) return true;
@@ -231,6 +237,18 @@ app.whenReady().then(async () => {
             mask[i] = 0;
           }
         }
+        // After heal: kill TRUE chroma magenta still trapped between arm/prop
+        // (flood can't reach enclosed pockets; full GLOBAL would eat eye whites).
+        for (let i = 0; i < w * h; i++) {
+          const pi = i * 4;
+          if (px[pi + 3] === 0) continue;
+          const r = px[pi], g = px[pi + 1], b = px[pi + 2];
+          if (isProtectedFg(r, g, b)) continue;
+          if (isChromaMagenta(r, g, b)) {
+            px[pi + 3] = 0;
+            mask[i] = 1;
+          }
+        }
       }
       // Defringe: the outermost ring of "character" pixels is really a blend
       // of character + background (anti-aliasing) — a pale halo that reads
@@ -254,6 +272,25 @@ app.whenReady().then(async () => {
         for (const i of kill) {
           mask[i] = 1;
           px[i*4 + 3] = 0;
+        }
+      }
+      // Rim DESPILL (CLIP_DESPILL=1): the last opaque ring is a blend of
+      // character + chroma plate, so it stays magenta-tinted even after the
+      // erode (too mixed for the magenta test). Pull the blue out of any
+      // magenta-leaning rim pixel — confined to the rim, so real pink props
+      // keep their colour everywhere but the outermost pixel.
+      if (process.env.CLIP_DESPILL === "1") {
+        for (let y = 1; y < h - 1; y++) {
+          for (let x = 1; x < w - 1; x++) {
+            const i = y * w + x;
+            if (mask[i]) continue;
+            if (!(mask[i-1] || mask[i+1] || mask[i-w] || mask[i+w])) continue;
+            const pi = i * 4;
+            const r = px[pi], g = px[pi+1], b = px[pi+2];
+            if (b > g + 40 && r > g + 40) {
+              px[pi+2] = Math.round(g + (b - g) * 0.35);
+            }
+          }
         }
       }
       for (let y = 1; y < h - 1; y++) {

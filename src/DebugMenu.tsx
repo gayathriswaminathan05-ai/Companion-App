@@ -37,7 +37,7 @@ export default function DebugMenu({
   };
   return (
     <div
-      onMouseEnter={() => window.companion?.setClickThrough(false)}
+      data-hit="1"
       style={{
         position: "absolute",
         inset: 4,

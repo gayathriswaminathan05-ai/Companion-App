@@ -8,6 +8,7 @@ import ReminderBubble, { FiredReminder } from "./ui/ReminderBubble";
 import NudgeBubble from "./ui/NudgeBubble";
 import QuickNav from "./ui/QuickNav";
 import Showcase from "./ui/Showcase";
+import GrowthTestBar from "./ui/GrowthTestBar";
 import SettingsPanel from "./ui/SettingsPanel";
 import PanelResizeHandles from "./ui/PanelResizeHandles";
 import { formatDue, parseWhen } from "./reminders";
@@ -23,13 +24,24 @@ import {
   growthStageFor,
   type GrowthStage,
 } from "./growth";
-import { buildSystem, buildMessages, extractOutputs, FALLBACK_JOKES } from "./brain";
+import { buildSystem, buildMessages, extractOutputs, jokeKey, pickFallbackJoke } from "./brain";
 import { chirp, setSoundsEnabled, startDangle, stopDangle } from "./sounds";
+import { isOpaqueCharacterAt, isUiHitAt } from "./clickThrough";
+import { SPRITES } from "./generated/sprites";
+import type { CharacterState } from "./character/types";
+
+// Which stage→stage clap-and-grow transition clips are actually processed.
+const TRANSITION_CLIPS = new Set<CharacterState>(
+  (["grow1to2", "grow2to3", "grow3to4", "grow4to5", "grow5to6"] as CharacterState[]).filter(
+    (k) => (SPRITES as Record<string, unknown>)[k],
+  ),
+);
 
 declare global {
   interface Window {
     companion: {
       setClickThrough: (ignore: boolean) => void;
+      cursorClientPos: () => Promise<{ x: number; y: number } | null>;
       dragStart: () => void;
       dragEnd: () => void;
       hide: () => void;
@@ -63,10 +75,9 @@ declare global {
   }
 }
 
-const hoverable = {
-  onMouseEnter: () => window.companion?.setClickThrough(false),
-  onMouseLeave: () => window.companion?.setClickThrough(true),
-};
+/** Mark interactive UI so click-through sync can see it. Electron can only
+ *  ignore the whole window — never leave ignore=false over empty pixels. */
+const hitProps = { "data-hit": "1" } as const;
 
 type Clip = { clipLeft: number; clipRight: number; clipTop: number; clipBottom: number };
 const EMPTY_CLIP: Clip = { clipLeft: 0, clipRight: 0, clipTop: 0, clipBottom: 0 };
@@ -140,6 +151,58 @@ export default function App() {
     };
   }, [set]);
 
+  // Click-through: Electron can only ignore the WHOLE window. Keep ignore on
+  // unless the cursor is over opaque character pixels or marked UI [data-hit].
+  // Poll screen cursor too — transparent always-on-top windows often miss mouseleave.
+  const draggingRef = useRef(dragging);
+  draggingRef.current = dragging;
+  useEffect(() => {
+    let ignoring = true;
+    const apply = (ignore: boolean) => {
+      if (ignore === ignoring) return;
+      ignoring = ignore;
+      window.companion?.setClickThrough(ignore);
+    };
+    const syncFromPoint = (x: number, y: number) => {
+      if (draggingRef.current) {
+        apply(false);
+        return;
+      }
+      const hit = isUiHitAt(x, y) || isOpaqueCharacterAt(x, y);
+      apply(!hit);
+    };
+    const onMove = (e: PointerEvent) => syncFromPoint(e.clientX, e.clientY);
+    const release = () => {
+      if (!draggingRef.current) apply(true);
+    };
+    const poll = window.setInterval(() => {
+      void (async () => {
+        if (!window.companion?.cursorClientPos) return;
+        if (draggingRef.current) {
+          apply(false);
+          return;
+        }
+        const pos = await window.companion.cursorClientPos();
+        if (!pos) {
+          apply(true);
+          return;
+        }
+        syncFromPoint(pos.x, pos.y);
+      })();
+    }, 50);
+    window.addEventListener("pointermove", onMove, { passive: true });
+    document.documentElement.addEventListener("mouseleave", release);
+    window.addEventListener("blur", release);
+    apply(true);
+    return () => {
+      window.clearInterval(poll);
+      window.removeEventListener("pointermove", onMove);
+      document.documentElement.removeEventListener("mouseleave", release);
+      window.removeEventListener("blur", release);
+      apply(true);
+    };
+  }, []);
+
   const update = (fn: (d: AppData) => AppData) => {
     setData((prev) => {
       const next = fn(structuredClone(prev));
@@ -153,10 +216,12 @@ export default function App() {
     const add = kind === "wellness" ? GROWTH_WELLNESS_POINTS : GROWTH_TASK_BONUS_POINTS;
     let leveledUp = false;
     let nextStage: GrowthStage = 1;
+    let fromStage: GrowthStage = 1;
     update((d) => {
       if (d.sprout.date !== today()) d.sprout = { date: today(), points: 0 };
       d.week = ensureWeek(d.week);
       const before = growthStageFor(d.sprout.points);
+      fromStage = before;
       d.sprout.points = Math.min(GROWTH_MAX_POINTS, d.sprout.points + add);
       nextStage = growthStageFor(d.sprout.points);
       leveledUp = nextStage > before;
@@ -166,7 +231,10 @@ export default function App() {
       return d;
     });
     if (leveledUp) {
-      set("celebrating");
+      // Single-step level-up plays its clap→grow transition clip if we have it;
+      // otherwise fall back to the generic celebration.
+      const transKey = `grow${fromStage}to${nextStage}` as CharacterState;
+      set(TRANSITION_CLIPS.has(transKey) ? transKey : "celebrating");
       chirp("celebrate");
       showToast(`${GROWTH_EMOJI[nextStage]} ${GROWTH_LABEL[nextStage]}`);
     }
@@ -188,17 +256,6 @@ export default function App() {
   useEffect(() => {
     openRef.current = open;
   }, [open]);
-
-  // Growth art is only for default idle — keep him there (occasional hop ok).
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      if (openRef.current !== "none") return;
-      if (stateRef.current === "idle" && Math.random() < 0.2) {
-        set("idlehop");
-      }
-    }, 8000);
-    return () => clearInterval(id);
-  }, [set]);
 
   // --- Wellness engine: notices long stretches of work, bedtime, water ---
   type NudgeKind = "stretch" | "water" | "bedtime";
@@ -459,17 +516,26 @@ export default function App() {
   }, []);
 
   const tellJoke = async () => {
-    let j = FALLBACK_JOKES[Math.floor(Math.random() * FALLBACK_JOKES.length)];
+    const recent = dataRef.current.chat.jokeRecent ?? [];
+    let j = pickFallbackJoke(recent);
     try {
+      const avoid =
+        recent.length > 0
+          ? `\nDo NOT reuse any of these recent setups (pick something different):\n- ${recent.slice(-15).join("\n- ")}`
+          : "";
       const res = (await window.companion.brainOnce({
         system:
-          'You write one original, silly, wholesome joke in the exact format: a question starting with "what do you call" and a short punchline. Reply with ONLY JSON: {"setup":"what do you call …?","punchline":"…"}',
-        prompt: "one fresh joke please. make it giggle-worthy and kid-friendly.",
+          'You write one original, silly, wholesome joke in the exact format: a question starting with "what do you call" and a short punchline. Vary topics — animals, food, plants, everyday life. Never repeat a joke from the avoid-list. Reply with ONLY JSON: {"setup":"what do you call …?","punchline":"…"}',
+        prompt: `one fresh joke please. make it giggle-worthy and kid-friendly.${avoid}`,
         maxTokens: 120,
       })) as { ok: boolean; text?: string };
       if (res?.ok && res.text) {
         const parsed = JSON.parse(res.text.slice(res.text.indexOf("{"), res.text.lastIndexOf("}") + 1));
-        if (parsed.setup && parsed.punchline) j = parsed;
+        if (parsed.setup && parsed.punchline) {
+          const key = jokeKey(parsed.setup);
+          // If the model echoed a recent one, keep the local fresh pick instead.
+          if (!recent.map(jokeKey).includes(key)) j = parsed;
+        }
       }
     } catch {}
     setJoke({ setup: j.setup, punchline: j.punchline, revealed: false });
@@ -477,6 +543,9 @@ export default function App() {
     chirp("pop");
     update((d) => {
       d.chat.jokeLastAt = new Date().toISOString();
+      const key = jokeKey(j.setup);
+      const next = [...(d.chat.jokeRecent ?? []).filter((x) => jokeKey(x) !== key), key];
+      d.chat.jokeRecent = next.slice(-40);
       return d;
     });
   };
@@ -723,7 +792,7 @@ export default function App() {
             ]}
           />
           <div
-            {...hoverable}
+            {...hitProps}
             style={{
               position: "relative",
               width: "100%",
@@ -993,52 +1062,6 @@ export default function App() {
       )}
 
       <div
-        onMouseEnter={() => window.companion?.setClickThrough(false)}
-        onMouseLeave={() => {
-          if (!dragging && open === "none" && !debugOpen) window.companion?.setClickThrough(true);
-        }}
-        onMouseDown={(e) => {
-          if (e.button === 0) mouseDownAt.current = { x: e.screenX, y: e.screenY };
-        }}
-        onMouseMove={(e) => {
-          if (mouseDownAt.current && !dragging) {
-            const dx = e.screenX - mouseDownAt.current.x;
-            const dy = e.screenY - mouseDownAt.current.y;
-            if (Math.hypot(dx, dy) > 5) {
-              window.companion?.dragStart();
-              setDragging(true);
-              set("dragged");
-              setOpen("none");
-              startDangle();
-            }
-          }
-        }}
-        onMouseUp={async () => {
-          if (!dragging && mouseDownAt.current) {
-            if (state === "sleeping") {
-              // First click on a sleeping blob just wakes it up.
-              set("waking");
-              setNudge(null);
-              mouseDownAt.current = null;
-              return;
-            }
-            if (open === "none") {
-              await refreshClip();
-              setOpen("menu");
-              set("idlehop"); // he jumps, the bar rises above him
-              chirp("boop");
-            } else {
-              setOpen("none");
-              set("idle");
-            }
-          }
-          mouseDownAt.current = null;
-        }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          setDebugOpen((o) => !o);
-        }}
-        title="Click me for the menu · drag me anywhere"
         style={{
           position: "absolute",
           bottom: 0,
@@ -1046,8 +1069,8 @@ export default function App() {
           transform: "translateX(-50%)",
           width: 204,
           height: 240,
-          cursor: dragging ? "grabbing" : "grab",
-          pointerEvents: "auto",
+          pointerEvents: "none",
+          overflow: "visible",
         }}
       >
         <div
@@ -1057,14 +1080,104 @@ export default function App() {
             transform: `scale(${data.settings.plantScale ?? 1})`,
             transformOrigin: "bottom center",
             transition: "transform 0.2s ease",
+            overflow: "visible",
+            pointerEvents: "none",
           }}
         >
           <Blob state={state} growthStage={growthStage} scribbling={scribbling} />
         </div>
+        {/* Hit layer: receives drag/click only while click-through is off
+            (i.e. cursor is over opaque plant pixels — see clickThrough sync). */}
+        <div
+          data-char-hit="1"
+          onMouseDown={(e) => {
+            if (e.button === 0) mouseDownAt.current = { x: e.screenX, y: e.screenY };
+          }}
+          onMouseMove={(e) => {
+            if (mouseDownAt.current && !dragging) {
+              const dx = e.screenX - mouseDownAt.current.x;
+              const dy = e.screenY - mouseDownAt.current.y;
+              if (Math.hypot(dx, dy) > 5) {
+                window.companion?.dragStart();
+                setDragging(true);
+                set("dragged");
+                setOpen("none");
+                startDangle();
+              }
+            }
+          }}
+          onMouseUp={async () => {
+            if (!dragging && mouseDownAt.current) {
+              if (state === "sleeping") {
+                set("waking");
+                setNudge(null);
+                mouseDownAt.current = null;
+                return;
+              }
+              if (open === "none") {
+                await refreshClip();
+                setOpen("menu");
+                set("idlehop");
+                chirp("boop");
+              } else {
+                setOpen("none");
+                set("idle");
+              }
+            }
+            mouseDownAt.current = null;
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setDebugOpen((o) => !o);
+          }}
+          title="Click me for the menu · drag me anywhere"
+          style={{
+            position: "absolute",
+            inset: 0,
+            cursor: dragging ? "grabbing" : "grab",
+            pointerEvents: "auto",
+          }}
+        />
       </div>
 
+      {/* Always-on growth test strip (beside plant) — idle stages + level-up clips */}
+      <GrowthTestBar
+        growthStage={growthStage}
+        visible={data.settings.growthTestVisible}
+        onVisibleChange={(v) =>
+          update((d) => {
+            d.settings.growthTestVisible = v;
+            return d;
+          })
+        }
+        onIdleStage={(s) =>
+          update((d) => {
+            if (d.sprout.date !== today()) d.sprout = { date: today(), points: 0 };
+            d.sprout.points = s === 1 ? 0 : s === 2 ? 2 : s === 3 ? 4 : s === 4 ? 6 : s === 5 ? 8 : 10;
+            return d;
+          })
+        }
+        onPlayTransition={(from, to) => {
+          const key = `grow${from}to${to}` as CharacterState;
+          if (!TRANSITION_CLIPS.has(key)) return;
+          // Land on destination stage so idle after the clip matches.
+          update((d) => {
+            if (d.sprout.date !== today()) d.sprout = { date: today(), points: 0 };
+            d.sprout.points = to === 1 ? 0 : to === 2 ? 2 : to === 3 ? 4 : to === 4 ? 6 : to === 5 ? 8 : 10;
+            return d;
+          });
+          setOpen("none");
+          set(key);
+          chirp("celebrate");
+        }}
+        onPlayWatering={() => {
+          setOpen("none");
+          set("watering");
+        }}
+      />
+
       {debugOpen && (
-        <div style={{ position: "absolute", inset: 6, pointerEvents: "auto" }}>
+        <div data-hit="1" style={{ position: "absolute", left: 8, top: 8, pointerEvents: "auto", zIndex: 50 }}>
           <DebugMenu
             current={state}
             growthStage={growthStage}
