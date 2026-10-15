@@ -11,6 +11,8 @@ import SettingsPanel from "../ui/SettingsPanel";
 import RadialMenu from "../ui/RadialMenu";
 import QuickNav from "../ui/QuickNav";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import ClayConfetti from "../character/ClayConfetti";
+import Blob from "../character/Blob";
 import ReminderBubble from "../ui/ReminderBubble";
 import NudgeBubble from "../ui/NudgeBubble";
 import { defaultSettings, type Todo } from "../store";
@@ -44,10 +46,14 @@ window.companion = {
   setLoginItem: async () => true,
   brainDisconnect: async () => null,
   dataReset: async () => null,
-  calendarStatus: async () => ({ hasClient: true, connected: true }),
+  calendarStatus: async () => ({ hasClient: true, connected: true, canCreateEvents: true, gmail: true }),
   calendarSaveClient: async () => ({ ok: true }),
   calendarConnect: async () => ({ ok: true }),
   calendarDisconnect: async () => ({ ok: true }),
+  calendarCreateEvent: async () => ({ ok: true }),
+  gmailSetEnabled: async () => ({ ok: true, enabled: true, active: true }),
+  onGmailNew: () => noop,
+  onGoogleAuthExpired: () => noop,
   onCalendarMeeting: () => noop,
 };
 
@@ -241,6 +247,15 @@ function Gallery() {
         />
         <PlantStub />
       </Frame>
+      <Frame label="Growth: stage 6 vs stage 7 (pot sizes should match)" w={420} h={300}>
+        <div style={{ position: "absolute", left: 0, bottom: 0, width: 204, height: 240 }}>
+          <Blob state="idle" growthStage={6} scribbling={false} />
+        </div>
+        <div style={{ position: "absolute", right: 0, bottom: 0, width: 204, height: 240 }}>
+          <Blob state="idle" growthStage={7} scribbling={false} />
+        </div>
+      </Frame>
+      <ConfettiDemo />
       <Frame label="Reminder bubble" w={384} h={420}>
         <ReminderBubble
           fired={{ id: "1", text: "call amma", timeLabel: "6:00 PM", missed: false }}
@@ -317,6 +332,18 @@ function ThemeSwitcher({ backdrop, setBackdrop }: { backdrop: keyof typeof BACKD
         </button>
       ))}
     </div>
+  );
+}
+
+function ConfettiDemo() {
+  const [n, setN] = useState(0);
+  return (
+    <Frame label="Level-up confetti (click to replay)" w={384} h={420}>
+      <div style={{ position: "absolute", left: "50%", bottom: 0, width: 204, height: 240, transform: "translateX(-50%)" }} onClick={() => setN((k) => k + 1)}>
+        <PlantStub />
+        <ClayConfetti key={n} burstKey={`demo-${n}`} />
+      </div>
+    </Frame>
   );
 }
 

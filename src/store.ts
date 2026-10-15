@@ -27,7 +27,8 @@ export interface Settings {
   soundsOn: boolean;
   breakMins: number; // stretch nudge interval; 0 = off
   bedtime: string | null; // "HH:MM" 24h, null = off
-  waterNudge: boolean; // every ~2h of activity, off by default
+  waterNudge: boolean; // off by default
+  waterMins: number; // minutes of activity between water nudges
   companionName: string;
   userName: string;
   jokeEvery: "off" | "often" | "rare"; // often=3h, rare=6h
@@ -41,6 +42,10 @@ export interface Settings {
   /** Opt-in: dark panels over light apps, light over dark (needs macOS
    *  Screen Recording; only a brightness number is ever read). */
   matchBackdrop: boolean;
+  /** Bubble when new Primary-inbox Gmail arrives (sender + subject in RAM only). */
+  gmailAlerts: boolean;
+  /** First-run hello bubble has been shown. */
+  welcomed: boolean;
   /** Dev growth test strip beside the plant (hide when not testing). */
   growthTestVisible: boolean;
 }
@@ -78,6 +83,7 @@ export const defaultSettings = (): Settings => ({
   breakMins: 60,
   bedtime: "23:00",
   waterNudge: false,
+  waterMins: 120,
   companionName: "Blob",
   userName: "",
   jokeEvery: "often",
@@ -87,6 +93,8 @@ export const defaultSettings = (): Settings => ({
   calendarReminders: true,
   calendarLeadMins: 10,
   matchBackdrop: false,
+  gmailAlerts: false,
+  welcomed: false,
   growthTestVisible: true,
 });
 

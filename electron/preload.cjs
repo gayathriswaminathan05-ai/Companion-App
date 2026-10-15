@@ -2,6 +2,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("companion", {
+  isPackaged: ipcRenderer.sendSync("is-packaged") === true,
   setClickThrough: (ignore) => ipcRenderer.send("set-click-through", ignore),
   cursorClientPos: () => ipcRenderer.invoke("cursor-client-pos"),
   dragStart: () => ipcRenderer.send("drag-start"),
@@ -36,6 +37,18 @@ contextBridge.exposeInMainWorld("companion", {
   calendarSaveClient: (creds) => ipcRenderer.invoke("calendar-save-client", creds),
   calendarConnect: () => ipcRenderer.invoke("calendar-connect"),
   calendarDisconnect: () => ipcRenderer.invoke("calendar-disconnect"),
+  calendarCreateEvent: (ev) => ipcRenderer.invoke("calendar-create-event", ev),
+  gmailSetEnabled: (on) => ipcRenderer.invoke("gmail-set-enabled", on),
+  onGmailNew: (handler) => {
+    const wrapped = (_e, data) => handler(data);
+    ipcRenderer.on("gmail-new", wrapped);
+    return () => ipcRenderer.removeListener("gmail-new", wrapped);
+  },
+  onGoogleAuthExpired: (handler) => {
+    const wrapped = () => handler();
+    ipcRenderer.on("google-auth-expired", wrapped);
+    return () => ipcRenderer.removeListener("google-auth-expired", wrapped);
+  },
   onCalendarMeeting: (handler) => {
     const wrapped = (_e, data) => handler(data);
     ipcRenderer.on("calendar-meeting", wrapped);

@@ -3,6 +3,7 @@ import type { CharacterState, SproutStage } from "./types";
 import { growthStageBand, type GrowthStage } from "../growth";
 import { SPRITES, SpriteAnim as SpriteAnimDef } from "../generated/sprites";
 import { GROW_HANDOFF_SCALE } from "../generated/growHandoff";
+import ClayConfetti from "./ClayConfetti";
 
 function growthToLegacy(g: GrowthStage): SproutStage {
   if (g >= 6) return "bloom";
@@ -10,13 +11,6 @@ function growthToLegacy(g: GrowthStage): SproutStage {
   if (g >= 2) return "leaf";
   return "bud";
 }
-
-/** Designer confetti burst (transparent PNG sequence). Never baked into Kling. */
-const CONFETTI_FRAMES = Array.from(
-  { length: 16 },
-  (_, i) => `./fx/confetti/f-${String(i + 1).padStart(3, "0")}.png`,
-);
-const CONFETTI_FRAME_MS = 50; // matches source GIF (~850ms total; first frame 100ms)
 
 // Warm EVERY state's frames once at startup, so the very first switch into
 // any state (e.g. grabbing the blob) shows its first frame with zero lag.
@@ -30,42 +24,16 @@ function warmAllSprites() {
       img.src = src;
     }
   }
-  for (const src of CONFETTI_FRAMES) {
-    const img = new Image();
-    img.src = src;
-  }
 }
 
-function ConfettiBurst({ burstKey }: { burstKey: string }) {
-  const [frame, setFrame] = useState(0);
-  const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    setFrame(0);
-    setVisible(true);
-    let i = 0;
-    const timer = window.setInterval(() => {
-      i += 1;
-      if (i >= CONFETTI_FRAMES.length) {
-        window.clearInterval(timer);
-        setVisible(false);
-        return;
-      }
-      setFrame(i);
-    }, CONFETTI_FRAME_MS);
-    return () => window.clearInterval(timer);
-  }, [burstKey]);
-
-  if (!visible) return null;
-  return (
-    <img
-      className="confetti-burst"
-      src={CONFETTI_FRAMES[frame]}
-      alt=""
-      aria-hidden
-      draggable={false}
-    />
-  );
+/** Per-stage clip with graceful fallback: stage-7 art may not exist yet for
+ *  every pose, so use the nearest lower stage that has it. */
+function stageSprite(prefix: string, stage: number): { key: string; anim: SpriteAnimDef } | undefined {
+  for (let s = stage; s >= 1; s--) {
+    const anim = SPRITES[`${prefix}${s}`] as SpriteAnimDef | undefined;
+    if (anim?.frames?.length) return { key: `${prefix}${s}`, anim };
+  }
+  return undefined;
 }
 
 function isPartyState(state: CharacterState): boolean {
@@ -104,6 +72,12 @@ function spriteScale(anim: SpriteAnimDef): number {
   }
   if (/\/meeting\d?\//.test(anim.frames[0] ?? "")) {
     scale = Math.min(1.45, scale * 1.28);
+  }
+  // Stage 7's bushier plant made Kling frame the shot wider, so its pot is
+  // ~9% smaller in the source (measured: pot height 445 vs 489px, rim 398 vs
+  // 429px against growth6). Scale it back so the pot never shrinks on level-up.
+  if (/\/growth7\//.test(anim.frames[0] ?? "")) {
+    scale = Math.min(1.6, scale * 1.09);
   }
   return scale;
 }
@@ -690,8 +664,9 @@ export default function Blob({
   // Idle plays the per-stage growth clip. On drag we reuse that SAME growth
   // clip and simply dangle it with a CSS swing — no separate draggedgrowth
   // clips (they distorted). Same plant identity, always in sync with idle.
-  const growthKey = `growth${growthStage}`;
-  const stageLoop = SPRITES[growthKey];
+  const stageHit = stageSprite("growth", growthStage);
+  const growthKey = stageHit?.key ?? `growth${growthStage}`;
+  const stageLoop = stageHit?.anim;
   if (state === "dragged" && stageLoop?.frames?.length) {
     return (
       <div className="growth-dangle">
@@ -793,16 +768,16 @@ export default function Blob({
   // Water / calendar: per-stage clips (same plant as idle N).
   const wateringSprite =
     state === "watering"
-      ? SPRITES[`watering${growthStage}`] || SPRITES.watering
+      ? stageSprite("watering", growthStage)?.anim || SPRITES.watering
       : undefined;
   const meetingSprite =
     state === "meeting"
-      ? SPRITES[`meeting${growthStage}`] || SPRITES.meeting
+      ? stageSprite("meeting", growthStage)?.anim || SPRITES.meeting
       : undefined;
   // Stretch nudge: per-stage visor+shoes walk clips when available.
   const stretchingSprite =
     state === "stretching"
-      ? SPRITES[`stretching${growthStage}`] || SPRITES.stretching
+      ? stageSprite("stretching", growthStage)?.anim || SPRITES.stretching
       : undefined;
   const sprite =
     idleSprite ||
@@ -819,23 +794,10 @@ export default function Blob({
     if (isPartyState(state)) {
       const n = confettiNonceRef.current;
       return (
-        <div className="celebrate-wrap" style={{ position: "relative", width: 204, height: 240 }}>
+        <div style={{ position: "relative", width: 204, height: 240, overflow: "visible" }}>
           <SpriteAnim anim={sprite} />
-          <ConfettiBurst burstKey={`a-${state}-${n}`} />
-          {encore && <ConfettiBurst burstKey={`b-${state}-${n}`} />}
-          <style>{`
-            .celebrate-wrap { overflow: visible; }
-            .confetti-burst {
-              pointer-events: none;
-              position: absolute;
-              left: 50%;
-              top: 34%;
-              width: 320px;
-              height: 320px;
-              transform: translate(-50%, -50%);
-              z-index: 2;
-            }
-          `}</style>
+          <ClayConfetti burstKey={`a-${state}-${n}`} />
+          {encore && <ClayConfetti burstKey={`b-${state}-${n}`} />}
         </div>
       );
     }

@@ -77,8 +77,12 @@ app.whenReady().then(async () => {
       // Use on clips with no pink flower; keep CLIP_T under the distance from
       // the plate to any pink prop so those stay protected by tolerance alone.
       const noBudFold = process.env.CLIP_NO_BUDFOLD === "1";
+      // CLIP_WHITE_BG=1: white plate. The petal rule below also matches pure
+      // white (255,255,255), which protected the whole plate from the flood.
+      // In this mode a "petal" must actually be pink (red clearly above green).
+      const whiteBg = process.env.CLIP_WHITE_BG === "1";
       const isProtectedFg = (r, g, b) => {
-        if (r > 170 && g > 95 && b > 130) return true; // pink petals / blush
+        if (r > 170 && g > 95 && b > 130 && (!whiteBg || r > g + 25)) return true; // pink petals / blush
         if (!noBudFold && r > 150 && g > 70 && b > 100 && r > g && g > 60) return true; // darker pink bud folds
         // Shaded pink bud folds (low-ish green, still petal — NOT plate magenta).
         if (!noBudFold && r > 155 && b > 110 && g >= 55 && g <= 130 && r > g + 25 && b > g + 15) return true;

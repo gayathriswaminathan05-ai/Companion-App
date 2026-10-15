@@ -6,36 +6,96 @@
   "scripts": {
     "build": "vite build",
     "start": "vite build && electron .",
-    "dev": "vite build && electron ."
+    "dev": "vite build && electron .",
+    "dist": "vite build && node scripts/optimize-sprites.cjs && electron-builder --mac --arm64"
   },
   "keywords": [],
-  "author": "",
+  "author": "Gayathri Swaminathan",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@fontsource-variable/figtree": "^5.3.0",
+    "@phosphor-icons/react": "^2.1.10",
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "chrono-node": "^2.10.0",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.4.0",
     "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
+    "ffmpeg-static": "^5.3.0",
+    "radix-ui": "^1.8.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "shadcn": "^4.21.5",
     "tailwindcss": "^4.3.3",
+    "tw-animate-css": "^1.4.0",
     "typescript": "^7.0.2",
     "vite": "^8.1.4"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
-    "@fontsource-variable/figtree": "^5.3.0",
     "@huggingface/transformers": "^4.2.0",
-    "@phosphor-icons/react": "^2.1.10",
-    "chrono-node": "^2.10.0",
-    "class-variance-authority": "^0.7.1",
-    "cn": "^0.4.0",
-    "ffmpeg-static": "^5.3.0",
-    "lucide-react": "^1.57.0",
-    "radix-ui": "^1.8.1",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "shadcn": "^4.21.5",
-    "tw-animate-css": "^1.4.0"
+    "kokoro-js": "^1.2.1"
+  },
+  "productName": "Companion",
+  "build": {
+    "appId": "app.companion.blob",
+    "productName": "Companion",
+    "copyright": "© 2026 Gayathri Swaminathan",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "!electron/test-*.cjs",
+      "package.json",
+      "!**/node_modules/@huggingface/transformers/.cache/**",
+      "!**/node_modules/onnxruntime-node/bin/napi-v*/linux/**",
+      "!**/node_modules/onnxruntime-node/bin/napi-v*/win32/**",
+      "!**/node_modules/onnxruntime-node/bin/napi-v*/darwin/x64/**",
+      "!**/*.map"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/@huggingface/transformers/.cache/Xenova/whisper-base.en",
+        "to": "models/Xenova/whisper-base.en"
+      }
+    ],
+    "asarUnpack": [
+      "**/*.node",
+      "**/node_modules/onnxruntime-node/**",
+      "**/node_modules/onnxruntime-common/**",
+      "**/node_modules/sharp/**",
+      "**/node_modules/@img/**"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "assets/icon.png",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "darkModeSupport": true,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Companion listens only while you hold the mic button, and turns your voice into text right here on this Mac.",
+        "NSAppleEventsUsageDescription": "Companion checks whether a Google Meet tab is open so it can hide during your calls."
+      }
+    },
+    "dmg": {
+      "title": "Companion"
+    },
+    "afterPack": "scripts/after-pack.cjs"
   }
 }

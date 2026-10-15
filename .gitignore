@@ -3,3 +3,7 @@ dist/
 release/
 .DS_Store
 *.log
+
+# Secrets / per-machine config (never commit)
+electron/google-client.json
+electron/beta-config.json

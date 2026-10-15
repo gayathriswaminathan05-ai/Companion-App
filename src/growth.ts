@@ -1,15 +1,16 @@
 // Plant growth: wellness is the main path; timed tasks are a small bonus.
-// 6 stages for the default idle look only. Caps so it stays special.
+// 7 stages for the default idle look only. Caps so it stays special.
 
-export const GROWTH_MAX_POINTS = 10;
+export const GROWTH_MAX_POINTS = 12;
 export const GROWTH_WELLNESS_POINTS = 2; // stretch / water / walk
 export const GROWTH_TASK_BONUS_POINTS = 1; // timed / important task only
 
-/** 1 = tiny sprouts … 6 = full plant for the day */
-export type GrowthStage = 1 | 2 | 3 | 4 | 5 | 6;
+/** 1 = tiny sprouts … 7 = full bushy bloom for the day */
+export type GrowthStage = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export function growthStageFor(points: number): GrowthStage {
   const p = Math.max(0, Math.min(GROWTH_MAX_POINTS, Math.floor(points)));
+  if (p >= 12) return 7;
   if (p >= 10) return 6;
   if (p >= 8) return 5;
   if (p >= 6) return 4;
@@ -26,6 +27,7 @@ export const GROWTH_LABEL: Record<GrowthStage, string> = {
   4: "looking lush",
   5: "flower bud",
   6: "pink bloom",
+  7: "in full bloom",
 };
 
 export const GROWTH_EMOJI: Record<GrowthStage, string> = {
@@ -35,9 +37,10 @@ export const GROWTH_EMOJI: Record<GrowthStage, string> = {
   4: "💚",
   5: "🌷",
   6: "🌸",
+  7: "💐",
 };
 
-export const GROWTH_STAGE_COUNT = 6;
+export const GROWTH_STAGE_COUNT = 7;
 
 /** One growth-stage slice of the continuous idle growth clip. */
 export interface GrowthStageBand {
@@ -98,6 +101,8 @@ function bands121(n: number): Record<GrowthStage, GrowthStageBand> {
     5: mk(89, 100, 89, [[92, 98]]),
     // pink bloom hold
     6: mk(101, last, 108, []),
+    // full bloom has its own clip (growth7); legacy clip reuses the bloom hold
+    7: mk(101, last, 108, []),
   };
 }
 
@@ -106,7 +111,7 @@ function bandsEqual(n: number, stage: GrowthStage): GrowthStageBand {
   const band = n / GROWTH_STAGE_COUNT;
   const start = Math.min(n - 1, Math.floor((stage - 1) * band));
   let end = Math.min(n - 1, Math.max(start, Math.floor(stage * band) - 1));
-  if (stage === 6) end = n - 1;
+  if (stage >= 6) end = n - 1;
   const loopFrom = start + Math.floor((end - start) * 0.4);
   return { start, end, loopFrom, loopTo: end, blinks: [] };
 }
@@ -120,8 +125,9 @@ export function growthStageBand(
   // Older ~61-frame 12fps takes — coarse sixths.
   if (n >= 50) {
     const edges = [0, 10, 20, 30, 40, 50, n - 1];
-    const start = edges[stage - 1];
-    const end = edges[stage];
+    const st = Math.min(stage, 6);
+    const start = edges[st - 1];
+    const end = edges[st];
     const loopFrom = start + Math.floor((end - start) * 0.35);
     return { start, end, loopFrom, loopTo: end, blinks: [] };
   }
@@ -173,7 +179,7 @@ export function emptyWeekStats(): WeekStats {
 export function ensureWeek(stats: WeekStats | undefined | null): WeekStats {
   const key = weekKey();
   if (!stats || stats.key !== key) return emptyWeekStats();
-  const peak = Math.min(6, Math.max(1, Math.round(Number(stats.stagePeak) || 1)));
+  const peak = Math.min(7, Math.max(1, Math.round(Number(stats.stagePeak) || 1)));
   return {
     key: stats.key,
     wellness: Number(stats.wellness) || 0,

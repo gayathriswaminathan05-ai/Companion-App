@@ -90,6 +90,7 @@ export default function SettingsPanel({
   onChangeKey,
   onDeleteAll,
   onClose,
+  showKeyRow = true,
 }: {
   settings: Settings;
   facts: string[];
@@ -101,12 +102,19 @@ export default function SettingsPanel({
   onChangeKey: () => void;
   onDeleteAll: () => void;
   onClose: () => void;
+  /** Hidden for beta testers, whose chats go through the proxy (no key). */
+  showKeyRow?: boolean;
 }) {
   const [loginItem, setLoginItem] = useState(false);
   const [clearPhase, setClearPhase] = useState<"idle" | "clearing" | "done">("idle");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmKey, setConfirmKey] = useState(false);
-  const [calStatus, setCalStatus] = useState<{ hasClient: boolean; connected: boolean }>({
+  const [calStatus, setCalStatus] = useState<{
+    hasClient: boolean;
+    connected: boolean;
+    canCreateEvents?: boolean;
+    gmail?: boolean;
+  }>({
     hasClient: false,
     connected: false,
   });
@@ -135,6 +143,8 @@ export default function SettingsPanel({
     const s = await window.companion.calendarStatus?.();
     if (s) setCalStatus(s);
   };
+
+  const needsGoogleUpgrade = calStatus.connected && (!calStatus.canCreateEvents || !calStatus.gmail);
 
   const canConnect =
     calStatus.hasClient || (!!clientId.trim() && !!clientSecret.trim());
@@ -314,8 +324,24 @@ export default function SettingsPanel({
               <NativeSelectOption value="90">Every 90 min</NativeSelectOption>
             </NativeSelect>
           </Row>
-          <Row label="Water breaks" desc="Every couple of hours">
-            <Switch checked={settings.waterNudge} onCheckedChange={(v) => onPatch({ waterNudge: v })} aria-label="water breaks" />
+          <Row label="Water breaks" desc="I'll remind you to sip">
+            <NativeSelect
+              size="sm"
+              value={settings.waterNudge ? String(settings.waterMins || 120) : "0"}
+              onChange={(e) => {
+                const mins = Number(e.target.value);
+                onPatch(mins ? { waterNudge: true, waterMins: mins } : { waterNudge: false });
+              }}
+              aria-label="water break interval"
+            >
+              <NativeSelectOption value="0">Never</NativeSelectOption>
+              <NativeSelectOption value="30">Every 30 min</NativeSelectOption>
+              <NativeSelectOption value="45">Every 45 min</NativeSelectOption>
+              <NativeSelectOption value="60">Every hour</NativeSelectOption>
+              <NativeSelectOption value="90">Every 90 min</NativeSelectOption>
+              <NativeSelectOption value="120">Every 2 hours</NativeSelectOption>
+              <NativeSelectOption value="180">Every 3 hours</NativeSelectOption>
+            </NativeSelect>
           </Row>
           <Row label="Bedtime" desc={settings.bedtime ? "I'll yawn and tuck you in" : "Off"}>
             {settings.bedtime && (
@@ -354,22 +380,32 @@ export default function SettingsPanel({
           </Row>
         </ListCard>
 
-        <SectionLabel>Calendar</SectionLabel>
+        <SectionLabel>Google</SectionLabel>
         <ListCard>
           <Row
-            label="Google Calendar"
+            label="Calendar and Gmail"
             desc={
               calStatus.connected ? (
-                <span className="font-medium text-success">Connected</span>
+                needsGoogleUpgrade ? (
+                  <span className="text-warning">Reconnect to let me book meetings and spot new emails</span>
+                ) : (
+                  <span className="font-medium text-success">Connected</span>
+                )
               ) : (
-                "Meeting pings, read-only"
+                "Meeting pings, booking and new-email alerts"
               )
             }
           >
             {calStatus.connected ? (
-              <Button variant="secondary" size="sm" disabled={calBusy} onClick={() => void disconnectCalendar()}>
-                Disconnect
-              </Button>
+              needsGoogleUpgrade ? (
+                <Button size="sm" disabled={calBusy} onClick={() => void connectCalendar()}>
+                  Reconnect
+                </Button>
+              ) : (
+                <Button variant="secondary" size="sm" disabled={calBusy} onClick={() => void disconnectCalendar()}>
+                  Disconnect
+                </Button>
+              )
             ) : (
               <CalendarBlankIcon className="size-4 text-muted-foreground" />
             )}
@@ -396,7 +432,7 @@ export default function SettingsPanel({
               )}
               <Button disabled={calBusy || !canConnect} onClick={() => void connectCalendar()}>
                 {calBusy && <Spinner />}
-                {calBusy ? "Working..." : "Connect Google Calendar"}
+                {calBusy ? "Working..." : "Connect Google"}
               </Button>
             </div>
           )}
@@ -405,6 +441,16 @@ export default function SettingsPanel({
               checked={settings.calendarReminders}
               onCheckedChange={(v) => onPatch({ calendarReminders: v })}
               aria-label="meeting reminders"
+            />
+          </Row>
+          <Row
+            label="Tell me about new emails"
+            desc={calStatus.connected && !calStatus.gmail ? "Needs Gmail access, reconnect above" : "Primary inbox only, sender and subject"}
+          >
+            <Switch
+              checked={settings.gmailAlerts}
+              onCheckedChange={(v) => onPatch({ gmailAlerts: v })}
+              aria-label="new email alerts"
             />
           </Row>
           <Row label="How early">
@@ -422,7 +468,10 @@ export default function SettingsPanel({
           </Row>
         </ListCard>
         {calMsg && <p className="px-1 pt-2 text-xs text-muted-foreground">{calMsg}</p>}
-        <Note>Meeting titles stay in memory for a moment. They're never saved and never sent to Claude.</Note>
+        <Note>
+          Meeting titles and email senders stay in memory for a moment. They're never saved and never sent
+          to Claude. I can only read email headers, never the emails themselves.
+        </Note>
 
         <SectionLabel>What I remember</SectionLabel>
         <Collapsible>
@@ -469,7 +518,7 @@ export default function SettingsPanel({
               aria-label="start at login"
             />
           </Row>
-          {!confirmKey ? (
+          {!showKeyRow ? null : !confirmKey ? (
             <Row label="My brain key" desc="Your Claude API key">
               <Button variant="secondary" size="sm" onClick={() => setConfirmKey(true)}>
                 Change key

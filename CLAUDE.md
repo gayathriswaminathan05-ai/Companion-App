@@ -313,6 +313,42 @@ Screen Recording to Electron (dev) + relaunch. Gallery has "Behind: wallpaper /
 white / grey / dark app" + Light/Dark switch for checking visibility.
 Pricing/paywall copy intentionally NOT added yet.
 
+## Beta push (Oct 15, 2026) — "finish today, share with testers"
+- CONFETTI: src/character/ClayConfetti.tsx (canvas, matte-clay leaves/petals/
+  pebbles/sparkles, physics + flutter); old PNG confetti (public/fx) deleted.
+- STAGE 7 "in full bloom": still mascot-poses/growth-stages/stage-7.png (gpt_image_2_5
+  job 72455a45, white BG; alt = stage-7-alt.png), idle Kling job b6f2e26d (7.5cr)
+  → assets/clips/growth7.mp4 → public/character/growth7. Keyed with NEW
+  CLIP_WHITE_BG=1 (petal-protect rule used to match pure white) + CLIP_T=30
+  CLIP_GLOBAL=off. growth7 pot measured 9% smaller in source → Blob spriteScale
+  ×1.09. Growth now 7 stages, 12 pts (stage 7 at 12). Poses without stage-7 art
+  (stretch/water/meeting/grow transition) fall back to the nearest lower stage
+  via stageSprite(); 6→7 level-up plays celebrating + confetti.
+- WATER: settings.waterMins (30-180) select; nudge after that much activity.
+- GOOGLE: calendar.cjs + gmail.cjs (subagent). Scopes calendar.events +
+  gmail.metadata (headers only). Bundled client = electron/google-client.json
+  (GITIGNORED, copied from userData). Chat can book: brain <meeting start end
+  with> tag (only offered when canCreateEvents) → Add/Not now bubble →
+  calendar-create-event. Gmail Primary-inbox alerts (settings.gmailAlerts) →
+  bubble; RAM only. Old read-only connections show "Reconnect". Testing-mode
+  caveats: test users only, weekly reconnect (google-auth-expired toast),
+  gmail.metadata is RESTRICTED (public launch needs paid security assessment).
+- CHAT PROXY: proxy/ (Cloudflare Worker, tests pass, NOT deployed yet — needs
+  her Cloudflare account; README has steps). main.cjs: local brain.key wins;
+  else electron/beta-config.json {proxyUrl, appToken} (GITIGNORED) → SDK
+  baseURL=proxy + anonymous device-id. Daily limit 429 "daily_limit" → friendly
+  nap message. Settings hides key row for proxy users.
+- WELCOME: first-run bubble (settings.welcomed).
+- PACKAGING: `npm run dist` = vite build → scripts/optimize-sprites.cjs (dist PNG
+  → WebP q90 lossless-alpha, ~14% size, rewrites bundle paths) → electron-builder
+  arm64 DMG, ad-hoc signed (identity "-"; signIgnore skips onnx/png/webp/json —
+  osx-sign crashed on .onnx). Whisper base.en bundled to Resources/models
+  (packaged app sets env.localModelPath/cacheDir). Excludes transformers
+  .cache dup + linux/win32/x64 onnxruntime. Runtime deps only: anthropic sdk,
+  transformers, kokoro-js (everything else devDependencies).
+- TESTER GUIDE (artifact): https://claude.ai/artifact/XQermrBPf5YRdWUUatoBck
+  (install + Open Anyway, usage, Google opt-in, privacy, feedback questions).
+
 ## Remaining for beta (after design pass)
 - Onboarding flow + trial countdown/paywall/founder code (Days 11-12 in plan)
 - Final character art integration (swap procedural blob; single-clock juggle grip)

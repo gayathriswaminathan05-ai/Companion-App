@@ -2,7 +2,7 @@ import { ALL_STATES } from "./character/types";
 import type { CharacterState } from "./character/types";
 import { GROWTH_EMOJI, GROWTH_LABEL, type GrowthStage } from "./growth";
 
-const GROWTH_STAGES: GrowthStage[] = [1, 2, 3, 4, 5, 6];
+const GROWTH_STAGES: GrowthStage[] = [1, 2, 3, 4, 5, 6, 7];
 
 // Temporary panel for previewing every animation state + growth stages.
 export default function DebugMenu({

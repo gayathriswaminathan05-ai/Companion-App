@@ -7,7 +7,7 @@ import {
   type GrowthStage,
 } from "../growth";
 
-const STAGES: GrowthStage[] = [1, 2, 3, 4, 5, 6];
+const STAGES: GrowthStage[] = [1, 2, 3, 4, 5, 6, 7];
 
 const TRANSITIONS: { from: GrowthStage; to: GrowthStage }[] = [
   { from: 1, to: 2 },

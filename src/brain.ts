@@ -51,7 +51,10 @@ export interface ChatMsg {
   sources?: { title: string; url: string }[];
 }
 
-export function buildSystem(d: AppData): { type: string; text: string; cache_control?: object }[] {
+export function buildSystem(
+  d: AppData,
+  opts: { canBookMeetings?: boolean } = {},
+): { type: string; text: string; cache_control?: object }[] {
   const openTasks = d.todos.filter((t) => !t.done).slice(0, 8);
   const doneToday = d.todos.filter(
     (t) => t.done && t.completedAt && new Date(t.completedAt).toDateString() === new Date().toDateString(),
@@ -76,6 +79,16 @@ export function buildSystem(d: AppData): { type: string; text: string; cache_con
       ? `\nThings you remember about your friend:\n${d.chat.facts.map((f) => `- ${f}`).join("\n")}`
       : ``,
     d.chat.summary ? `\nSummary of older conversations:\n${d.chat.summary}` : ``,
+    // Kept out of the cached PERSONALITY block: only offered when Google
+    // Calendar is connected with booking permission. Calendar contents are
+    // never sent here; Claude only drafts the event the user asked for.
+    opts.canBookMeetings
+      ? `\nCalendar booking: when they ask you to put a meeting/event/call on their Google Calendar, append at the VERY END:
+<meeting start="YYYY-MM-DDTHH:mm" end="YYYY-MM-DDTHH:mm" with="a@b.com,c@d.com">event title</meeting>
+- local time, same format as task due; omit end for 30 minutes; omit with unless they gave email addresses
+- they get a one-tap Add/Not now bubble before anything is booked, so say something like "want it on your calendar? tap Add"
+- if the time is ambiguous, ask instead of guessing`
+      : ``,
   ]
     .filter(Boolean)
     .join("\n");
@@ -96,12 +109,14 @@ export interface ChatOutputs {
   facts: string[];
   tasks: { text: string; due?: string; recurring?: "daily" }[];
   completes: string[];
+  meetings: { title: string; start: string; end?: string; attendees?: string[] }[];
 }
 
 export function extractOutputs(reply: string): ChatOutputs {
   const facts: string[] = [];
   const tasks: ChatOutputs["tasks"] = [];
   const completes: string[] = [];
+  const meetings: ChatOutputs["meetings"] = [];
   const clean = reply
     .replace(/<remember>([\s\S]*?)<\/remember>/g, (_m, f) => {
       const fact = String(f).trim();
@@ -122,8 +137,22 @@ export function extractOutputs(reply: string): ChatOutputs {
       if (target) completes.push(target);
       return "";
     })
+    .replace(/<meeting([^>]*)>([\s\S]*?)<\/meeting>/g, (_m, attrs, body) => {
+      const title = String(body).trim();
+      const a = String(attrs);
+      const start = /start="([^"]+)"/.exec(a)?.[1];
+      if (title && start) {
+        const end = /end="([^"]+)"/.exec(a)?.[1];
+        const withList = /with="([^"]*)"/.exec(a)?.[1];
+        const attendees = withList
+          ? withList.split(",").map((e) => e.trim()).filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))
+          : undefined;
+        meetings.push({ title, start, end, attendees: attendees?.length ? attendees : undefined });
+      }
+      return "";
+    })
     .trim();
-  return { clean, facts, tasks, completes };
+  return { clean, facts, tasks, completes, meetings };
 }
 
 // Back-compat alias.

@@ -42,6 +42,7 @@ const TRANSITION_CLIPS = new Set<CharacterState>(
 declare global {
   interface Window {
     companion: {
+      isPackaged?: boolean;
       setClickThrough: (ignore: boolean) => void;
       cursorClientPos: () => Promise<{ x: number; y: number } | null>;
       dragStart: () => void;
@@ -68,7 +69,16 @@ declare global {
       setLoginItem: (on: boolean) => Promise<unknown>;
       brainDisconnect: () => Promise<unknown>;
       dataReset: () => Promise<unknown>;
-      calendarStatus: () => Promise<{ hasClient: boolean; connected: boolean }>;
+      calendarStatus: () => Promise<{ hasClient: boolean; connected: boolean; canCreateEvents?: boolean; gmail?: boolean }>;
+      calendarCreateEvent: (ev: {
+        title: string;
+        start: string;
+        end?: string;
+        attendees?: string[];
+      }) => Promise<{ ok: boolean; error?: string; needsReconnect?: boolean; start?: string }>;
+      gmailSetEnabled: (on: boolean) => Promise<{ ok: boolean; enabled: boolean; active: boolean }>;
+      onGmailNew: (handler: (m: { id: string; from: string; subject: string; count?: number }) => void) => () => void;
+      onGoogleAuthExpired: (handler: () => void) => () => void;
       calendarSaveClient: (creds: { clientId: string; clientSecret: string }) => Promise<{ ok: boolean; error?: string }>;
       calendarConnect: () => Promise<{ ok: boolean; error?: string }>;
       calendarDisconnect: () => Promise<{ ok: boolean }>;
@@ -93,6 +103,15 @@ function normalizeClip(raw: Partial<Clip> | null | undefined): Clip {
     clipTop: Math.max(0, Number(raw?.clipTop) || 0),
     clipBottom: Math.max(0, Number(raw?.clipBottom) || 0),
   };
+}
+
+/** "Thu 3:00 PM" for booking confirmations (local time). */
+function formatBooking(start: string): string {
+  const d = new Date(start);
+  if (Number.isNaN(d.getTime())) return start;
+  const today = new Date().toDateString() === d.toDateString();
+  const day = today ? "today" : d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  return `${day} at ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
 }
 
 export default function App() {
@@ -134,6 +153,12 @@ export default function App() {
       setData(d);
       setSoundsEnabled(d.settings.soundsOn);
       setTimeout(() => chirp("hello"), 600);
+      if (!d.settings.welcomed) {
+        setTimeout(() => {
+          setWelcome(true);
+          set("waving");
+        }, 1200);
+      }
     });
     window.companion?.setClickThrough(true);
     const stop = () => {
@@ -336,7 +361,7 @@ export default function App() {
           triggerNudge("stretch");
           return;
         }
-        if (d.settings.waterNudge && waterMsRef.current >= 2 * 60 * 60_000) {
+        if (d.settings.waterNudge && waterMsRef.current >= (d.settings.waterMins || 120) * 60_000) {
           triggerNudge("water");
         }
       } catch {}
@@ -354,6 +379,7 @@ export default function App() {
 
   // --- Chat brain -----------------------------------------------------------
   const [brainConnected, setBrainConnected] = useState(false);
+  const [brainViaProxy, setBrainViaProxy] = useState(false);
   const [streamText, setStreamText] = useState<string | null>(null);
   const [chatBusy, setChatBusy] = useState(false);
   const streamRef = useRef("");
@@ -367,9 +393,10 @@ export default function App() {
   }, [open, chatBusy, state, set]);
 
   useEffect(() => {
-    (window.companion.brainStatus() as Promise<{ connected: boolean }>).then((s) =>
-      setBrainConnected(!!s?.connected),
-    );
+    (window.companion.brainStatus() as Promise<{ connected: boolean; viaProxy?: boolean }>).then((s) => {
+      setBrainConnected(!!s?.connected);
+      setBrainViaProxy(!!s?.viaProxy);
+    });
     const offChunk = window.companion.onChatEvent("chat-chunk", (d) => {
       const { delta } = d as { delta: string };
       streamRef.current += delta;
@@ -377,7 +404,8 @@ export default function App() {
     });
     const offDone = window.companion.onChatEvent("chat-done", (d) => {
       const { text, sources } = d as { text: string; sources?: { title: string; url: string }[] };
-      const { clean, facts, tasks, completes } = extractOutputs(text);
+      const { clean, facts, tasks, completes, meetings } = extractOutputs(text);
+      if (meetings.length) setBooking(meetings[0]);
       let completedAny = false;
       let timedBonusFromChat = false;
       update((x) => {
@@ -444,7 +472,9 @@ export default function App() {
     const offErr = window.companion.onChatEvent("chat-error", (d) => {
       const { error } = d as { error: string };
       update((x) => {
-        const friendly = error.includes("credit balance")
+        const friendly = error.includes("daily_limit")
+          ? "we've chatted SO much today, my brain needs a nap 😴 I'll be fully back tomorrow morning!"
+          : error.includes("credit balance")
           ? "my thinking credits ran out 😅 top me up at platform.claude.com → Plans & Billing and I'll be right back!"
           : error.includes("401")
             ? "I'm having trouble thinking right now 😅 (is my key okay?)"
@@ -481,11 +511,19 @@ export default function App() {
     streamRef.current = "";
     setStreamText("");
     set("coffee");
-    void window.companion.chatSend({
-      id: crypto.randomUUID(),
-      system: buildSystem(draft),
-      messages: buildMessages(draft),
-    });
+    void (async () => {
+      let canBookMeetings = false;
+      try {
+        canBookMeetings = !!(await window.companion.calendarStatus?.())?.canCreateEvents;
+      } catch {
+        /* calendar not set up */
+      }
+      void window.companion.chatSend({
+        id: crypto.randomUUID(),
+        system: buildSystem(draft, { canBookMeetings }),
+        messages: buildMessages(draft),
+      });
+    })();
   };
 
   const connectBrain = async (key: string) => {
@@ -517,6 +555,59 @@ export default function App() {
       set("meeting");
       chirp("bell");
     });
+  }, []);
+
+  // First launch: a short hello so testers know what to do.
+  const [welcome, setWelcome] = useState(false);
+  const finishWelcome = () => {
+    setWelcome(false);
+    update((d) => {
+      d.settings.welcomed = true;
+      return d;
+    });
+    set("idle");
+  };
+
+  // Calendar booking Blob drafted in chat: waits for a one-tap Add.
+  const [booking, setBooking] = useState<{ title: string; start: string; end?: string; attendees?: string[] } | null>(null);
+  const confirmBooking = async () => {
+    const b = booking;
+    setBooking(null);
+    if (!b) return;
+    const res = await window.companion.calendarCreateEvent?.(b);
+    if (res?.ok) {
+      showToast("Added to your calendar");
+      set("celebrating");
+      chirp("celebrate");
+    } else if (res?.needsReconnect) {
+      showToast("Reconnect Google in Settings first");
+    } else {
+      showToast("Couldn't add it to your calendar");
+    }
+  };
+
+  // New Gmail (Primary inbox): sender + subject live in RAM only, never saved
+  // or sent to Claude.
+  const [mail, setMail] = useState<{ from: string; subject: string; count?: number } | null>(null);
+  useEffect(() => {
+    void window.companion.gmailSetEnabled?.(!!data.settings.gmailAlerts);
+  }, [data.settings.gmailAlerts]);
+  useEffect(() => {
+    const offMail = window.companion.onGmailNew?.((m) => {
+      if (!dataRef.current.settings.gmailAlerts) return;
+      if (document.visibilityState === "hidden") return;
+      if (stateRef.current === "sleeping" || stateRef.current === "dragged") return;
+      setMail({ from: m.from, subject: m.subject, count: m.count });
+      chirp("pop");
+    });
+    const offExpired = window.companion.onGoogleAuthExpired?.(() => {
+      showToast("Google needs a quick reconnect in Settings");
+    });
+    return () => {
+      offMail?.();
+      offExpired?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const tellJoke = async () => {
@@ -862,6 +953,7 @@ export default function App() {
                   setStreamText(null);
                   await window.companion.dataSave(next);
                 }}
+                showKeyRow={!brainViaProxy}
                 onChangeKey={async () => {
                   await window.companion.brainDisconnect();
                   setBrainConnected(false);
@@ -989,7 +1081,35 @@ export default function App() {
         />
       )}
 
-      {joke && firedQueue.length === 0 && !nudge && !meeting && (
+      {welcome && firedQueue.length === 0 && (
+        <NudgeBubble
+          text="hi! I'm your little desk plant 🌱 click me for chat, tasks and settings, and drag me anywhere. I grow when you take care of yourself."
+          actions={[{ label: "Let's go", primary: true, onClick: finishWelcome }]}
+        />
+      )}
+
+      {booking && firedQueue.length === 0 && !meeting && !welcome && (
+        <NudgeBubble
+          text={`Add "${booking.title}" on ${formatBooking(booking.start)} to your Google Calendar?`}
+          actions={[
+            { label: "Add", primary: true, onClick: () => void confirmBooking() },
+            { label: "Not now", onClick: () => setBooking(null) },
+          ]}
+        />
+      )}
+
+      {mail && firedQueue.length === 0 && !meeting && !booking && (
+        <NudgeBubble
+          text={
+            mail.count
+              ? `${mail.count} new emails just landed in your inbox`
+              : `New email from ${mail.from || "someone"}: ${mail.subject ? `"${mail.subject}"` : "(no subject)"}`
+          }
+          actions={[{ label: "Got it", primary: true, onClick: () => setMail(null) }]}
+        />
+      )}
+
+      {joke && firedQueue.length === 0 && !nudge && !meeting && !booking && !mail && (
         <NudgeBubble
           text={joke.revealed ? joke.punchline : joke.setup}
           actions={
@@ -1026,7 +1146,7 @@ export default function App() {
         />
       )}
 
-      {nudge && firedQueue.length === 0 && !meeting && (
+      {nudge && firedQueue.length === 0 && !meeting && !booking && !mail && (
         <NudgeBubble
           text={NUDGE_TEXT[nudge]}
           actions={
@@ -1136,7 +1256,7 @@ export default function App() {
           }}
           onContextMenu={(e) => {
             e.preventDefault();
-            setDebugOpen((o) => !o);
+            if (!window.companion?.isPackaged) setDebugOpen((o) => !o);
           }}
           title="Click me for the menu · drag me anywhere"
           style={{
@@ -1149,6 +1269,7 @@ export default function App() {
       </div>
 
       {/* Always-on growth test strip (beside plant) — idle stages + level-up clips */}
+      {!window.companion?.isPackaged && (
       <GrowthTestBar
         growthStage={growthStage}
         visible={data.settings.growthTestVisible}
@@ -1161,7 +1282,7 @@ export default function App() {
         onIdleStage={(s) =>
           update((d) => {
             if (d.sprout.date !== today()) d.sprout = { date: today(), points: 0 };
-            d.sprout.points = s === 1 ? 0 : s === 2 ? 2 : s === 3 ? 4 : s === 4 ? 6 : s === 5 ? 8 : 10;
+            d.sprout.points = s === 1 ? 0 : s === 2 ? 2 : s === 3 ? 4 : s === 4 ? 6 : s === 5 ? 8 : s === 6 ? 10 : 12;
             return d;
           })
         }
@@ -1171,7 +1292,7 @@ export default function App() {
           // Land on destination stage so idle after the clip matches.
           update((d) => {
             if (d.sprout.date !== today()) d.sprout = { date: today(), points: 0 };
-            d.sprout.points = to === 1 ? 0 : to === 2 ? 2 : to === 3 ? 4 : to === 4 ? 6 : to === 5 ? 8 : 10;
+            d.sprout.points = to === 1 ? 0 : to === 2 ? 2 : to === 3 ? 4 : to === 4 ? 6 : to === 5 ? 8 : to === 6 ? 10 : 12;
             return d;
           });
           setOpen("none");
@@ -1183,6 +1304,7 @@ export default function App() {
           set("watering");
         }}
       />
+      )}
 
       {debugOpen && (
         <div data-hit="1" style={{ position: "absolute", left: 8, top: 8, pointerEvents: "auto", zIndex: 50 }}>
@@ -1198,7 +1320,7 @@ export default function App() {
               update((d) => {
                 if (d.sprout.date !== today()) d.sprout = { date: today(), points: 0 };
                 // Jump to the minimum points for that stage (preview only).
-                d.sprout.points = s === 1 ? 0 : s === 2 ? 2 : s === 3 ? 4 : s === 4 ? 6 : s === 5 ? 8 : 10;
+                d.sprout.points = s === 1 ? 0 : s === 2 ? 2 : s === 3 ? 4 : s === 4 ? 6 : s === 5 ? 8 : s === 6 ? 10 : 12;
                 return d;
               })
             }

@@ -15,6 +15,11 @@ const {
 const path = require("path");
 const fs = require("fs");
 
+// Keep ONE data folder no matter how the app is named or launched (dev runs
+// and the installed "Companion.app" both read ~/Library/Application Support/
+// companion-app), so tasks, chats, memories and logins survive the switch.
+app.setPath("userData", path.join(app.getPath("appData"), "companion-app"));
+
 const WIN_W = 384; // was 320 (+20%)
 const WIN_H = 600; // was 500 (+20%)
 
@@ -147,13 +152,26 @@ ipcMain.on("drag-end", () => {
 });
 
 ipcMain.on("quit-app", () => app.quit());
+// Dev-only tools (growth test strip, right-click debug menu) hide in the
+// installed app so beta testers never see them.
+ipcMain.on("is-packaged", (e) => {
+  e.returnValue = app.isPackaged;
+});
 
 // --- Local voice: Whisper (via transformers.js) running fully offline ------
 let asrPromise = null;
 
 function getAsr() {
   if (!asrPromise) {
-    asrPromise = import("@huggingface/transformers").then(async ({ pipeline }) => {
+    asrPromise = import("@huggingface/transformers").then(async ({ pipeline, env }) => {
+      if (app.isPackaged) {
+        // Installed app: the package folder is read-only. Use the Whisper
+        // model bundled in Resources/models; any extra downloads go to
+        // userData (never inside the app).
+        env.localModelPath = path.join(process.resourcesPath, "models");
+        env.allowLocalModels = true;
+        env.cacheDir = path.join(app.getPath("userData"), "models");
+      }
       // base.en: noticeably more accurate than tiny.en (especially with
       // accents) at ~74MB, still fast enough for live dictation chunks.
       // If accuracy still disappoints, the next step up is whisper-small.en.
@@ -277,14 +295,55 @@ function loadBrainKey() {
   }
 }
 
+// Beta / public builds: no key in the app. Chats go through our private proxy
+// (proxy/worker.js) which holds the key server-side and applies per-device
+// daily limits. electron/beta-config.json = { "proxyUrl", "appToken" } is
+// gitignored and bundled at build time. A key saved on this Mac (founder /
+// dev) still wins, so local testing never touches the proxy allowance.
+function loadBetaConfig() {
+  try {
+    const j = JSON.parse(fs.readFileSync(path.join(__dirname, "beta-config.json"), "utf8"));
+    if (j && j.proxyUrl && j.appToken) return j;
+  } catch {}
+  return null;
+}
+const betaConfig = loadBetaConfig();
+
+// Anonymous random id so the proxy can count per-device chats. Not linked to
+// any account, name or email.
+function deviceId() {
+  const f = path.join(app.getPath("userData"), "device-id");
+  try {
+    const id = fs.readFileSync(f, "utf8").trim();
+    if (id) return id;
+  } catch {}
+  const id = require("crypto").randomUUID();
+  try {
+    fs.writeFileSync(f, id);
+  } catch {}
+  return id;
+}
+
 let anthropicClient = null;
 
 function getBrain() {
   if (!anthropicClient) {
-    const key = loadBrainKey();
-    if (!key) return null;
     const Anthropic = require("@anthropic-ai/sdk");
-    anthropicClient = new Anthropic({ apiKey: key });
+    const key = loadBrainKey();
+    if (key) {
+      anthropicClient = new Anthropic({ apiKey: key });
+    } else if (betaConfig) {
+      anthropicClient = new Anthropic({
+        apiKey: "unused", // the real key lives only on the proxy
+        baseURL: betaConfig.proxyUrl.replace(/\/+$/, ""),
+        defaultHeaders: {
+          "x-companion-device": deviceId(),
+          "x-companion-app": betaConfig.appToken,
+        },
+      });
+    } else {
+      return null;
+    }
   }
   return anthropicClient;
 }
@@ -296,7 +355,10 @@ ipcMain.on("open-link", (_e, url) => {
   } catch {}
 });
 
-ipcMain.handle("brain-status", () => ({ connected: !!loadBrainKey() }));
+ipcMain.handle("brain-status", () => ({
+  connected: !!loadBrainKey() || !!betaConfig,
+  viaProxy: !loadBrainKey() && !!betaConfig,
+}));
 
 ipcMain.handle("brain-connect", (_e, key) => {
   try {

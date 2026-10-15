@@ -1,0 +1,26 @@
+# Cloudflare Worker that holds the Claude API key for the Companion app.
+# See README.md for the step-by-step setup.
+
+name = "companion-proxy"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+# Privacy: don't keep request logs in the Cloudflare dashboard.
+# (The worker never logs chat content anyway.)
+[observability]
+enabled = false
+
+# Daily message counters (one small number per device per day).
+# Run `npx wrangler kv namespace create RATE` and paste the id it prints here.
+[[kv_namespaces]]
+binding = "RATE"
+id = "REPLACE_ME"
+
+# Non-secret settings. Change a number, then run `npx wrangler deploy`.
+# The API key and app token are SECRETS, set with `npx wrangler secret put`,
+# and must never be written in this file.
+[vars]
+ALLOWED_MODELS = "claude-sonnet-5,claude-haiku-5-5"  # models the app may use
+MAX_TOKENS_CAP = "2048"                               # longest allowed reply
+DAILY_LIMIT = "60"                                    # chats per device per day (0 = pause chat)
