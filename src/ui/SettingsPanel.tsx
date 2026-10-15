@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ACCENTS, CLOUD_VOICES, speak, type CloudVoice } from "../voice";
 
 // Settings, in Blob's own voice. Grouped cards with the control on the right
 // (Wispr Flow / Obsidian pattern), built from shadcn Item rows.
@@ -91,6 +92,7 @@ export default function SettingsPanel({
   onDeleteAll,
   onClose,
   showKeyRow = true,
+  cloudVoice,
 }: {
   settings: Settings;
   facts: string[];
@@ -104,6 +106,8 @@ export default function SettingsPanel({
   onClose: () => void;
   /** Hidden for beta testers, whose chats go through the proxy (no key). */
   showKeyRow?: boolean;
+  /** Google voice available (online via proxy or local key) + region accent. */
+  cloudVoice?: { available: boolean; autoAccent: string };
 }) {
   const [loginItem, setLoginItem] = useState(false);
   const [clearPhase, setClearPhase] = useState<"idle" | "clearing" | "done">("idle");
@@ -138,6 +142,18 @@ export default function SettingsPanel({
     }
   };
   const needsScreenAccess = settings.matchBackdrop && screenStatus !== "granted";
+
+  const cloud = !!cloudVoice?.available;
+  const preview = (line: string, o: { cloudVoice?: string; accent?: string; kokoro?: string } = {}) => {
+    if (!settings.voiceOn) return;
+    let c: CloudVoice | null = null;
+    if (cloud) {
+      const pick = o.accent ?? settings.voiceAccent ?? "auto";
+      const lang = pick === "auto" ? cloudVoice?.autoAccent || "en-US" : pick;
+      c = { languageCode: lang, voiceName: `${lang}-Chirp3-HD-${o.cloudVoice ?? settings.cloudVoice ?? "Puck"}` };
+    }
+    void speak(line, { voice: o.kokoro ?? settings.voiceName ?? "af_heart", cloud: c });
+  };
 
   const refreshCal = async () => {
     const s = await window.companion.calendarStatus?.();
@@ -307,6 +323,92 @@ export default function SettingsPanel({
         {settings.matchBackdrop && (
           <Note>I only check how bright the screen is around me, a few times a minute, on this Mac. Nothing is saved or sent.</Note>
         )}
+
+        <SectionLabel>My voice</SectionLabel>
+        <ListCard>
+          <Row label="Talk out loud" desc="Reminders, meetings, nudges and jokes">
+            <Switch checked={settings.voiceOn} onCheckedChange={(v) => onPatch({ voiceOn: v })} aria-label="voice" />
+          </Row>
+          <Row label="Read chat replies aloud" desc="You can also mute this from the chat">
+            <Switch
+              checked={settings.voiceOn && settings.voiceChat}
+              disabled={!settings.voiceOn}
+              onCheckedChange={(v) => onPatch({ voiceChat: v })}
+              aria-label="read chat replies aloud"
+            />
+          </Row>
+          <Row label="How I sound">
+            {cloud ? (
+              <NativeSelect
+                size="sm"
+                value={settings.cloudVoice || "Puck"}
+                onChange={(e) => {
+                  onPatch({ cloudVoice: e.target.value });
+                  preview("hi! this is how I sound now.", { cloudVoice: e.target.value });
+                }}
+                aria-label="voice"
+                disabled={!settings.voiceOn}
+              >
+                {CLOUD_VOICES.map((v) => (
+                  <NativeSelectOption key={v.id} value={v.id}>
+                    {v.label}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            ) : (
+              <NativeSelect
+                size="sm"
+                value={settings.voiceName || "af_heart"}
+                onChange={(e) => {
+                  onPatch({ voiceName: e.target.value });
+                  preview("hi! this is how I sound now.", { kokoro: e.target.value });
+                }}
+                aria-label="voice"
+                disabled={!settings.voiceOn}
+              >
+                <NativeSelectOption value="af_heart">Warm</NativeSelectOption>
+                <NativeSelectOption value="af_bella">Bubbly</NativeSelectOption>
+                <NativeSelectOption value="af_sky">Light</NativeSelectOption>
+              </NativeSelect>
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!settings.voiceOn}
+              onClick={() => preview("hey! it's time to drink some water.")}
+            >
+              Play
+            </Button>
+          </Row>
+          {cloud && (
+            <Row label="Accent" desc="How I pronounce names and words">
+              <NativeSelect
+                size="sm"
+                value={settings.voiceAccent || "auto"}
+                onChange={(e) => {
+                  onPatch({ voiceAccent: e.target.value });
+                  preview("hi! this is my new accent.", { accent: e.target.value });
+                }}
+                aria-label="accent"
+                disabled={!settings.voiceOn}
+              >
+                <NativeSelectOption value="auto">
+                  Auto ({ACCENTS.find((x) => x.id === cloudVoice?.autoAccent)?.label ?? "your region"})
+                </NativeSelectOption>
+                {ACCENTS.map((x) => (
+                  <NativeSelectOption key={x.id} value={x.id}>
+                    {x.label}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            </Row>
+          )}
+        </ListCard>
+        <Note>
+          {cloud
+            ? "Online, my voice comes from Google through our private server and isn't stored. Meeting titles and email senders always use my on-device voice."
+            : "My voice is made right here on your Mac. Nothing you hear is sent anywhere."}
+        </Note>
 
         <SectionLabel>How I care for you</SectionLabel>
         <ListCard>

@@ -338,6 +338,29 @@ Pricing/paywall copy intentionally NOT added yet.
   else electron/beta-config.json {proxyUrl, appToken} (GITIGNORED) → SDK
   baseURL=proxy + anonymous device-id. Daily limit 429 "daily_limit" → friendly
   nap message. Settings hides key row for proxy users.
+- VOICE (on-device Kokoro-82M q8, subagent): electron/voice.cjs runs synthesis in
+  a WORKER THREAD (in-process froze main 2.5-3s/line); src/voice.ts speak()/
+  stopSpeaking()/setVoiceEnabled()/warmUpVoice(), sentence-chunked gapless
+  playback, PLAYBACK_RATE 1.06. Model: repo models/onnx-community/Kokoro-82M-
+  v1.0-ONNX (GITIGNORED, 4 files, 92MB) → bundled to Resources/models. Speaks
+  reminders, meetings, nudges, jokes, welcome, new-mail SENDER only (never
+  subject aloud), chat replies (header mute button). settings.voiceOn /
+  voiceChat / voiceName (af_heart "Warm" default, af_bella "Bubbly", af_sky
+  "Light"). Warm-up 8s after launch (~450MB RAM). Only speaks when visible.
+  TODO idea: Whisper transcribe still runs in-process (same freeze pattern).
+  CRASH FIX: Kokoro moved from worker THREAD to Electron utilityProcess
+  ("Companion Voice") — two onnxruntime builds (kokoro 1.21 / whisper 1.24) in
+  one process SIGSEGV'd in LoadModel. Quit = release Whisper then SIGKILL self
+  (normal Node teardown SIGTRAP'd in ORT finalizers; saves are all sync).
+- CLOUD VOICE (owner picked Google over on-device; liked Higgsfield "Dylan" but
+  that can't run live): Google TTS Chirp 3 HD, accent per country (en-IN/US/GB/
+  AU from app.getSystemLocale region, Settings "Accent" override), voices
+  Puck/Fenrir/Charon/Leda/Aoede/Zephyr (default Puck). Proxy route /v1/tts
+  (GOOGLE_TTS_KEY secret, TTS_DAILY_CHARS 20000/device/day). Founder testing
+  without proxy: userData/google-tts.key. main converts LINEAR16 WAV → Float32
+  so playback path is shared; any failure falls back to Kokoro. Meeting titles
+  + email senders ALWAYS on-device (say(..., {private:true})). NOT yet heard:
+  needs her Google API key (enable Cloud Text-to-Speech API).
 - WELCOME: first-run bubble (settings.welcomed).
 - PACKAGING: `npm run dist` = vite build → scripts/optimize-sprites.cjs (dist PNG
   → WebP q90 lossless-alpha, ~14% size, rewrites bundle paths) → electron-builder

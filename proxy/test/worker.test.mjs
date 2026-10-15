@@ -479,3 +479,61 @@ test("SDK: bad app token surfaces as AuthenticationError", { skip: !Anthropic },
   );
   assert.equal(seen.length, 1);
 });
+
+// ---------------------------------------------------------------------------
+// /v1/tts — Blob's cloud voice (Google Text-to-Speech)
+// ---------------------------------------------------------------------------
+
+const ttsEnv = (o = {}) => fakeEnv({ GOOGLE_TTS_KEY: "g-test-KEY", TTS_DAILY_CHARS: "100", ...o });
+const ttsReq = (body, headers = {}) =>
+  new Request(`${BASE}/v1/tts`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-companion-app": APP_TOKEN, "x-companion-device": DEVICE, ...headers },
+    body: JSON.stringify(body),
+  });
+const goodTts = { text: "hey! time to call amma.", languageCode: "en-IN", voiceName: "en-IN-Chirp3-HD-Puck" };
+
+test("tts: forwards to Google with the server key and returns audio", async () => {
+  upstreamQueue.push(() => jsonUpstream(200, { audioContent: "UklGRgAAAA==" }));
+  const env = ttsEnv();
+  const ctx = fakeCtx();
+  const res = await worker.fetch(ttsReq({ ...goodTts, speakingRate: 5 }), env, ctx);
+  await ctx.flush();
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { audioContent: "UklGRgAAAA==" });
+  const call = upstreamCalls[0];
+  assert.match(call.url, /texttospeech\.googleapis\.com/);
+  assert.equal(call.headers.get("x-goog-api-key"), "g-test-KEY");
+  const sent = JSON.parse(call.body);
+  assert.equal(sent.voice.name, "en-IN-Chirp3-HD-Puck");
+  assert.equal(sent.audioConfig.speakingRate, 1.3); // clamped
+  assert.equal(env.RATE.map.get(`t:${DEVICE}:${today()}`), String(goodTts.text.length));
+});
+
+test("tts: guards (token, device, locale, voice, length)", async () => {
+  const env = ttsEnv();
+  assert.equal((await worker.fetch(ttsReq(goodTts, { "x-companion-app": "nope" }), env)).status, 401);
+  assert.equal((await worker.fetch(ttsReq(goodTts, { "x-companion-device": "x" }), env)).status, 400);
+  assert.equal((await worker.fetch(ttsReq({ ...goodTts, languageCode: "fr-FR" }), env)).status, 400);
+  assert.equal((await worker.fetch(ttsReq({ ...goodTts, voiceName: "en-US-Chirp3-HD-Puck" }), env)).status, 400);
+  assert.equal((await worker.fetch(ttsReq({ ...goodTts, text: "a".repeat(601) }), env)).status, 400);
+  assert.equal(upstreamCalls.length, 0);
+});
+
+test("tts: daily character budget blocks with 429 and failed calls are free", async () => {
+  const env = ttsEnv({ TTS_DAILY_CHARS: "30" });
+  upstreamQueue.push(() => jsonUpstream(500, { error: "boom" }));
+  assert.equal((await worker.fetch(ttsReq(goodTts), env)).status, 502);
+  assert.equal(env.RATE.map.get(`t:${DEVICE}:${today()}`), undefined);
+  upstreamQueue.push(() => jsonUpstream(200, { audioContent: "AAAA" }));
+  assert.equal((await worker.fetch(ttsReq(goodTts), env)).status, 200);
+  const blocked = await worker.fetch(ttsReq(goodTts), env);
+  assert.equal(blocked.status, 429);
+  assert.equal((await blocked.json()).error.message, "tts_daily_limit");
+});
+
+test("tts: not configured without the Google key", async () => {
+  const res = await worker.fetch(ttsReq(goodTts), fakeEnv());
+  assert.equal(res.status, 500);
+  assert.equal((await res.json()).error.message, "tts_not_configured");
+});

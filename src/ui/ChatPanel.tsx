@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ArrowUpIcon, LinkSimpleIcon, LockSimpleIcon } from "@phosphor-icons/react";
+import { ArrowUpIcon, LinkSimpleIcon, LockSimpleIcon, SpeakerHighIcon, SpeakerSlashIcon } from "@phosphor-icons/react";
 import MicButton from "./MicButton";
 import type { ChatMsg } from "../brain";
 import { Panel, PanelHeader } from "@/components/panel";
@@ -30,6 +30,8 @@ export default function ChatPanel({
   connected,
   companionName = "Blob",
   userName = "",
+  voiceChat,
+  onToggleVoiceChat,
   onConnectKey,
   onSend,
   onClose,
@@ -41,6 +43,9 @@ export default function ChatPanel({
   connected: boolean;
   companionName?: string;
   userName?: string;
+  /** Replies are read aloud; header shows a mute / unmute button. */
+  voiceChat?: boolean;
+  onToggleVoiceChat?: () => void;
   onConnectKey: (key: string) => void;
   onSend: (text: string) => void;
   onClose: () => void;
@@ -150,6 +155,19 @@ export default function ChatPanel({
     <Panel>
       <PanelHeader title={name} onClose={onClose}>
         {busy && <span className="text-xs text-muted-foreground">thinking...</span>}
+        {onToggleVoiceChat && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="ml-auto text-muted-foreground"
+            onClick={onToggleVoiceChat}
+            aria-label={voiceChat ? "stop reading replies aloud" : "read replies aloud"}
+            aria-pressed={!!voiceChat}
+            title={voiceChat ? "Mute my voice in chat" : "Read my replies aloud"}
+          >
+            {voiceChat ? <SpeakerHighIcon /> : <SpeakerSlashIcon />}
+          </Button>
+        )}
       </PanelHeader>
 
       {empty ? (

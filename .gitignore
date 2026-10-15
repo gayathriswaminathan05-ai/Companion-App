@@ -7,3 +7,10 @@ release/
 # Secrets / per-machine config (never commit)
 electron/google-client.json
 electron/beta-config.json
+
+# Bundled on-device models (downloaded, large)
+/models/
+
+# Working copies of raw videos for manual background removal
+/Video assets for background removal/
+/Voice samples/

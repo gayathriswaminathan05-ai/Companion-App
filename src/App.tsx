@@ -14,6 +14,7 @@ import PanelResizeHandles from "./ui/PanelResizeHandles";
 import { GrowthIcon } from "@/components/panel";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { usePanelTheme } from "./usePanelTheme";
+import { speak, stopSpeaking, setVoiceEnabled, warmUpVoice, accentForLocale, type CloudVoice } from "./voice";
 import { formatDue, parseWhen } from "./reminders";
 import { useCharacter } from "./character/useCharacter";
 import { AppData, emptyData, loadData, saveData, today } from "./store";
@@ -54,6 +55,10 @@ declare global {
       layoutInfo: () => Promise<unknown>;
       setWindowSize: (size: { width: number; height: number }) => Promise<unknown>;
       ensureMic: () => Promise<unknown>;
+      voiceWarmup?: () => Promise<unknown>;
+      voiceSynthesize?: (req: { text: string; voice?: string; speed?: number }) => Promise<unknown>;
+      voiceStatus?: () => Promise<unknown>;
+      voiceCloudInfo?: () => Promise<{ available: boolean; systemLocale: string }>;
       screenAccess: (opts?: { prompt?: boolean }) => Promise<string>;
       backdropLuminance: (area: { top: number; bottom: number }) => Promise<number | null>;
       idleSeconds: () => Promise<unknown>;
@@ -377,6 +382,30 @@ export default function App() {
     bedtime: "I'm sleepy… don't stay up too late, okay?",
   };
 
+  // --- Voice (on-device Kokoro) ---------------------------------------------
+  // Speaks only when Blob is visible; never while hidden for a call.
+  // Cloud voice (Google, accent per country) when online; `private` lines
+  // (meeting titles, email senders) always stay on the on-device voice.
+  const [cloudInfo, setCloudInfo] = useState<{ available: boolean; systemLocale: string }>({
+    available: false,
+    systemLocale: "",
+  });
+  const cloudInfoRef = useRef(cloudInfo);
+  cloudInfoRef.current = cloudInfo;
+  useEffect(() => {
+    void window.companion.voiceCloudInfo?.().then((i) => i && setCloudInfo(i));
+  }, []);
+  const cloudVoiceFor = (st: typeof data.settings): CloudVoice | null => {
+    if (!cloudInfoRef.current.available) return null;
+    const lang = st.voiceAccent && st.voiceAccent !== "auto" ? st.voiceAccent : accentForLocale(cloudInfoRef.current.systemLocale);
+    return { languageCode: lang, voiceName: `${lang}-Chirp3-HD-${st.cloudVoice || "Puck"}` };
+  };
+  const say = (text: string, opts: { private?: boolean } = {}) => {
+    const st = dataRef.current.settings;
+    if (!st.voiceOn || document.visibilityState === "hidden") return;
+    void speak(text, { voice: st.voiceName || "af_heart", cloud: opts.private ? null : cloudVoiceFor(st) });
+  };
+
   // --- Chat brain -----------------------------------------------------------
   const [brainConnected, setBrainConnected] = useState(false);
   const [brainViaProxy, setBrainViaProxy] = useState(false);
@@ -452,6 +481,7 @@ export default function App() {
       streamRef.current = "";
       setStreamText(null);
       setChatBusy(false);
+      if (clean && dataRef.current.settings.voiceChat) say(clean);
       if (timedBonusFromChat) {
         const r = growSprout("taskBonus");
         if (!r.leveledUp) {
@@ -500,6 +530,7 @@ export default function App() {
   }, []);
 
   const sendChat = (text: string) => {
+    stopSpeaking();
     const userMsg = { role: "user" as const, text, at: new Date().toISOString() };
     const draft = structuredClone(dataRef.current);
     draft.chat.messages.push(userMsg);
@@ -844,6 +875,54 @@ export default function App() {
   // Distance from window bottom → keeps stack glued to the plant.
   const stackBottom = plantH + PLANT_GAP;
 
+  // Voice: mute switch + warm the model a little after launch (it's ~450MB
+  // of RAM, so only when the voice is on).
+  useEffect(() => {
+    setVoiceEnabled(!!data.settings.voiceOn);
+    if (!data.settings.voiceOn) {
+      stopSpeaking();
+      return;
+    }
+    if (cloudInfo.available) return; // on-device voice loads on demand as backup
+    const t = window.setTimeout(() => void warmUpVoice(), 8000);
+    return () => window.clearTimeout(t);
+  }, [data.settings.voiceOn, cloudInfo.available]);
+
+  const firedNow = firedQueue[0];
+  useEffect(() => {
+    if (!firedNow) return;
+    say(firedNow.missed ? `while you were away: ${firedNow.text}` : `hey! it's time: ${firedNow.text}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firedNow?.id]);
+  useEffect(() => {
+    if (!meeting) return;
+    say(
+      meeting.minutesUntil <= 0 ? `${meeting.title} is starting now` : `heads up, ${meeting.title} starts in ${meeting.minutesUntil} minutes`,
+      { private: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meeting]);
+  useEffect(() => {
+    if (nudge) say(NUDGE_TEXT[nudge]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nudge]);
+  useEffect(() => {
+    if (joke) say(joke.revealed ? joke.punchline : joke.setup);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [joke?.setup, joke?.revealed]);
+  useEffect(() => {
+    // Sender only, never the subject out loud (someone may be nearby).
+    if (mail) say(mail.count ? `you've got ${mail.count} new emails` : `new email from ${mail.from || "someone"}`, { private: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mail]);
+  useEffect(() => {
+    if (welcome) say("hi! I'm your little desk plant. click me for chat, tasks and settings. I grow when you take care of yourself.");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [welcome]);
+  useEffect(() => {
+    if (open !== "chat") stopSpeaking();
+  }, [open]);
+
   // Panels: follow macOS light/dark, or (opt-in) match the app behind us.
   usePanelTheme(
     !!data.settings.matchBackdrop,
@@ -954,6 +1033,7 @@ export default function App() {
                   await window.companion.dataSave(next);
                 }}
                 showKeyRow={!brainViaProxy}
+                cloudVoice={{ available: cloudInfo.available, autoAccent: accentForLocale(cloudInfo.systemLocale) }}
                 onChangeKey={async () => {
                   await window.companion.brainDisconnect();
                   setBrainConnected(false);
@@ -977,6 +1057,12 @@ export default function App() {
                 connected={brainConnected}
                 companionName={data.settings.companionName}
                 userName={data.settings.userName}
+                voiceChat={data.settings.voiceOn && data.settings.voiceChat}
+                onToggleVoiceChat={() => {
+                  const next = !(data.settings.voiceOn && data.settings.voiceChat);
+                  if (!next) stopSpeaking();
+                  patchSettings(next ? { voiceOn: true, voiceChat: true } : { voiceChat: false });
+                }}
                 onConnectKey={connectBrain}
                 onSend={sendChat}
                 onClose={() => {

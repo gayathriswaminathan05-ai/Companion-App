@@ -289,7 +289,11 @@ Non-negotiable rules — every feature must comply or it doesn't ship:
    on our servers.
 2. **Voice never leaves the device.** Whisper runs locally; audio is processed
    in-memory and discarded. We never store or transmit recordings.
-3. **Chat is the ONLY network flow.** Message text goes to the Claude API solely to
+3. **Chat (and Blob's cloud voice) are the ONLY network flows.** Blob's spoken lines
+   (reminders, nudges, jokes, chat replies) go to Google Text-to-Speech through our proxy
+   when online, never stored or logged; meeting titles and email senders are always
+   spoken on-device and never sent. Offline, the on-device Kokoro voice takes over.
+   Message text goes to the Claude API solely to
    generate a reply. Proxy rules: no content logging or storage; anonymous device ID
    only (no accounts/emails/names); TLS everywhere; per-device rate caps. Under
    Anthropic API terms, chats are not used for model training and are deleted from

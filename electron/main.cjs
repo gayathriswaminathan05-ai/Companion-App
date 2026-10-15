@@ -348,6 +348,99 @@ function getBrain() {
   return anthropicClient;
 }
 
+// --- Cloud voice: Google Text-to-Speech (Chirp 3 HD), accent per country ---
+// Testers go through our proxy (/v1/tts, key lives on the server). The founder
+// can test without the proxy by putting a Google API key in userData/
+// google-tts.key. Returns { sampleRate, pcm } exactly like Kokoro, or null so
+// the caller falls back to the on-device voice (offline, quota, errors).
+const ttsKeyFile = () => path.join(app.getPath("userData"), "google-tts.key");
+function loadTtsKey() {
+  try {
+    return fs.readFileSync(ttsKeyFile(), "utf8").trim() || null;
+  } catch {
+    return process.env.GOOGLE_TTS_KEY || null;
+  }
+}
+
+function wavToPcm(buf) {
+  // Google LINEAR16 = RIFF/WAV with a header; walk chunks to fmt + data.
+  let sampleRate = 24000;
+  let start = 0;
+  let end = buf.length;
+  if (buf.length > 12 && buf.toString("ascii", 0, 4) === "RIFF") {
+    let off = 12;
+    while (off + 8 <= buf.length) {
+      const id = buf.toString("ascii", off, off + 4);
+      const size = buf.readUInt32LE(off + 4);
+      if (id === "fmt ") sampleRate = buf.readUInt32LE(off + 12);
+      if (id === "data") {
+        start = off + 8;
+        end = Math.min(buf.length, start + size);
+        break;
+      }
+      off += 8 + size + (size % 2);
+    }
+  }
+  const n = Math.floor((end - start) / 2);
+  const f32 = new Float32Array(n);
+  for (let i = 0; i < n; i++) f32[i] = buf.readInt16LE(start + i * 2) / 32768;
+  return { sampleRate, pcm: f32.buffer };
+}
+
+async function cloudSynthesize({ text, languageCode, voiceName, speed }) {
+  const speakingRate = Math.min(1.3, Math.max(0.8, Number(speed) || 1));
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    let res;
+    const key = loadTtsKey();
+    if (key) {
+      res = await fetch("https://texttospeech.googleapis.com/v1/text:synthesize", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          input: { text },
+          voice: { languageCode, name: voiceName },
+          audioConfig: { audioEncoding: "LINEAR16", sampleRateHertz: 24000, speakingRate },
+        }),
+        signal: ctrl.signal,
+      });
+    } else if (betaConfig) {
+      res = await fetch(`${betaConfig.proxyUrl.replace(/\/+$/, "")}/v1/tts`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-companion-device": deviceId(),
+          "x-companion-app": betaConfig.appToken,
+        },
+        body: JSON.stringify({ text, languageCode, voiceName, speakingRate }),
+        signal: ctrl.signal,
+      });
+    } else {
+      return null;
+    }
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (!json || typeof json.audioContent !== "string") return null;
+    return wavToPcm(Buffer.from(json.audioContent, "base64"));
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const cloudVoice = {
+  available: () => !!(loadTtsKey() || betaConfig),
+  synthesize: cloudSynthesize,
+};
+
+ipcMain.handle("voice-cloud-info", () => ({
+  available: cloudVoice.available(),
+  // e.g. "en-IN" — the Mac's region decides the default accent.
+  systemLocale: app.getSystemLocale ? app.getSystemLocale() : app.getLocale(),
+}));
+
 ipcMain.on("open-link", (_e, url) => {
   try {
     const u = String(url);
@@ -677,7 +770,48 @@ function createTray() {
   updateTrayMenu();
 }
 
+// Quitting: onnxruntime (Whisper on the main thread, Kokoro in its worker)
+// crashes if Node tears it down normally (SIGTRAP in session finalizers) or if
+// the worker is terminated mid-LoadModel (SIGSEGV) — both showed macOS's
+// "quit unexpectedly" dialog. So: release Whisper's sessions (best effort, max
+// ~1s), then end the process with SIGKILL, which skips teardown entirely and
+// never produces a crash report. Safe because every save (data, window
+// position, tokens) is written synchronously the moment it happens.
+let voiceEngine = null;
+let quittingNow = false;
+app.on("before-quit", (e) => {
+  e.preventDefault();
+  if (quittingNow) return;
+  quittingNow = true;
+  try {
+    if (win && !win.isDestroyed()) savePosition(win.getBounds());
+  } catch {}
+  try {
+    if (voiceEngine && voiceEngine.dispose) voiceEngine.dispose(); // ends the voice process
+  } catch {}
+  const release = asrPromise
+    ? asrPromise.then((p) => p && p.dispose && p.dispose()).catch(() => {})
+    : Promise.resolve();
+  const timeout = new Promise((r) => setTimeout(r, 1000));
+  Promise.race([release, timeout]).finally(() => process.kill(process.pid, "SIGKILL"));
+});
+
 app.whenReady().then(() => {
+  // On-device voice (Kokoro, worker thread). Model ships in Resources/models;
+  // dev runs download it once into userData/models.
+  try {
+    const { registerVoiceIpc } = require("./voice.cjs");
+    voiceEngine = registerVoiceIpc({
+      ipcMain,
+      cloud: cloudVoice,
+      cacheDir: path.join(app.getPath("userData"), "models"),
+      bundledModelsDir: app.isPackaged
+        ? path.join(process.resourcesPath, "models")
+        : path.join(__dirname, "..", "models"), // gitignored copy in the repo
+    });
+  } catch (e) {
+    console.error("voice ipc failed", e);
+  }
   createWindow();
   try {
     const { registerCalendarIpc } = require("./calendar.cjs");

@@ -16,6 +16,14 @@ const DEFAULT_ALLOWED_MODELS = "claude-sonnet-5,claude-haiku-5-5";
 const DEFAULT_MAX_TOKENS_CAP = 2048;
 const DEFAULT_DAILY_LIMIT = 60;
 
+// Blob's cloud voice (Google Text-to-Speech, Chirp 3 HD). The Google key is
+// a Worker secret too (GOOGLE_TTS_KEY). Same privacy rule: text is passed to
+// Google to be spoken and never logged or stored here.
+const TTS_URL = "https://texttospeech.googleapis.com/v1/text:synthesize";
+const TTS_LOCALES = ["en-US", "en-GB", "en-IN", "en-AU"];
+const DEFAULT_TTS_DAILY_CHARS = 20000; // ~ a few hundred spoken lines / device / day
+const TTS_MAX_CHARS = 600;
+
 const COUNTER_TTL_SECONDS = 2 * 24 * 60 * 60; // counters expire after ~2 days
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -47,6 +55,10 @@ async function handle(request, env, ctx) {
       return apiError(405, "invalid_request_error", "method_not_allowed");
     }
     return jsonResponse(200, { ok: true });
+  }
+
+  if (url.pathname === "/v1/tts") {
+    return handleTts(request, env, ctx);
   }
 
   if (url.pathname !== "/v1/messages") {
@@ -155,6 +167,78 @@ async function handle(request, env, ctx) {
   return new Response(upstream.body, { status: upstream.status, headers });
 }
 
+async function handleTts(request, env, ctx) {
+  if (request.method !== "POST") {
+    return apiError(405, "invalid_request_error", "method_not_allowed");
+  }
+  if (!env.GOOGLE_TTS_KEY || !env.APP_TOKEN || !env.RATE) {
+    return apiError(500, "api_error", "tts_not_configured");
+  }
+  const appToken = request.headers.get("x-companion-app") || "";
+  if (!safeEqual(appToken, String(env.APP_TOKEN))) {
+    return apiError(401, "authentication_error", "bad_app_token");
+  }
+  const device = (request.headers.get("x-companion-device") || "").trim().toLowerCase();
+  if (!UUID_RE.test(device)) {
+    return apiError(400, "invalid_request_error", "bad_device_id");
+  }
+
+  let body;
+  try {
+    body = JSON.parse(await request.text());
+  } catch {
+    return apiError(400, "invalid_request_error", "invalid_json");
+  }
+  const text = typeof body?.text === "string" ? body.text.trim() : "";
+  const languageCode = String(body?.languageCode || "");
+  const voiceName = String(body?.voiceName || "");
+  if (!text || text.length > TTS_MAX_CHARS) {
+    return apiError(400, "invalid_request_error", "bad_text");
+  }
+  if (!TTS_LOCALES.includes(languageCode)) {
+    return apiError(400, "invalid_request_error", "bad_language");
+  }
+  if (!new RegExp(`^${languageCode}-Chirp3-HD-[A-Z][a-z]+$`).test(voiceName)) {
+    return apiError(400, "invalid_request_error", "bad_voice");
+  }
+  const rate = Number(body?.speakingRate);
+  const speakingRate = Number.isFinite(rate) ? Math.min(1.3, Math.max(0.8, rate)) : 1;
+
+  // Per-device daily character budget keeps the Google bill bounded.
+  const counterKey = `t:${device}:${utcDay()}`;
+  const limit = intSetting(env.TTS_DAILY_CHARS, DEFAULT_TTS_DAILY_CHARS);
+  const used = await readCount(env.RATE, counterKey);
+  if (used + text.length > limit) {
+    return apiError(429, "rate_limit_error", "tts_daily_limit");
+  }
+
+  let upstream;
+  try {
+    upstream = await fetch(TTS_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": String(env.GOOGLE_TTS_KEY) },
+      body: JSON.stringify({
+        input: { text },
+        voice: { languageCode, name: voiceName },
+        audioConfig: { audioEncoding: "LINEAR16", sampleRateHertz: 24000, speakingRate },
+      }),
+    });
+  } catch {
+    return apiError(502, "api_error", "tts_unreachable");
+  }
+  if (!upstream.ok) {
+    return apiError(upstream.status === 429 ? 429 : 502, "api_error", `tts_upstream_${upstream.status}`);
+  }
+  const out = await upstream.json().catch(() => null);
+  if (!out || typeof out.audioContent !== "string") {
+    return apiError(502, "api_error", "tts_bad_upstream");
+  }
+  const bump = incrementCount(env.RATE, counterKey, text.length);
+  if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(bump);
+  else await bump;
+  return jsonResponse(200, { audioContent: out.audioContent });
+}
+
 function isNewUserTurn(messages) {
   if (!Array.isArray(messages) || messages.length === 0) return false;
   const last = messages[messages.length - 1];
@@ -170,10 +254,10 @@ async function readCount(kv, key) {
   }
 }
 
-async function incrementCount(kv, key) {
+async function incrementCount(kv, key, by = 1) {
   try {
     const n = await readCount(kv, key);
-    await kv.put(key, String(n + 1), { expirationTtl: COUNTER_TTL_SECONDS });
+    await kv.put(key, String(n + by), { expirationTtl: COUNTER_TTL_SECONDS });
   } catch {
     // Counter write failed (e.g. free-plan KV write quota). Chat still works.
   }

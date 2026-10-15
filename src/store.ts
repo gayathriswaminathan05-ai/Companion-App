@@ -44,6 +44,16 @@ export interface Settings {
   matchBackdrop: boolean;
   /** Bubble when new Primary-inbox Gmail arrives (sender + subject in RAM only). */
   gmailAlerts: boolean;
+  /** On-device voice (Kokoro): speak reminders, nudges, jokes, mail. */
+  voiceOn: boolean;
+  /** Also read chat replies aloud (mute button in the chat header). */
+  voiceChat: boolean;
+  /** Kokoro voice id. */
+  voiceName: string;
+  /** Google cloud voice (Chirp 3 HD name, e.g. "Puck"). */
+  cloudVoice: string;
+  /** "auto" = from the Mac's region, or en-IN / en-US / en-GB / en-AU. */
+  voiceAccent: string;
   /** First-run hello bubble has been shown. */
   welcomed: boolean;
   /** Dev growth test strip beside the plant (hide when not testing). */
@@ -95,6 +105,11 @@ export const defaultSettings = (): Settings => ({
   matchBackdrop: false,
   gmailAlerts: false,
   welcomed: false,
+  voiceOn: true,
+  voiceChat: true,
+  voiceName: "af_heart",
+  cloudVoice: "Puck",
+  voiceAccent: "auto",
   growthTestVisible: true,
 });
 

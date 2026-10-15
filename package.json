@@ -58,12 +58,18 @@
       "!**/node_modules/onnxruntime-node/bin/napi-v*/linux/**",
       "!**/node_modules/onnxruntime-node/bin/napi-v*/win32/**",
       "!**/node_modules/onnxruntime-node/bin/napi-v*/darwin/x64/**",
-      "!**/*.map"
+      "!**/*.map",
+      "!**/node_modules/kokoro-js/node_modules/onnxruntime-web/**",
+      "!**/node_modules/kokoro-js/node_modules/@huggingface/transformers/dist/*.wasm"
     ],
     "extraResources": [
       {
         "from": "node_modules/@huggingface/transformers/.cache/Xenova/whisper-base.en",
         "to": "models/Xenova/whisper-base.en"
+      },
+      {
+        "from": "models/onnx-community/Kokoro-82M-v1.0-ONNX",
+        "to": "models/onnx-community/Kokoro-82M-v1.0-ONNX"
       }
     ],
     "asarUnpack": [
