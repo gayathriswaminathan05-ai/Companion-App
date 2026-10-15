@@ -11,11 +11,13 @@ import Showcase from "./ui/Showcase";
 import GrowthTestBar from "./ui/GrowthTestBar";
 import SettingsPanel from "./ui/SettingsPanel";
 import PanelResizeHandles from "./ui/PanelResizeHandles";
+import { GrowthIcon } from "@/components/panel";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { usePanelTheme } from "./usePanelTheme";
 import { formatDue, parseWhen } from "./reminders";
 import { useCharacter } from "./character/useCharacter";
 import { AppData, emptyData, loadData, saveData, today } from "./store";
 import {
-  GROWTH_EMOJI,
   GROWTH_LABEL,
   GROWTH_MAX_POINTS,
   GROWTH_TASK_BONUS_POINTS,
@@ -51,6 +53,8 @@ declare global {
       layoutInfo: () => Promise<unknown>;
       setWindowSize: (size: { width: number; height: number }) => Promise<unknown>;
       ensureMic: () => Promise<unknown>;
+      screenAccess: (opts?: { prompt?: boolean }) => Promise<string>;
+      backdropLuminance: (area: { top: number; bottom: number }) => Promise<number | null>;
       idleSeconds: () => Promise<unknown>;
       transcribe: (audioBuffer: ArrayBuffer) => Promise<unknown>;
       brainStatus: () => Promise<unknown>;
@@ -97,7 +101,7 @@ export default function App() {
   const [open, setOpen] = useState<"none" | "menu" | "tasks" | "chat" | "settings">("none");
   const [clip, setClip] = useState<Clip>(EMPTY_CLIP);
   const [firedQueue, setFiredQueue] = useState<FiredReminder[]>([]);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; stage?: GrowthStage } | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
   const [showcase, setShowcase] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -236,7 +240,7 @@ export default function App() {
       const transKey = `grow${fromStage}to${nextStage}` as CharacterState;
       set(TRANSITION_CLIPS.has(transKey) ? transKey : "celebrating");
       chirp("celebrate");
-      showToast(`${GROWTH_EMOJI[nextStage]} ${GROWTH_LABEL[nextStage]}`);
+      showToast(GROWTH_LABEL[nextStage], nextStage);
     }
     return { leveledUp, stage: nextStage };
   };
@@ -343,9 +347,9 @@ export default function App() {
   }, []);
 
   const NUDGE_TEXT: Record<NudgeKind, string> = {
-    stretch: "you've been at it a while — stretch with me? 🧘",
-    water: "little water break? 💧",
-    bedtime: "I'm sleepy… don't stay up too late, okay? 💤",
+    stretch: "you've been at it a while. stretch with me?",
+    water: "little water break?",
+    bedtime: "I'm sleepy… don't stay up too late, okay?",
   };
 
   // --- Chat brain -----------------------------------------------------------
@@ -488,9 +492,9 @@ export default function App() {
     const res = (await window.companion.brainConnect(key)) as { ok: boolean };
     if (res?.ok) {
       setBrainConnected(true);
-      showToast("brain connected! 🧠✨");
+      showToast("Brain connected");
     } else {
-      showToast("hmm, couldn't save the key");
+      showToast("Hmm, couldn't save the key");
     }
   };
 
@@ -708,8 +712,8 @@ export default function App() {
     });
   };
 
-  const showToast = (msg: string) => {
-    setToast(msg);
+  const showToast = (msg: string, stage?: GrowthStage) => {
+    setToast({ text: msg, stage });
     setTimeout(() => setToast(null), 2200);
   };
 
@@ -749,6 +753,16 @@ export default function App() {
   // Distance from window bottom → keeps stack glued to the plant.
   const stackBottom = plantH + PLANT_GAP;
 
+  // Panels: follow macOS light/dark, or (opt-in) match the app behind us.
+  usePanelTheme(
+    !!data.settings.matchBackdrop,
+    panelOpen || open === "menu" || showcase || firedQueue.length > 0 || !!nudge || !!joke || !!meeting,
+    {
+      top: Math.max(0, WIN_H - stackBottom - PANEL_H - STACK_GAP - NAV_H),
+      bottom: Math.max(0, WIN_H - stackBottom),
+    },
+  );
+
   // Keep Electron window sized for the chosen panel scale (grow up from plant).
   useEffect(() => {
     void (async () => {
@@ -768,6 +782,7 @@ export default function App() {
   }, [panelOpen, open, showcase]);
 
   return (
+    <TooltipProvider delayDuration={350}>
     <div style={{ width: "100%", height: "100%", position: "relative", pointerEvents: "none" }}>
       {panelOpen && (
         <div
@@ -868,6 +883,8 @@ export default function App() {
                 streamText={streamText}
                 busy={chatBusy}
                 connected={brainConnected}
+                companionName={data.settings.companionName}
+                userName={data.settings.userName}
                 onConnectKey={connectBrain}
                 onSend={sendChat}
                 onClose={() => {
@@ -964,7 +981,7 @@ export default function App() {
           }
           actions={[
             {
-              label: "got it",
+              label: "Got it",
               primary: true,
               onClick: () => setMeeting(null),
             },
@@ -979,7 +996,7 @@ export default function App() {
             joke.revealed
               ? [
                   {
-                    label: "hehe ✓",
+                    label: "Haha",
                     primary: true,
                     onClick: () => {
                       setJoke(null);
@@ -989,7 +1006,7 @@ export default function App() {
                 ]
               : [
                   {
-                    label: "what? 🤔",
+                    label: "What?",
                     primary: true,
                     onClick: () => {
                       setJoke({ ...joke, revealed: true });
@@ -998,7 +1015,7 @@ export default function App() {
                     },
                   },
                   {
-                    label: "not now",
+                    label: "Not now",
                     onClick: () => {
                       setJoke(null);
                       set("idle");
@@ -1014,10 +1031,10 @@ export default function App() {
           text={NUDGE_TEXT[nudge]}
           actions={
             nudge === "bedtime"
-              ? [{ label: "good night 💤", primary: true, onClick: () => setNudge(null) }]
+              ? [{ label: "Good night", primary: true, onClick: () => setNudge(null) }]
               : [
                   {
-                    label: "did it! 🌱",
+                    label: "Did it",
                     primary: true,
                     onClick: () => {
                       setNudge(null);
@@ -1029,7 +1046,7 @@ export default function App() {
                     },
                   },
                   {
-                    label: "not now",
+                    label: "Not now",
                     onClick: () => {
                       setNudge(null);
                       set("idle");
@@ -1042,22 +1059,13 @@ export default function App() {
 
       {toast && (
         <div
-          style={{
-            position: "absolute",
-            bottom: 215,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "rgba(90, 74, 58, 0.92)",
-            color: "#fff8ec",
-            fontSize: 11.5,
-            fontFamily: "system-ui, sans-serif",
-            padding: "6px 12px",
-            borderRadius: 10,
-            whiteSpace: "nowrap",
-            zIndex: 30,
-          }}
+          key={toast.text}
+          data-slot="toast"
+          role="status"
+          className="absolute bottom-[216px] left-1/2 z-30 inline-flex h-8 -translate-x-1/2 animate-toast-in items-center gap-1.5 rounded-full bg-foreground px-3.5 text-[13px] font-medium whitespace-nowrap text-background shadow-float"
         >
-          {toast}
+          {toast.stage && <GrowthIcon stage={toast.stage} className="size-4 text-success-soft" />}
+          {toast.text}
         </div>
       )}
 
@@ -1199,5 +1207,6 @@ export default function App() {
         </div>
       )}
     </div>
+    </TooltipProvider>
   );
 }

@@ -1,11 +1,30 @@
 import { useMemo, useState } from "react";
+import {
+  ArrowUpIcon,
+  ArrowsClockwiseIcon,
+  CaretDownIcon,
+  ClockIcon,
+  PencilSimpleIcon,
+  PlusIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 import type { Todo } from "../store";
 import { parseReminder, parseWhen, formatDue } from "../reminders";
-import { GROWTH_EMOJI, GROWTH_LABEL, type GrowthStage } from "../growth";
-import { COLORS, panel, smallBtn, primaryBtn, ghostClose, inputBar, field, chip } from "./theme";
+import { GROWTH_LABEL, type GrowthStage } from "../growth";
 import MicButton from "./MicButton";
+import { GrowthIcon, ListCard, Panel, PanelHeader, SectionLabel } from "@/components/panel";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { cn } from "@/lib/utils";
 
-// One list. Any task may carry a time — those also ring as reminders.
+// One list. Any task may carry a time; those also ring as reminders.
+// Amie / Attio pattern: grouped list, time as a meta line under the title,
+// row actions on hover, finished work folded below.
 export default function TaskPanel({
   todos,
   growthStage,
@@ -42,6 +61,8 @@ export default function TaskPanel({
   const plain = todos.filter((t) => !t.done && !t.due);
   const doneToday = todos.filter((t) => t.done && isToday(t.completedAt));
   const doneOlder = todos.filter((t) => t.done && !isToday(t.completedAt));
+  const openCount = timed.length + plain.length;
+  const canAdd = Boolean(text.trim());
 
   const submit = () => {
     const trimmed = text.trim();
@@ -73,128 +94,150 @@ export default function TaskPanel({
     setEditingId(null);
   };
 
-  const rowProps = { onToggle, onDelete, startEdit };
-  const canAdd = Boolean(text.trim());
+  const renderList = (list: Todo[]) => (
+    <ListCard>
+      {list.map((t) =>
+        editingId === t.id ? (
+          <EditRow
+            key={t.id}
+            editText={editText}
+            setEditText={setEditText}
+            editWhen={editWhen}
+            setEditWhen={setEditWhen}
+            editDue={editDue}
+            onSave={saveEdit}
+            onCancel={() => setEditingId(null)}
+          />
+        ) : (
+          <Row key={t.id} todo={t} onToggle={onToggle} onDelete={onDelete} startEdit={startEdit} />
+        ),
+      )}
+    </ListCard>
+  );
 
   return (
-    <div style={{ ...panel, display: "flex", flexDirection: "column", height: "100%", padding: 12, gap: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingRight: 4 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>
-          today {GROWTH_EMOJI[growthStage]}
-          <span style={{ fontWeight: 400, color: COLORS.textSoft, marginLeft: 6, fontSize: 11 }}>
-            {GROWTH_LABEL[growthStage]}
-            {doneToday.length > 0 ? ` · ${doneToday.length} done` : ""}
-          </span>
-        </span>
-        <button style={ghostClose} onClick={onClose} title="close">✕</button>
-      </div>
-
-      <div style={{ display: "flex", gap: 8 }}>
-        <div style={{ ...inputBar, flex: 1, padding: "6px 10px", minWidth: 0 }}>
-          <input
-            value={text}
-            onChange={(e) => { setText(e.target.value); onActivity(); }}
-            onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder="buy milk · call amma at 6pm"
-            style={{
-              flex: 1,
-              fontSize: 12,
-              padding: "4px 0",
-              border: "none",
-              outline: "none",
-              fontFamily: "inherit",
-              background: "transparent",
-              color: COLORS.text,
-              minWidth: 0,
-            }}
-          />
-          <MicButton key={micKey} bare current={text} onTranscript={(t) => { setText(t); onActivity(); }} onSpeaking={onMicPhase} />
-        </div>
-        <button
-          style={{
-            ...smallBtn,
-            ...(canAdd ? primaryBtn : {}),
-            opacity: canAdd ? 1 : 0.55,
-            alignSelf: "stretch",
-          }}
-          onClick={submit}
+    <Panel>
+      <PanelHeader title="Today" onClose={onClose}>
+        <Badge
+          variant="secondary"
+          className="bg-success-soft text-success"
+          title="Your plant grows when you take care of yourself"
         >
-          add
-        </button>
-      </div>
+          <GrowthIcon stage={growthStage} />
+          {GROWTH_LABEL[growthStage]}
+        </Badge>
+        {openCount + doneToday.length > 0 && (
+          <span className="ml-auto text-xs font-medium text-muted-foreground tabular-nums" title="done today / all of today">
+            {doneToday.length}/{openCount + doneToday.length} done
+          </span>
+        )}
+      </PanelHeader>
 
-      <div style={{ minHeight: parsed ? 26 : 0 }}>
-        {parsed && (
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={chip}>
-              ⏰ {formatDue(parsed.due)}
-              {parsed.recurring ? " · every day" : ""} — {parsed.title}
-            </span>
-            <button
-              style={{
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                fontSize: 10.5,
-                color: COLORS.textSoft,
-                textDecoration: "underline",
-                fontFamily: "inherit",
+      <div className="shrink-0 px-3">
+        <InputGroup className="h-9 bg-card">
+          <InputGroupAddon>
+            <PlusIcon />
+          </InputGroupAddon>
+          <InputGroupInput
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              onActivity();
+            }}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            placeholder="Add a task, like “call amma at 6pm”"
+            className="text-[13px]"
+          />
+          <InputGroupAddon align="inline-end" className="gap-1">
+            <MicButton
+              key={micKey}
+              bare
+              current={text}
+              onTranscript={(t) => {
+                setText(t);
+                onActivity();
               }}
-              onClick={submitPlain}
+              onSpeaking={onMicPhase}
+            />
+            <InputGroupButton
+              variant="default"
+              size="icon-xs"
+              className="size-7 rounded-full disabled:bg-primary/25 disabled:opacity-100"
+              onClick={submit}
+              disabled={!canAdd}
+              aria-label="add task"
             >
-              no, just add it
-            </button>
+              <ArrowUpIcon weight="bold" />
+            </InputGroupButton>
+          </InputGroupAddon>
+        </InputGroup>
+        {parsed && (
+          <div className="flex min-w-0 items-center gap-2 px-1 pt-2 animate-in fade-in-0 slide-in-from-top-1">
+            <Badge variant="outline" className="min-w-0 border-primary/20 bg-bubble text-bubble-foreground">
+              <ClockIcon />
+              <span className="truncate">
+                {formatDue(parsed.due)}
+                {parsed.recurring ? ", every day" : ""}
+              </span>
+            </Badge>
+            <Button variant="link" size="xs" className="h-auto px-0 text-muted-foreground" onClick={submitPlain}>
+              No time, just add it
+            </Button>
           </div>
         )}
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, minHeight: 0 }}>
-        {timed.length + plain.length + doneToday.length + doneOlder.length === 0 && (
-          <div style={{ fontSize: 12, color: COLORS.placeholder, textAlign: "center", marginTop: 20, lineHeight: 1.5 }}>
-            nothing here yet — one small thing at a time 🌱
-          </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 pb-3">
+        {openCount + doneToday.length + doneOlder.length === 0 && (
+          <Empty className="py-6">
+            <EmptyHeader className="gap-1">
+              <EmptyTitle className="text-sm font-semibold">A fresh, empty day</EmptyTitle>
+              <EmptyDescription className="text-[13px]">
+                Type one small thing above, or hold the mic and just say it.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         )}
-        {timed.length + plain.length === 0 && doneToday.length > 0 && (
-          <div style={{ fontSize: 12, color: COLORS.accent, textAlign: "center", margin: "8px 0" }}>
-            all done for today — I'm so proud of us 🌸
+
+        {openCount === 0 && doneToday.length > 0 && (
+          <div className="mb-1 rounded-lg bg-bubble px-3 py-2.5 font-medium text-bubble-foreground">
+            All done for today. I'm so proud of us.
           </div>
         )}
 
-        {[...timed, ...plain].map((t) =>
-          editingId === t.id ? (
-            <EditRow
-              key={t.id}
-              editText={editText}
-              setEditText={setEditText}
-              editWhen={editWhen}
-              setEditWhen={setEditWhen}
-              editDue={editDue}
-              onSave={saveEdit}
-              onCancel={() => setEditingId(null)}
-            />
-          ) : (
-            <Row key={t.id} todo={t} {...rowProps} />
-          ),
+        {timed.length > 0 && (
+          <>
+            <SectionLabel count={timed.length}>Scheduled</SectionLabel>
+            {renderList(timed)}
+          </>
+        )}
+
+        {plain.length > 0 && (
+          <>
+            <SectionLabel count={plain.length}>Anytime</SectionLabel>
+            {renderList(plain)}
+          </>
         )}
 
         {doneToday.length > 0 && (
-          <div style={{ fontSize: 10, color: COLORS.textSoft, marginTop: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            done today ✨
-          </div>
+          <>
+            <SectionLabel count={doneToday.length}>Done today</SectionLabel>
+            {renderList(doneToday)}
+          </>
         )}
-        {doneToday.map((t) => (
-          <Row key={t.id} todo={t} {...rowProps} />
-        ))}
+
         {doneOlder.length > 0 && (
-          <div style={{ fontSize: 10, color: COLORS.placeholder, marginTop: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            earlier
-          </div>
+          <Collapsible>
+            <CollapsibleTrigger className="group flex items-center gap-1 px-1 pt-4 pb-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
+              <CaretDownIcon className="size-3 transition-transform group-data-[state=closed]:-rotate-90" weight="bold" />
+              Earlier
+              <span className="font-medium text-muted-foreground/70 tabular-nums">{doneOlder.length}</span>
+            </CollapsibleTrigger>
+            <CollapsibleContent>{renderList(doneOlder)}</CollapsibleContent>
+          </Collapsible>
         )}
-        {doneOlder.map((t) => (
-          <Row key={t.id} todo={t} {...rowProps} />
-        ))}
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -216,54 +259,37 @@ function EditRow({
   onCancel: () => void;
 }) {
   const whenOk = !editWhen.trim() || !!editDue;
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") onSave();
+    if (e.key === "Escape") onCancel();
+  };
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-        padding: 10,
-        borderRadius: 12,
-        background: COLORS.accentSoft,
-        border: "1px solid rgba(106, 83, 231, 0.12)",
-      }}
-    >
-      <input
-        value={editText}
-        onChange={(e) => setEditText(e.target.value)}
-        autoFocus
-        style={{ ...field, width: "100%", boxSizing: "border-box" }}
-      />
-      <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-        <input
+    <div className="flex flex-col gap-2 bg-muted/40 p-2.5">
+      <Input value={editText} onChange={(e) => setEditText(e.target.value)} onKeyDown={onKey} autoFocus aria-label="task" className="bg-card" />
+      <div className="flex items-center gap-2">
+        <Input
           value={editWhen}
           onChange={(e) => setEditWhen(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && onSave()}
-          placeholder="time (optional) — e.g. tomorrow 8am"
-          style={{
-            ...field,
-            flex: 1,
-            borderColor: whenOk ? "rgba(106, 83, 231, 0.2)" : COLORS.dangerBorder,
-          }}
+          onKeyDown={onKey}
+          placeholder="Time (optional), e.g. tomorrow 8am"
+          aria-label="time"
+          aria-invalid={!whenOk}
+          className="flex-1 bg-card"
         />
         {editDue && (
-          <span style={{ fontSize: 10, color: COLORS.accent, whiteSpace: "nowrap" }}>
-            → {formatDue(editDue)}
-          </span>
+          <Badge variant="outline" className="border-primary/20 bg-bubble text-bubble-foreground">
+            <ClockIcon />
+            {formatDue(editDue)}
+          </Badge>
         )}
       </div>
-      <div style={{ display: "flex", gap: 5 }}>
-        <button
-          style={{
-            ...primaryBtn,
-            flex: 1,
-            opacity: editText.trim() && whenOk ? 1 : 0.5,
-          }}
-          onClick={onSave}
-        >
-          save ✓
-        </button>
-        <button style={{ ...smallBtn, flex: 1 }} onClick={onCancel}>cancel</button>
+      <div className="flex justify-end gap-1.5">
+        <Button variant="secondary" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button size="sm" disabled={!editText.trim() || !whenOk} onClick={onSave}>
+          Save
+        </Button>
       </div>
     </div>
   );
@@ -280,84 +306,50 @@ function Row({
   onDelete: (id: string) => void;
   startEdit: (t: Todo) => void;
 }) {
+  const due = todo.due ? new Date(todo.due) : null;
+  // Past-due is a gentle amber, never alarm red (no guilt piles).
+  const pastDue = !!due && !todo.done && due.getTime() < Date.now();
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "8px 10px",
-        borderRadius: 12,
-        background: todo.done ? "rgba(255,255,255,0.45)" : COLORS.inputBg,
-        border: "1px solid rgba(32, 29, 47, 0.06)",
-        boxShadow: todo.done ? "none" : "0 1px 2px rgba(12, 12, 13, 0.05)",
-      }}
-    >
-      <button
-        onClick={() => onToggle(todo.id)}
+    <div className="group/row flex items-start gap-3 py-2.5 pr-2 pl-3">
+      <Checkbox
+        checked={todo.done}
+        onCheckedChange={() => onToggle(todo.id)}
         aria-label={todo.done ? "mark not done" : "mark done"}
-        className={todo.done ? "check done" : "check"}
-        style={{
-          width: 20,
-          height: 20,
-          minWidth: 20,
-          borderRadius: "50%",
-          border: todo.done ? `1.5px solid ${COLORS.accent}` : "1.5px solid rgba(32, 29, 47, 0.18)",
-          background: todo.done ? COLORS.accent : "#fff",
-          color: "#fff",
-          fontSize: 12,
-          lineHeight: 1,
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 0,
-        }}
-      >
-        {todo.done ? "✓" : ""}
-      </button>
-      <span
-        style={{
-          flex: 1,
-          fontSize: 12.5,
-          textDecoration: todo.done ? "line-through" : "none",
-          color: todo.done ? COLORS.textSoft : COLORS.text,
-          wordBreak: "break-word",
-        }}
-      >
-        {todo.text}
-        {todo.due && !todo.done && (
-          <span style={{ ...chip, marginLeft: 6, whiteSpace: "nowrap", fontSize: 10, padding: "1px 5px" }}>
-            ⏰ {formatDue(new Date(todo.due))}
-            {todo.recurring ? " ↻" : ""}
-          </span>
+        className="mt-px size-[18px] rounded-full border-muted-foreground/40 bg-white data-checked:animate-check-pop [&_svg]:size-3 dark:bg-transparent"
+      />
+      <div className="min-w-0 flex-1">
+        <div className={cn("leading-snug break-words", todo.done && "text-muted-foreground line-through decoration-muted-foreground/40")}>
+          {todo.text}
+        </div>
+        {due && !todo.done && (
+          <div className={cn("mt-0.5 flex items-center gap-1 text-xs font-medium", pastDue ? "text-warning" : "text-primary")}>
+            <ClockIcon className="size-3" />
+            {formatDue(due)}
+            {todo.recurring && (
+              <>
+                <ArrowsClockwiseIcon className="ml-1 size-3" />
+                Daily
+              </>
+            )}
+          </div>
         )}
-      </span>
-      {!todo.done && (
-        <button
-          onClick={() => startEdit(todo)}
-          title="edit"
-          style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 11, opacity: 0.7 }}
+      </div>
+      <div className="-my-1 flex opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100">
+        {!todo.done && (
+          <Button variant="ghost" size="icon-xs" onClick={() => startEdit(todo)} aria-label="edit" className="text-muted-foreground">
+            <PencilSimpleIcon />
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          onClick={() => onDelete(todo.id)}
+          aria-label="delete"
+          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
         >
-          ✏️
-        </button>
-      )}
-      <button
-        onClick={() => onDelete(todo.id)}
-        style={{ border: "none", background: "transparent", cursor: "pointer", color: COLORS.placeholder, fontSize: 12 }}
-      >
-        ✕
-      </button>
-      <style>{`
-        .check { transition: transform 0.12s ease-out, background 0.15s; }
-        .check:active { transform: scale(0.85); }
-        .check.done { animation: checkpop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        @keyframes checkpop {
-          0% { transform: scale(0.6); }
-          60% { transform: scale(1.25); }
-          100% { transform: scale(1); }
-        }
-      `}</style>
+          <TrashIcon />
+        </Button>
+      </div>
     </div>
   );
 }

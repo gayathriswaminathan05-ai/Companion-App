@@ -70,8 +70,6 @@ session — it is the cross-session memory.**
   "chat is the only network call" privacy line — v1.1+ at earliest).
 
 ## Known bugs / polish debt (user said "later")
-- Settings "change key" deletes key with NO confirm — one stray click disconnects
-  brain (happened to user). Make it two-step like delete-everything.
 - VAD pen-pause doesn't trigger reliably while speaking pauses (threshold 0.015
   likely too low vs ambient noise → raise / make adaptive).
 - Menu arc edge cases: minor overlaps/jitter possible when hard against edges.
@@ -90,9 +88,20 @@ session — it is the cross-session memory.**
   recording), drag-vs-click (5px threshold).
 - src/character/ — types, useCharacter (TIMED auto-return states), Blob.tsx
   (all poses + CSS anims + specs + arms w/ hands).
-- src/ui/ — RadialMenu (juggle physics + arc layout), TaskPanel, ChatPanel
-  (canned replies until Day 8), MicButton (record→16k mono→transcribe, VAD),
-  ReminderBubble, DebugMenu (right-click), theme.
+- src/ui/ — RadialMenu (pill menu bar), QuickNav, TaskPanel, ChatPanel,
+  SettingsPanel, MicButton (record→16k mono→transcribe, VAD), ReminderBubble,
+  NudgeBubble, Showcase, MenuIcons (Phosphor map).
+- UI FOUNDATION = shadcn/ui + Tailwind v4 (since Oct 15). components.json
+  (style radix-nova, iconLibrary phosphor). src/components/ui/* = shadcn code
+  we own (input-group/input/textarea tweaked: text-sm always, input-group only
+  dims when its text field is disabled). src/components/panel.tsx = app
+  composites. src/index.css = theme tokens (clay primary, leaf success, slate
+  neutrals, dark set) + keyframes. NO body background (transparent window).
+  Add components: `npx shadcn@latest add <name>` (sandbox off), then fix
+  imports if needed. Alias "@/" → src (vite.config + tsconfig paths).
+- src/dev/gallery.tsx + gallery.html — dev-only UI gallery (every panel/bubble
+  at real size, mocked window.companion, accent + light/dark switcher).
+  `npx vite` → localhost:5173/gallery.html. Not in the vite build.
 - src/store.ts — AppData{todos, reminders(legacy), sprout}, migration.
 - src/reminders.ts — chrono-node parse/format helpers.
 
@@ -269,18 +278,40 @@ session — it is the cross-session memory.**
   the on/off + lead-mins toggles. Disconnect / delete-everything clears tokens.
   **meeting pose** ✅ handbell ring clip (magenta plate → keyed; oneshot;
   church-chime sound). Showcase ✦ → bell.
-  **stretch/walk (visor+high-tops)** ✅ stretching1–5 wired (Blob picks
-  stretching${growthStage}). walk1 = white-BG regenerate (~5s, easy key:
-  CLIP_T=40 + border white purge). walk2–4 magenta plates (10s). walk5 white
-  BG 10s (job d4101b46, open flower). Stage 6 still+video TODO. Prefer WHITE
-  plate for future walks — magenta fringe under shoes is painful.
+  **stretch/walk (visor+high-tops)** ✅ stretching1–6 wired (Blob picks
+  stretching${growthStage}). Prefer WHITE plate (cleaner than magenta).
+  walk6 = user-keyed black plate → stretching6 + white-stray edge clean;
+  short stretch then long walk.
 
-## Status: PAUSED for Figma design refinement (July 2026)
-Gayathri is refining all UI designs in Figma. When she returns with links, use
-the Figma connector (may need one-time auth) to read frames and implement
-faithfully. Design inventory: 3 panels + menu arc, 3 bubble types, quick-nav,
-chips/toggles, 13 character poses + 4 sprout stages + arms, palette
-(#FFF6E9/#FFCF96/#5a4a3a + 5 ball colors).
+## UI pass v3 (Oct 15, 2026) ✅ — shadcn/ui rebuild, her Figma colours
+Her ask: use a real design system so it doesn't look like AI slop. v2 (custom
+ui.css, hand-drawn icons) was replaced same day. Now: shadcn/ui (Radix) +
+Tailwind v4, Figtree font, Phosphor icons. COLOURS = HER FIGMA PALETTE, KEEP
+INTACT (she rejected a mascot-terracotta theme): #F3F3F3 94% panels w/ white
+edge, white inputs/cards, lavender #6A53E7 primary, #F5F3FF soft secondary
+buttons, #E7E3FF/#190681 user bubbles + chips, #201D2F ink, #B05A4A danger,
+white menu buttons w/ lavender icons → solid lavender on hover. Green only for
+growth/"connected", amber for past-due. All tokens in src/index.css.
+Panels/bars/bubbles have a hairline OUTER edge + deeper shadow so they stay
+visible over white apps (her report). Removed tells: sparkle icon, gradient
+banner, decorative dots, emoji on buttons, em-dashes in UI copy.
+Mobbin refs + rules: DESIGN_REFERENCES.md. Layout/behaviour: chat (plain-text
+Blob, lavender user bubbles, day dividers, empty state w/ 3 suggestion
+buttons, typing dots, source badges), tasks (Scheduled / Anytime / Done today
+/ Earlier collapsible, round lavender checks, hover edit/delete), settings
+(This week stats, grouped Item rows w/ Switch / NativeSelect / Slider,
+memories Collapsible, change-key + delete-all TWO-STEP), speech bubbles, menu +
+QuickNav (tooltips; QuickNav active = filled, hover = soft lavender).
+THEME: src/usePanelTheme.ts. Default follows macOS light/dark. Opt-in
+settings.matchBackdrop "Match what's behind me" (PRD §6b rule 8): main.cjs
+`screen-access` (asks macOS Screen Recording only when toggled on, opens
+System Settings if denied) + `backdrop-luminance` (desktopCapturer quarter-size
+thumbnail, averages 40pt bands left/right/above the panel stack, returns ONE
+number). Renderer polls every 4s while any UI shows; >0.62 → dark panels,
+<0.42 → light (hysteresis). NOT yet verified end-to-end: needs her to grant
+Screen Recording to Electron (dev) + relaunch. Gallery has "Behind: wallpaper /
+white / grey / dark app" + Light/Dark switch for checking visibility.
+Pricing/paywall copy intentionally NOT added yet.
 
 ## Remaining for beta (after design pass)
 - Onboarding flow + trial countdown/paywall/founder code (Days 11-12 in plan)

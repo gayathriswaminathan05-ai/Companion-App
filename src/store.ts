@@ -38,6 +38,9 @@ export interface Settings {
   calendarReminders: boolean;
   /** Minutes before a meeting to nudge (5–60). */
   calendarLeadMins: number;
+  /** Opt-in: dark panels over light apps, light over dark (needs macOS
+   *  Screen Recording; only a brightness number is ever read). */
+  matchBackdrop: boolean;
   /** Dev growth test strip beside the plant (hide when not testing). */
   growthTestVisible: boolean;
 }
@@ -83,6 +86,7 @@ export const defaultSettings = (): Settings => ({
   panelScale: 1,
   calendarReminders: true,
   calendarLeadMins: 10,
+  matchBackdrop: false,
   growthTestVisible: true,
 });
 

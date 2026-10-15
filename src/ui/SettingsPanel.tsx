@@ -1,67 +1,81 @@
 import { useEffect, useState } from "react";
+import { CalendarBlankIcon, CaretDownIcon, LockSimpleIcon, TrashIcon } from "@phosphor-icons/react";
 import type { Settings } from "../store";
-import { GROWTH_EMOJI, GROWTH_LABEL, type GrowthStage, type WeekStats } from "../growth";
-import { COLORS, panel, smallBtn, primaryBtn, ghostClose, field } from "./theme";
+import { GROWTH_LABEL, type GrowthStage, type WeekStats } from "../growth";
+import { GrowthIcon, ListCard, Panel, PanelHeader, SectionLabel } from "@/components/panel";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
+import { Switch } from "@/components/ui/switch";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Spinner } from "@/components/ui/spinner";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-// Settings, in Blob's own voice — frosted glass shell.
+// Settings, in Blob's own voice. Grouped cards with the control on the right
+// (Wispr Flow / Obsidian pattern), built from shadcn Item rows.
 
-const row: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 8,
-  padding: "6px 0",
-  fontSize: 12,
-  color: COLORS.text,
-};
-
-const sectionTitle: React.CSSProperties = {
-  fontSize: 10.5,
-  fontWeight: 600,
-  color: COLORS.textSoft,
-  textTransform: "uppercase",
-  letterSpacing: 0.5,
-  margin: "12px 0 4px",
-};
-
-const inputStyle: React.CSSProperties = {
-  ...field,
-  width: 110,
-  fontSize: 11.5,
-};
-
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+function Row({
+  label,
+  desc,
+  children,
+}: {
+  label: string;
+  desc?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
   return (
-    <button
-      onClick={() => onChange(!on)}
-      aria-pressed={on}
-      style={{
-        width: 34,
-        height: 19,
-        borderRadius: 10,
-        border: "none",
-        background: on ? COLORS.accent : "rgba(32, 29, 47, 0.18)",
-        position: "relative",
-        cursor: "pointer",
-        transition: "background 0.15s",
-        padding: 0,
-        minWidth: 34,
-      }}
-    >
-      <span
-        style={{
-          position: "absolute",
-          top: 2,
-          left: on ? 17 : 2,
-          width: 15,
-          height: 15,
-          borderRadius: "50%",
-          background: "#fff",
-          transition: "left 0.15s",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.18)",
-        }}
-      />
-    </button>
+    <Item size="sm" className="rounded-none border-0 px-3 py-2.5">
+      <ItemContent className="gap-0.5">
+        <ItemTitle className="text-[13px]">{label}</ItemTitle>
+        {desc && <ItemDescription className="text-xs">{desc}</ItemDescription>}
+      </ItemContent>
+      {children && <ItemActions>{children}</ItemActions>}
+    </Item>
+  );
+}
+
+function Note({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="flex items-start gap-1.5 px-1 pt-2 text-xs leading-relaxed text-muted-foreground">
+      <LockSimpleIcon className="mt-0.5 size-3 shrink-0" />
+      <span>{children}</span>
+    </p>
+  );
+}
+
+function Confirm({
+  text,
+  cancel,
+  confirm,
+  destructive,
+  onCancel,
+  onConfirm,
+}: {
+  text: string;
+  cancel: string;
+  confirm: string;
+  destructive?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2.5 bg-muted/40 p-3 animate-in fade-in-0">
+      <p className="text-xs leading-relaxed text-muted-foreground">{text}</p>
+      <div className="flex gap-1.5">
+        <Button variant="secondary" size="sm" className="flex-1" onClick={onCancel}>
+          {cancel}
+        </Button>
+        <Button
+          size="sm"
+          className={destructive ? "flex-1 bg-destructive text-white hover:bg-destructive/90" : "flex-1"}
+          onClick={onConfirm}
+        >
+          {confirm}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -91,7 +105,7 @@ export default function SettingsPanel({
   const [loginItem, setLoginItem] = useState(false);
   const [clearPhase, setClearPhase] = useState<"idle" | "clearing" | "done">("idle");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [showMemory, setShowMemory] = useState(false);
+  const [confirmKey, setConfirmKey] = useState(false);
   const [calStatus, setCalStatus] = useState<{ hasClient: boolean; connected: boolean }>({
     hasClient: false,
     connected: false,
@@ -99,12 +113,23 @@ export default function SettingsPanel({
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [calBusy, setCalBusy] = useState(false);
+  const [screenStatus, setScreenStatus] = useState<string>("unknown");
   const [calMsg, setCalMsg] = useState<string | null>(null);
 
   useEffect(() => {
     (window.companion.getLoginItem() as Promise<boolean>).then(setLoginItem);
     void window.companion.calendarStatus?.().then(setCalStatus);
+    void window.companion.screenAccess?.().then(setScreenStatus);
   }, []);
+
+  const toggleMatchBackdrop = async (on: boolean) => {
+    onPatch({ matchBackdrop: on });
+    if (on) {
+      const status = await window.companion.screenAccess?.({ prompt: true });
+      if (status) setScreenStatus(status);
+    }
+  };
+  const needsScreenAccess = settings.matchBackdrop && screenStatus !== "granted";
 
   const refreshCal = async () => {
     const s = await window.companion.calendarStatus?.();
@@ -125,20 +150,20 @@ export default function SettingsPanel({
       });
       if (!saved?.ok) {
         setCalBusy(false);
-        setCalMsg(saved?.error || "couldn't save keys");
+        setCalMsg(saved?.error || "Couldn't save keys");
         return;
       }
       setClientSecret("");
       await refreshCal();
     }
-    setCalMsg("opening Google…");
+    setCalMsg("Opening Google...");
     const res = await window.companion.calendarConnect?.();
     setCalBusy(false);
     if (res?.ok) {
-      setCalMsg("connected ✓");
+      setCalMsg(null);
       await refreshCal();
     } else {
-      setCalMsg(res?.error || "couldn't connect");
+      setCalMsg(res?.error || "Couldn't connect");
     }
   };
 
@@ -146,7 +171,7 @@ export default function SettingsPanel({
     setCalBusy(true);
     await window.companion.calendarDisconnect?.();
     setCalBusy(false);
-    setCalMsg("disconnected");
+    setCalMsg("Disconnected");
     await refreshCal();
   };
 
@@ -159,7 +184,7 @@ export default function SettingsPanel({
     try {
       await onClearChat();
     } catch {
-      /* still show done — UI state is cleared in parent */
+      /* still show done; UI state is cleared in parent */
     }
     const wait = Math.max(0, 700 - (Date.now() - started));
     if (wait) await new Promise((r) => setTimeout(r, wait));
@@ -167,411 +192,351 @@ export default function SettingsPanel({
     window.setTimeout(() => setClearPhase("idle"), 2200);
   };
 
-  return (
-    <div
-      style={{ ...panel, display: "flex", flexDirection: "column", height: "100%", padding: 12, gap: 4 }}
-      onMouseDown={(e) => e.stopPropagation()}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>settings</span>
-        <button style={ghostClose} onClick={onClose} title="close">✕</button>
-      </div>
+  const weekQuiet = week.wellness === 0 && week.taskBonus === 0;
 
-      <div style={{ flex: 1, overflowY: "auto", paddingRight: 2, minHeight: 0 }}>
-        <div style={sectionTitle}>me & you</div>
-        <div style={row}>
-          <span>my name</span>
-          <input
-            style={inputStyle}
-            value={settings.companionName}
-            onChange={(e) => onPatch({ companionName: e.target.value })}
-          />
-        </div>
-        <div style={row}>
-          <span>what I call you</span>
-          <input
-            style={inputStyle}
-            placeholder="your name"
-            value={settings.userName}
-            onChange={(e) => onPatch({ userName: e.target.value })}
-          />
-        </div>
-        <div style={row}>
-          <span>my little sounds</span>
-          <Toggle on={settings.soundsOn} onChange={(v) => onPatch({ soundsOn: v })} />
-        </div>
-        <div style={{ ...row, alignItems: "center" }}>
-          <span>how big I look</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 120 }}>
-            <span style={{ fontSize: 10, color: COLORS.textSoft }}>−</span>
-            <input
-              type="range"
+  return (
+    <Panel onMouseDown={(e) => e.stopPropagation()}>
+      <PanelHeader title="Settings" onClose={onClose} />
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+        <SectionLabel>This week</SectionLabel>
+        <ListCard>
+          <div className="flex items-center gap-3 p-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-success-soft text-success">
+              <GrowthIcon stage={growthStage} className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="font-medium">Today I'm {GROWTH_LABEL[growthStage]}</div>
+              <div className="text-xs text-muted-foreground">
+                {weekQuiet
+                  ? "A quiet week so far. Stretch, sip water or finish a timed task and I'll grow."
+                  : "Every stretch, sip and timed task helps me grow."}
+              </div>
+            </div>
+          </div>
+          {!weekQuiet && (
+            <div className="grid grid-cols-3 divide-x">
+              <Stat value={week.wellness} label="Self-care" />
+              <Stat value={week.taskBonus} label="Timed tasks" />
+              <div className="px-3 py-2">
+                <GrowthIcon stage={week.stagePeak} className="size-5 text-success" />
+                <div className="mt-0.5 text-[11px] text-muted-foreground">Best bloom</div>
+              </div>
+            </div>
+          )}
+        </ListCard>
+
+        <SectionLabel>Me and you</SectionLabel>
+        <ListCard>
+          <Row label="My name">
+            <Input
+              className="h-7 w-32 rounded-md text-right"
+              value={settings.companionName}
+              onChange={(e) => onPatch({ companionName: e.target.value })}
+              aria-label="companion name"
+            />
+          </Row>
+          <Row label="What I call you">
+            <Input
+              className="h-7 w-32 rounded-md text-right"
+              placeholder="Your name"
+              value={settings.userName}
+              onChange={(e) => onPatch({ userName: e.target.value })}
+              aria-label="your name"
+            />
+          </Row>
+          <Row label="My little sounds" desc="Chirps, giggles and sleepy yawns">
+            <Switch checked={settings.soundsOn} onCheckedChange={(v) => onPatch({ soundsOn: v })} aria-label="sounds" />
+          </Row>
+          <Row label="How big I look">
+            <Slider
+              className="w-28"
               min={0.6}
               max={1.2}
               step={0.05}
-              value={settings.plantScale}
-              onChange={(e) => onPatch({ plantScale: Number(e.target.value) })}
-              title={`${Math.round(settings.plantScale * 100)}%`}
-              style={{
-                flex: 1,
-                width: 80,
-                accentColor: COLORS.accent,
-                cursor: "pointer",
-              }}
+              value={[settings.plantScale]}
+              onValueChange={([v]) => onPatch({ plantScale: v })}
+              aria-label="plant size"
             />
-            <span style={{ fontSize: 10, color: COLORS.textSoft }}>+</span>
-          </div>
-        </div>
-        <div style={{ ...row, alignItems: "center" }}>
-          <span>how big my windows are</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 120 }}>
-            <span style={{ fontSize: 10, color: COLORS.textSoft }}>−</span>
-            <input
-              type="range"
+          </Row>
+          <Row label="How big my windows are">
+            <Slider
+              className="w-28"
               min={0.85}
               max={1.45}
               step={0.05}
-              value={settings.panelScale}
-              onChange={(e) => onPatch({ panelScale: Number(e.target.value) })}
-              title={`${Math.round(settings.panelScale * 100)}%`}
-              style={{
-                flex: 1,
-                width: 80,
-                accentColor: COLORS.accent,
-                cursor: "pointer",
-              }}
+              value={[settings.panelScale]}
+              onValueChange={([v]) => onPatch({ panelScale: v })}
+              aria-label="window size"
             />
-            <span style={{ fontSize: 10, color: COLORS.textSoft }}>+</span>
-          </div>
-        </div>
-
-        <div style={sectionTitle}>how I care for you</div>
-        <div style={row}>
-          <span>remind you to stretch</span>
-          <select
-            style={{ ...inputStyle, width: 96 }}
-            value={String(settings.breakMins)}
-            onChange={(e) => onPatch({ breakMins: Number(e.target.value) })}
-          >
-            <option value="0">never</option>
-            <option value="30">every 30 min</option>
-            <option value="45">every 45 min</option>
-            <option value="60">every hour</option>
-            <option value="90">every 90 min</option>
-          </select>
-        </div>
-        <div style={row}>
-          <span>water breaks</span>
-          <Toggle on={settings.waterNudge} onChange={(v) => onPatch({ waterNudge: v })} />
-        </div>
-        <div style={row}>
-          <span>I get sleepy at</span>
-          <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-            <input
-              type="time"
-              style={{ ...inputStyle, width: 84, opacity: settings.bedtime ? 1 : 0.45 }}
-              value={settings.bedtime ?? "23:00"}
-              disabled={!settings.bedtime}
-              onChange={(e) => onPatch({ bedtime: e.target.value })}
-            />
-            <Toggle
-              on={!!settings.bedtime}
-              onChange={(v) => onPatch({ bedtime: v ? "23:00" : null })}
-            />
-          </div>
-        </div>
-        <div style={row}>
-          <span>my jokes</span>
-          <select
-            style={{ ...inputStyle, width: 96 }}
-            value={settings.jokeEvery}
-            onChange={(e) => onPatch({ jokeEvery: e.target.value as Settings["jokeEvery"] })}
-          >
-            <option value="often">often (3h)</option>
-            <option value="rare">rare (6h)</option>
-            <option value="off">shh, none</option>
-          </select>
-        </div>
-        <div style={row}>
-          <span>hide when you're on a call</span>
-          <Toggle on={settings.autoHideOnCalls} onChange={(v) => onPatch({ autoHideOnCalls: v })} />
-        </div>
-
-        <div style={sectionTitle}>calendar</div>
-        <div style={{ fontSize: 10.5, color: COLORS.textSoft, lineHeight: 1.5, marginBottom: 6 }}>
-          meeting pings only. titles stay in memory for a moment — never saved on
-          disk, never sent to Claude. Google only sees a read-only calendar check.
-        </div>
-        <div style={row}>
-          <span>remind me before meetings</span>
-          <Toggle
-            on={settings.calendarReminders}
-            onChange={(v) => onPatch({ calendarReminders: v })}
-          />
-        </div>
-        <div style={row}>
-          <span>how early</span>
-          <select
-            style={{ ...inputStyle, width: 96 }}
-            value={String(settings.calendarLeadMins)}
-            onChange={(e) => onPatch({ calendarLeadMins: Number(e.target.value) })}
-          >
-            <option value="5">5 min</option>
-            <option value="10">10 min</option>
-            <option value="15">15 min</option>
-            <option value="30">30 min</option>
-          </select>
-        </div>
-        {!calStatus.connected && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 4 }}>
-            {!calStatus.hasClient && (
-              <>
-                <span style={{ fontSize: 10.5, color: COLORS.textSoft, lineHeight: 1.4 }}>
-                  paste your Client ID + Secret below, then tap connect. (Google
-                  Cloud → Credentials → OAuth Desktop client)
+          </Row>
+          <Row
+            label="Match what's behind me"
+            desc={
+              needsScreenAccess ? (
+                <span className="text-warning">
+                  Allow me under Screen Recording in System Settings, then reopen me.
                 </span>
-                <input
-                  style={{ ...field, width: "100%", fontSize: 11 }}
-                  placeholder="Client ID"
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  autoComplete="off"
-                />
-                <input
-                  style={{ ...field, width: "100%", fontSize: 11 }}
-                  placeholder="Client Secret"
-                  type="password"
-                  value={clientSecret}
-                  onChange={(e) => setClientSecret(e.target.value)}
-                  autoComplete="off"
-                />
-              </>
+              ) : (
+                "Dark windows over light apps, light over dark"
+              )
+            }
+          >
+            {needsScreenAccess && (
+              <Button variant="secondary" size="sm" onClick={() => void window.companion.screenAccess?.({ prompt: true }).then(setScreenStatus)}>
+                Open
+              </Button>
             )}
-            {calStatus.hasClient && (
-              <span style={{ fontSize: 10.5, color: COLORS.textSoft }}>
-                keys saved — tap connect to sign in with Google
-              </span>
-            )}
-            <button
-              style={{
-                ...primaryBtn,
-                width: "100%",
-                opacity: canConnect && !calBusy ? 1 : 0.45,
-              }}
-              disabled={calBusy || !canConnect}
-              onClick={() => void connectCalendar()}
-            >
-              {calBusy ? "working…" : "connect Google Calendar"}
-            </button>
-            {!canConnect && (
-              <span style={{ fontSize: 10.5, color: COLORS.textSoft }}>
-                paste both keys above to unlock connect
-              </span>
-            )}
-          </div>
-        )}
-        {calStatus.connected && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 4 }}>
-            <div style={{ fontSize: 11.5, color: "#1a7a4c" }}>Google Calendar connected ✓</div>
-            <button
-              style={{ ...smallBtn, width: "100%" }}
-              disabled={calBusy}
-              onClick={() => void disconnectCalendar()}
-            >
-              disconnect
-            </button>
-          </div>
-        )}
-        {calMsg && (
-          <div style={{ fontSize: 10.5, color: COLORS.textSoft, marginTop: 4, lineHeight: 1.4 }}>
-            {calMsg}
-          </div>
+            <Switch
+              checked={settings.matchBackdrop}
+              onCheckedChange={(v) => void toggleMatchBackdrop(v)}
+              aria-label="match what's behind me"
+            />
+          </Row>
+        </ListCard>
+        {settings.matchBackdrop && (
+          <Note>I only check how bright the screen is around me, a few times a minute, on this Mac. Nothing is saved or sent.</Note>
         )}
 
-        <div style={sectionTitle}>what I remember</div>
-        <button style={{ ...smallBtn, width: "100%" }} onClick={() => setShowMemory((s) => !s)}>
-          {showMemory ? "hide my memories" : `see my ${facts.length} memories of you`}
-        </button>
-        {showMemory && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
-            {facts.length === 0 && (
-              <span style={{ fontSize: 11, color: COLORS.placeholder, textAlign: "center" }}>
-                nothing yet — talk to me more 🤍
-              </span>
+        <SectionLabel>How I care for you</SectionLabel>
+        <ListCard>
+          <Row label="Stretch breaks" desc="I'll nudge you to move">
+            <NativeSelect
+              size="sm"
+              value={String(settings.breakMins)}
+              onChange={(e) => onPatch({ breakMins: Number(e.target.value) })}
+              aria-label="stretch interval"
+            >
+              <NativeSelectOption value="0">Never</NativeSelectOption>
+              <NativeSelectOption value="30">Every 30 min</NativeSelectOption>
+              <NativeSelectOption value="45">Every 45 min</NativeSelectOption>
+              <NativeSelectOption value="60">Every hour</NativeSelectOption>
+              <NativeSelectOption value="90">Every 90 min</NativeSelectOption>
+            </NativeSelect>
+          </Row>
+          <Row label="Water breaks" desc="Every couple of hours">
+            <Switch checked={settings.waterNudge} onCheckedChange={(v) => onPatch({ waterNudge: v })} aria-label="water breaks" />
+          </Row>
+          <Row label="Bedtime" desc={settings.bedtime ? "I'll yawn and tuck you in" : "Off"}>
+            {settings.bedtime && (
+              <Input
+                type="time"
+                className="h-7 w-[116px] rounded-md pr-1.5 [&::-webkit-calendar-picker-indicator]:opacity-40"
+                value={settings.bedtime}
+                onChange={(e) => onPatch({ bedtime: e.target.value })}
+                aria-label="bedtime"
+              />
             )}
-            {facts.map((f) => (
-              <div
-                key={f}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontSize: 11,
-                  background: COLORS.inputBg,
-                  border: "1px solid rgba(32, 29, 47, 0.06)",
-                  borderRadius: 8,
-                  padding: "5px 8px",
-                  color: COLORS.text,
-                }}
+            <Switch
+              checked={!!settings.bedtime}
+              onCheckedChange={(v) => onPatch({ bedtime: v ? "23:00" : null })}
+              aria-label="bedtime"
+            />
+          </Row>
+          <Row label="My jokes">
+            <NativeSelect
+              size="sm"
+              value={settings.jokeEvery}
+              onChange={(e) => onPatch({ jokeEvery: e.target.value as Settings["jokeEvery"] })}
+              aria-label="joke frequency"
+            >
+              <NativeSelectOption value="often">Often (3h)</NativeSelectOption>
+              <NativeSelectOption value="rare">Rarely (6h)</NativeSelectOption>
+              <NativeSelectOption value="off">None, please</NativeSelectOption>
+            </NativeSelect>
+          </Row>
+          <Row label="Hide during calls" desc="Zoom and Google Meet">
+            <Switch
+              checked={settings.autoHideOnCalls}
+              onCheckedChange={(v) => onPatch({ autoHideOnCalls: v })}
+              aria-label="hide during calls"
+            />
+          </Row>
+        </ListCard>
+
+        <SectionLabel>Calendar</SectionLabel>
+        <ListCard>
+          <Row
+            label="Google Calendar"
+            desc={
+              calStatus.connected ? (
+                <span className="font-medium text-success">Connected</span>
+              ) : (
+                "Meeting pings, read-only"
+              )
+            }
+          >
+            {calStatus.connected ? (
+              <Button variant="secondary" size="sm" disabled={calBusy} onClick={() => void disconnectCalendar()}>
+                Disconnect
+              </Button>
+            ) : (
+              <CalendarBlankIcon className="size-4 text-muted-foreground" />
+            )}
+          </Row>
+          {!calStatus.connected && (
+            <div className="flex flex-col gap-2 p-3">
+              {!calStatus.hasClient ? (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Paste your Client ID and Secret, then connect. (Google Cloud, Credentials, OAuth
+                    Desktop client)
+                  </p>
+                  <Input placeholder="Client ID" value={clientId} onChange={(e) => setClientId(e.target.value)} autoComplete="off" />
+                  <Input
+                    placeholder="Client Secret"
+                    type="password"
+                    value={clientSecret}
+                    onChange={(e) => setClientSecret(e.target.value)}
+                    autoComplete="off"
+                  />
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">Keys saved. Connect to sign in with Google.</p>
+              )}
+              <Button disabled={calBusy || !canConnect} onClick={() => void connectCalendar()}>
+                {calBusy && <Spinner />}
+                {calBusy ? "Working..." : "Connect Google Calendar"}
+              </Button>
+            </div>
+          )}
+          <Row label="Remind me before meetings">
+            <Switch
+              checked={settings.calendarReminders}
+              onCheckedChange={(v) => onPatch({ calendarReminders: v })}
+              aria-label="meeting reminders"
+            />
+          </Row>
+          <Row label="How early">
+            <NativeSelect
+              size="sm"
+              value={String(settings.calendarLeadMins)}
+              onChange={(e) => onPatch({ calendarLeadMins: Number(e.target.value) })}
+              aria-label="minutes before meeting"
+            >
+              <NativeSelectOption value="5">5 min</NativeSelectOption>
+              <NativeSelectOption value="10">10 min</NativeSelectOption>
+              <NativeSelectOption value="15">15 min</NativeSelectOption>
+              <NativeSelectOption value="30">30 min</NativeSelectOption>
+            </NativeSelect>
+          </Row>
+        </ListCard>
+        {calMsg && <p className="px-1 pt-2 text-xs text-muted-foreground">{calMsg}</p>}
+        <Note>Meeting titles stay in memory for a moment. They're never saved and never sent to Claude.</Note>
+
+        <SectionLabel>What I remember</SectionLabel>
+        <Collapsible>
+          <ListCard>
+            <CollapsibleTrigger className="group w-full text-left hover:bg-muted/40" disabled={facts.length === 0}>
+              <Row
+                label="Memories of you"
+                desc={facts.length === 0 ? "Nothing yet. Talk to me more." : `${facts.length} little things`}
               >
-                <span style={{ flex: 1 }}>{f}</span>
-                <button
-                  onClick={() => onDeleteFact(f)}
-                  title="forget this"
-                  style={{ border: "none", background: "transparent", cursor: "pointer", color: COLORS.placeholder, fontSize: 11 }}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+                {facts.length > 0 && (
+                  <CaretDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                )}
+              </Row>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="divide-y border-t">
+              {facts.map((f) => (
+                <div key={f} className="group/fact flex items-start gap-2 py-2 pr-2 pl-3">
+                  <span className="min-w-0 flex-1 pt-0.5 select-text">{f}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => onDeleteFact(f)}
+                    aria-label="forget this"
+                    title="Forget this"
+                    className="text-muted-foreground opacity-0 group-hover/fact:opacity-100 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100"
+                  >
+                    <TrashIcon />
+                  </Button>
+                </div>
+              ))}
+            </CollapsibleContent>
+          </ListCard>
+        </Collapsible>
 
-        <div style={sectionTitle}>this week</div>
-        <div
-          style={{
-            fontSize: 11.5,
-            color: COLORS.text,
-            lineHeight: 1.55,
-            background: "rgba(32, 29, 47, 0.04)",
-            borderRadius: 10,
-            padding: "8px 10px",
-            marginBottom: 4,
-          }}
-        >
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>
-            {GROWTH_EMOJI[growthStage]} today: {GROWTH_LABEL[growthStage]}
-          </div>
-          <div style={{ color: COLORS.textSoft }}>
-            {week.wellness === 0 && week.taskBonus === 0
-              ? "a quiet week so far — stretch, water, or a timed task and I'll grow a little."
-              : `you cared for yourself ${week.wellness} time${week.wellness === 1 ? "" : "s"}, plus ${week.taskBonus} timed-task bonus${week.taskBonus === 1 ? "" : "es"}. peak plant: ${GROWTH_LABEL[week.stagePeak]}.`}
-          </div>
-        </div>
-
-        <div style={sectionTitle}>app</div>
-        <div style={row}>
-          <span>wake up when your Mac starts</span>
-          <Toggle
-            on={loginItem}
-            onChange={(v) => {
-              setLoginItem(v);
-              void window.companion.setLoginItem(v);
-            }}
-          />
-        </div>
-        <div style={row}>
-          <span>my brain key</span>
-          <button style={{ ...smallBtn, fontSize: 11 }} onClick={onChangeKey}>
-            change key
-          </button>
-        </div>
-
-        <div style={sectionTitle}>privacy</div>
-        <div style={{ fontSize: 10.5, color: COLORS.textSoft, lineHeight: 1.5, marginBottom: 6 }}>
-          everything lives on this computer. chats go to Claude only to think of a
-          reply — never stored, never used for training. voice never leaves at all.
-          calendar meetings are never saved and never shared with Claude.
-        </div>
-        {clearPhase === "idle" && (
-          <button
-            type="button"
-            style={{
-              ...smallBtn,
-              width: "100%",
-              marginBottom: 6,
-              color: COLORS.text,
-              background: "rgba(32, 29, 47, 0.06)",
-            }}
-            onClick={runClearChat}
-          >
-            delete chat history
-          </button>
-        )}
-        {clearPhase === "clearing" && (
-          <div
-            style={{
-              ...smallBtn,
-              width: "100%",
-              marginBottom: 6,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              color: COLORS.textSoft,
-              background: "rgba(32, 29, 47, 0.06)",
-              cursor: "default",
-            }}
-          >
-            <span
-              aria-hidden
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: "50%",
-                border: "2px solid rgba(106, 83, 231, 0.25)",
-                borderTopColor: COLORS.accent,
-                animation: "settingsSpin 0.7s linear infinite",
-                boxSizing: "border-box",
+        <SectionLabel>App</SectionLabel>
+        <ListCard>
+          <Row label="Wake up with your Mac">
+            <Switch
+              checked={loginItem}
+              onCheckedChange={(v) => {
+                setLoginItem(v);
+                void window.companion.setLoginItem(v);
+              }}
+              aria-label="start at login"
+            />
+          </Row>
+          {!confirmKey ? (
+            <Row label="My brain key" desc="Your Claude API key">
+              <Button variant="secondary" size="sm" onClick={() => setConfirmKey(true)}>
+                Change key
+              </Button>
+            </Row>
+          ) : (
+            <Confirm
+              text="This unplugs my brain until you paste a new key. Our chats and memories stay safe."
+              cancel="Keep it"
+              confirm="Change key"
+              onCancel={() => setConfirmKey(false)}
+              onConfirm={() => {
+                setConfirmKey(false);
+                onChangeKey();
               }}
             />
-            deleting…
-          </div>
-        )}
-        {clearPhase === "done" && (
-          <div
-            style={{
-              ...smallBtn,
-              width: "100%",
-              marginBottom: 6,
-              textAlign: "center",
-              color: "#1a7a4c",
-              background: "rgba(46, 160, 100, 0.12)",
-              cursor: "default",
-            }}
-          >
-            deleted
-          </div>
-        )}
-        {!confirmDelete ? (
-          <button
-            style={{
-              ...smallBtn,
-              width: "100%",
-              color: COLORS.danger,
-              background: "rgba(176, 90, 74, 0.1)",
-            }}
-            onClick={() => setConfirmDelete(true)}
-          >
-            delete everything
-          </button>
-        ) : (
-          <div style={{ display: "flex", gap: 5 }}>
-            <button
-              style={{
-                ...primaryBtn,
-                flex: 1,
-                background: COLORS.danger,
-              }}
-              onClick={onDeleteAll}
-            >
-              yes, forget me completely
-            </button>
-            <button style={{ ...smallBtn, flex: 1 }} onClick={() => setConfirmDelete(false)}>
-              no wait
-            </button>
-          </div>
-        )}
+          )}
+        </ListCard>
 
-        <div style={{ fontSize: 10, color: COLORS.placeholder, textAlign: "center", margin: "12px 0 4px" }}>
-          companion v0.1.0 beta · made with 🌱
-        </div>
+        <SectionLabel>Privacy</SectionLabel>
+        <ListCard>
+          <Row label="Chat history" desc="Deletes our messages. Memories stay.">
+            {clearPhase === "idle" && (
+              <Button variant="secondary" size="sm" onClick={runClearChat}>
+                Delete
+              </Button>
+            )}
+            {clearPhase === "clearing" && <Spinner className="mx-3 text-muted-foreground" />}
+            {clearPhase === "done" && (
+              <Badge variant="secondary" className="bg-success-soft text-success">
+                Deleted
+              </Badge>
+            )}
+          </Row>
+          {!confirmDelete ? (
+            <Row label="Everything" desc="Tasks, chats, memories, settings">
+              <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(true)}>
+                Delete all
+              </Button>
+            </Row>
+          ) : (
+            <Confirm
+              text="This wipes everything I know and starts us fresh. There's no undo."
+              cancel="No, wait"
+              confirm="Forget everything"
+              destructive
+              onCancel={() => setConfirmDelete(false)}
+              onConfirm={onDeleteAll}
+            />
+          )}
+        </ListCard>
+        <Note>
+          Everything lives on this computer. Chats go to Claude only to think of a reply, never stored and
+          never used for training. Your voice never leaves at all.
+        </Note>
+
+        <p className="pt-4 text-center text-[11px] text-muted-foreground/70">Companion 0.1.0 beta</p>
       </div>
-      <style>{`
-        @keyframes settingsSpin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+    </Panel>
+  );
+}
+
+function Stat({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="px-3 py-2">
+      <div className="text-base leading-5 font-semibold tabular-nums">{value}</div>
+      <div className="mt-0.5 text-[11px] text-muted-foreground">{label}</div>
     </div>
   );
 }

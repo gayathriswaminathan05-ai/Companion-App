@@ -10,6 +10,7 @@ const {
   systemPreferences,
   powerMonitor,
   shell,
+  desktopCapturer,
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -80,6 +81,18 @@ function createWindow() {
   win.setIgnoreMouseEvents(true, { forward: true });
 
   win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+
+  // Always surface on launch — transparent click-through windows are easy to
+  // "lose" (other Space, behind fullscreen, forgotten Focus hide).
+  win.once("ready-to-show", () => {
+    if (!win || win.isDestroyed()) return;
+    win.show();
+    win.moveTop();
+    if (process.platform === "darwin" && app.dock) app.dock.show();
+  });
+  win.webContents.on("did-fail-load", (_e, code, desc) => {
+    console.error("did-fail-load", code, desc);
+  });
 
   win.on("moved", () => savePosition(win.getBounds()));
 }
@@ -159,6 +172,84 @@ ipcMain.handle("ensure-mic", async () => {
     }
   }
   return true;
+});
+
+// --- Backdrop brightness (opt-in "Match what's behind me") -----------------
+// Lets panels turn dark over light apps and light over dark ones.
+// PRIVACY: needs macOS Screen Recording permission, asked ONLY when the user
+// turns the setting on. The capture is a small thumbnail kept in RAM, reduced
+// to ONE average-brightness number, then dropped. Never saved, never sent.
+function screenAccessStatus() {
+  if (process.platform !== "darwin") return "granted";
+  try {
+    return systemPreferences.getMediaAccessStatus("screen");
+  } catch {
+    return "unknown";
+  }
+}
+
+ipcMain.handle("screen-access", async (_e, opts = {}) => {
+  let status = screenAccessStatus();
+  if (status === "granted" || !opts.prompt) return status;
+  if (status === "not-determined") {
+    // Any capture attempt makes macOS show its one-time permission prompt.
+    try {
+      await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 1, height: 1 } });
+    } catch {}
+    status = screenAccessStatus();
+  }
+  if (status !== "granted" && process.platform === "darwin") {
+    shell.openExternal("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture");
+  }
+  return status;
+});
+
+// Average brightness (0 = black, 1 = white) of the screen in thin bands just
+// outside the companion's panel area: left, right and above it. Our own
+// window never sits in those bands, so this is what's really behind us.
+ipcMain.handle("backdrop-luminance", async (_e, area = {}) => {
+  if (!win || win.isDestroyed() || !win.isVisible()) return null;
+  if (screenAccessStatus() !== "granted") return null;
+  const b = win.getBounds();
+  const display = screen.getDisplayMatching(b);
+  const tw = Math.max(1, Math.round(display.size.width / 4));
+  const th = Math.max(1, Math.round(display.size.height / 4));
+  let sources;
+  try {
+    sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: tw, height: th } });
+  } catch {
+    return null;
+  }
+  const src = sources.find((s) => String(s.display_id) === String(display.id)) || sources[0];
+  if (!src || src.thumbnail.isEmpty()) return null;
+  const { width: iw, height: ih } = src.thumbnail.getSize();
+  const bmp = src.thumbnail.toBitmap(); // BGRA
+  const sx = iw / display.bounds.width;
+  const sy = ih / display.bounds.height;
+  const top = b.y + Math.max(0, Number(area.top) || 0);
+  const bottom = b.y + Math.min(b.height, Number(area.bottom) || b.height);
+  const M = 40; // band thickness in points
+  const bands = [
+    { x: b.x - M, y: top, w: M, h: bottom - top },
+    { x: b.x + b.width, y: top, w: M, h: bottom - top },
+    { x: b.x, y: top - M - 4, w: b.width, h: M },
+  ];
+  let sum = 0;
+  let n = 0;
+  for (const r of bands) {
+    const x0 = Math.max(0, Math.floor((r.x - display.bounds.x) * sx));
+    const x1 = Math.min(iw, Math.ceil((r.x + r.w - display.bounds.x) * sx));
+    const y0 = Math.max(0, Math.floor((r.y - display.bounds.y) * sy));
+    const y1 = Math.min(ih, Math.ceil((r.y + r.h - display.bounds.y) * sy));
+    for (let y = y0; y < y1; y += 2) {
+      for (let x = x0; x < x1; x += 2) {
+        const i = (y * iw + x) * 4;
+        sum += (0.0722 * bmp[i] + 0.7152 * bmp[i + 1] + 0.2126 * bmp[i + 2]) / 255;
+        n++;
+      }
+    }
+  }
+  return n ? sum / n : null;
 });
 
 ipcMain.handle("transcribe", async (_e, audioBuffer) => {

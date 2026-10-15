@@ -2,6 +2,10 @@
 // the menu bar. Lets Gayathri (or a curious user) play any animation on
 // demand — also handy for recording marketing clips.
 import type { CharacterState } from "../character/types";
+import { XIcon } from "@phosphor-icons/react";
+import { barButtonClass, barClass } from "./RadialMenu";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const SHOW: { state: CharacterState; icon: string; label: string }[] = [
   { state: "idle", icon: "🧍", label: "calm" },
@@ -36,68 +40,22 @@ export default function Showcase({
   return (
     <div
       data-hit="1"
-      style={{
-        position: "relative",
-        width: "100%",
-        zIndex: 30,
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 5,
-        justifyContent: "center",
-        alignItems: "center",
-        pointerEvents: "auto",
-        padding: "9px 10px",
-        borderRadius: 18,
-        background: "linear-gradient(180deg, rgba(255,253,248,0.68), rgba(255,248,236,0.56))",
-        backdropFilter: "blur(16px) saturate(1.35)",
-        WebkitBackdropFilter: "blur(16px) saturate(1.35)",
-        border: "1px solid rgba(255,255,255,0.72)",
-        boxShadow:
-          "0 8px 22px rgba(90,74,58,0.2), inset 0 1px 0 rgba(255,255,255,0.9)",
-      }}
+      className={cn(barClass, "pointer-events-auto relative z-30 w-full flex-wrap justify-center gap-1.5 rounded-2xl p-2.5")}
     >
       {SHOW.map((s) => (
         <button
           key={s.state}
           title={s.label}
+          aria-label={s.label}
           onClick={() => onPlay(s.state)}
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: "50%",
-            border: "1.5px solid #e0cfa8",
-            background: "rgba(255,252,246,0.9)",
-            fontSize: 14,
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 0,
-          }}
+          className={cn(barButtonClass, "size-8 border bg-card text-[15px]")}
         >
           {s.icon}
         </button>
       ))}
-      <button
-        onClick={onClose}
-        title="close"
-        style={{
-          width: 22,
-          height: 22,
-          borderRadius: "50%",
-          border: "1.5px solid #d8c9ac",
-          background: "rgba(255,252,246,0.85)",
-          color: "#a08e70",
-          fontSize: 10,
-          cursor: "pointer",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 0,
-        }}
-      >
-        ✕
-      </button>
+      <Button variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground" onClick={onClose} aria-label="close showcase">
+        <XIcon />
+      </Button>
     </div>
   );
 }

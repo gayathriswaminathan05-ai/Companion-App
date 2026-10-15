@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld("companion", {
   layoutInfo: () => ipcRenderer.invoke("layout-info"),
   setWindowSize: (size) => ipcRenderer.invoke("set-window-size", size),
   ensureMic: () => ipcRenderer.invoke("ensure-mic"),
+  screenAccess: (opts) => ipcRenderer.invoke("screen-access", opts),
+  backdropLuminance: (area) => ipcRenderer.invoke("backdrop-luminance", area),
   idleSeconds: () => ipcRenderer.invoke("idle-seconds"),
   openLink: (url) => ipcRenderer.send("open-link", url),
   setCallAutohide: (on) => ipcRenderer.send("set-call-autohide", on),

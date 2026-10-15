@@ -304,6 +304,12 @@ Non-negotiable rules — every feature must comply or it doesn't ship:
    GDPR/India DPDP alignment.
 7. **Distress conversations get no special storage** — same local-only handling; we
    never see them.
+8. **Screen access is opt-in and reduced to one number.** "Match what's behind me"
+   (panels go dark over light apps) is OFF by default; turning it on is the only
+   time macOS Screen Recording permission is requested. While UI is showing, a
+   small screen thumbnail is read in memory every ~4s, reduced to a single
+   brightness value around the companion, and discarded. Never saved, never sent,
+   never seen by Claude.
 
 ## 7. Success Metrics (beta)
 

@@ -1,61 +1,35 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ArrowUpIcon, LinkSimpleIcon, LockSimpleIcon } from "@phosphor-icons/react";
 import MicButton from "./MicButton";
 import type { ChatMsg } from "../brain";
-import sendIcon from "./assets/chat-send.svg";
+import { Panel, PanelHeader } from "@/components/panel";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupTextarea,
+} from "@/components/ui/input-group";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { cn } from "@/lib/utils";
 
-// Figma chat window (node 2:107) — frosted glass + lavender accents
-const COLORS = {
-  panelBg: "rgba(243, 243, 243, 0.94)",
-  panelBorder: "#ffffff",
-  bubbleUser: "#e7e3ff",
-  bubbleBot: "#ffffff",
-  text: "#201d2f",
-  textUser: "#190681",
-  placeholder: "#9e9e9e",
-  inputBg: "#ffffff",
-  accent: "#6A53E7",
-  accentSoft: "#f5f3ff",
-  sendIdle: "rgba(106, 83, 231, 0.22)",
-};
+// Chat: Blob speaks in plain text, the user's words sit in quiet grey bubbles
+// on the right (Pi / Claude pattern), day dividers between sessions, and one
+// composer with hold-to-talk mic + send.
 
 const INPUT_MAX_H = 120; // grows upward until this, then scrolls
 
-const shell: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  height: "100%",
-  padding: 12,
-  gap: 12,
-  background: COLORS.panelBg,
-  border: `1px solid ${COLORS.panelBorder}`,
-  borderRadius: 20,
-  boxShadow: "0 4px 18px rgba(32, 29, 47, 0.12)",
-  fontFamily: '"Noto Sans", system-ui, -apple-system, sans-serif',
-  color: COLORS.text,
-  backdropFilter: "blur(40px) saturate(1.4)",
-  WebkitBackdropFilter: "blur(40px) saturate(1.4)",
-  boxSizing: "border-box",
-  position: "relative",
-};
-
-const inputBar: React.CSSProperties = {
-  display: "flex",
-  alignItems: "flex-end",
-  justifyContent: "space-between",
-  gap: 8,
-  padding: 12,
-  background: COLORS.inputBg,
-  borderRadius: 10,
-  boxShadow:
-    "0 1px 2px rgba(12, 12, 13, 0.1), 0 1px 2px rgba(12, 12, 13, 0.05)",
-  flexShrink: 0,
-};
+const SUGGESTIONS = ["I need to vent", "Help me plan today", "Tell me some gossip"];
 
 export default function ChatPanel({
   messages,
   streamText,
   busy,
   connected,
+  companionName = "Blob",
+  userName = "",
   onConnectKey,
   onSend,
   onClose,
@@ -65,6 +39,8 @@ export default function ChatPanel({
   streamText: string | null;
   busy: boolean;
   connected: boolean;
+  companionName?: string;
+  userName?: string;
   onConnectKey: (key: string) => void;
   onSend: (text: string) => void;
   onClose: () => void;
@@ -77,12 +53,15 @@ export default function ChatPanel({
   const scroller = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  const hasContent = Boolean(text.trim());
-  const active = (hasContent || recording) && !busy;
-  const canSend = hasContent && !busy;
+  const canSend = Boolean(text.trim()) && !busy;
 
+  // Jump to the newest message on open; glide for messages that arrive after.
+  const scrolledOnce = useRef(false);
   useEffect(() => {
-    scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
+    const el = scroller.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: scrolledOnce.current ? "smooth" : "auto" });
+    scrolledOnce.current = true;
   }, [messages, streamText]);
 
   // Auto-grow textarea upward (like Cursor composer).
@@ -90,8 +69,7 @@ export default function ChatPanel({
     const el = taRef.current;
     if (!el) return;
     el.style.height = "0px";
-    const next = Math.min(el.scrollHeight, INPUT_MAX_H);
-    el.style.height = `${next}px`;
+    el.style.height = `${Math.min(el.scrollHeight, INPUT_MAX_H)}px`;
   }, [text]);
 
   const send = () => {
@@ -102,211 +80,187 @@ export default function ChatPanel({
     setMicKey((k) => k + 1);
   };
 
+  const name = companionName.trim() || "Blob";
+
   if (!connected) {
+    const key = keyDraft.trim();
     return (
-      <div style={shell}>
-        <CloseBtn onClose={onClose} />
-        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginBottom: 4 }}>
-          connect my brain
-        </div>
-        <div style={{ fontSize: 12, lineHeight: 1.55, color: COLORS.text, opacity: 0.7, flex: 1 }}>
-          to really talk with you, I need a Claude API key:
-          <ol style={{ margin: "6px 0", paddingLeft: 18 }}>
-            <li>go to <b>platform.claude.com</b></li>
-            <li>sign in → <b>API Keys</b> → <b>Create key</b></li>
-            <li>copy it and paste below</li>
+      <Panel>
+        <PanelHeader title={`Connect ${name}'s brain`} onClose={onClose} />
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4">
+          <p className="text-muted-foreground">To really talk with you, I need a Claude API key. It takes a minute.</p>
+          <ol className="flex flex-col gap-2.5">
+            {[
+              <>
+                Open{" "}
+                <a
+                  href="https://platform.claude.com"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.companion.openLink("https://platform.claude.com");
+                  }}
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  platform.claude.com
+                </a>{" "}
+                and sign in
+              </>,
+              <>
+                Go to <span className="font-medium">API Keys</span>, then <span className="font-medium">Create key</span>
+              </>,
+              <>Copy it and paste it below</>,
+            ].map((step, i) => (
+              <li key={i} className="flex items-center gap-2.5">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-primary tabular-nums">
+                  {i + 1}
+                </span>
+                <span>{step}</span>
+              </li>
+            ))}
           </ol>
-          it's stored only on this computer, never anywhere else
+          <div className="mt-auto flex flex-col gap-2">
+            <InputGroup className="h-9 bg-card">
+              <InputGroupAddon>
+                <LockSimpleIcon />
+              </InputGroupAddon>
+              <InputGroupInput
+                value={keyDraft}
+                onChange={(e) => setKeyDraft(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && key && onConnectKey(key)}
+                placeholder="sk-ant-..."
+                type="password"
+                autoComplete="off"
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton variant="default" size="xs" disabled={!key} onClick={() => key && onConnectKey(key)}>
+                  Connect
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+            <p className="text-center text-xs text-muted-foreground">Stored only on this computer, never anywhere else.</p>
+          </div>
         </div>
-        <div style={{ ...inputBar, gap: 8, alignItems: "center" }}>
-          <input
-            value={keyDraft}
-            onChange={(e) => setKeyDraft(e.target.value)}
-            placeholder="sk-ant-…"
-            type="password"
-            style={{
-              flex: 1,
-              fontSize: 12,
-              border: "none",
-              outline: "none",
-              fontFamily: "inherit",
-              background: "transparent",
-              color: COLORS.text,
-              minWidth: 0,
-            }}
-          />
-          <button
-            onClick={() => keyDraft.trim() && onConnectKey(keyDraft.trim())}
-            style={{
-              border: "none",
-              borderRadius: 8,
-              padding: "6px 10px",
-              background: COLORS.accentSoft,
-              color: COLORS.accent,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              flexShrink: 0,
-            }}
-          >
-            connect
-          </button>
-        </div>
-      </div>
+      </Panel>
     );
   }
 
+  const empty = messages.length === 0 && streamText === null;
+
   return (
-    <div style={shell}>
-      <CloseBtn onClose={onClose} />
+    <Panel>
+      <PanelHeader title={name} onClose={onClose}>
+        {busy && <span className="text-xs text-muted-foreground">thinking...</span>}
+      </PanelHeader>
 
-      <div
-        ref={scroller}
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-          paddingRight: 2,
-          minHeight: 0,
-        }}
-      >
-        {messages.length === 0 && streamText === null && (
-          <div
-            style={{
-              fontSize: 12,
-              color: COLORS.placeholder,
-              textAlign: "center",
-              marginTop: 18,
-              lineHeight: 1.5,
-            }}
-          >
-            tell me anything — how your day's going, some gossip, a question…
+      {empty ? (
+        <Empty className="gap-3 p-4">
+          <EmptyHeader className="gap-1">
+            <EmptyTitle className="text-[15px] font-semibold">
+              Hey{userName.trim() ? ` ${userName.trim()}` : ""}, what's on your mind?
+            </EmptyTitle>
+            <EmptyDescription className="text-[13px]">Your day, some gossip, a question. Anything goes.</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent className="flex-row flex-wrap justify-center gap-1.5">
+            {SUGGESTIONS.map((s) => (
+              <Button key={s} variant="outline" size="sm" className="rounded-full bg-card" onClick={() => onSend(s)}>
+                {s}
+              </Button>
+            ))}
+          </EmptyContent>
+        </Empty>
+      ) : (
+        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto">
+          <div className="flex flex-col gap-3 px-4 pt-0.5 pb-3">
+            {messages.map((m, i) => {
+              const day = dayLabel(m.at);
+              const showDay = day && (i === 0 || dayLabel(messages[i - 1].at) !== day);
+              return (
+                <Fragment key={i}>
+                  {showDay && <DayDivider label={day} />}
+                  <Message mine={m.role === "user"} text={m.text} sources={m.sources} />
+                </Fragment>
+              );
+            })}
+            {streamText !== null &&
+              (streamText ? <Message mine={false} text={streamText} /> : <Typing />)}
           </div>
-        )}
-        {messages.map((m, i) => (
-          <Bubble key={i} mine={m.role === "user"} text={m.text} sources={m.sources} />
-        ))}
-        {streamText !== null && <Bubble mine={false} text={streamText || "…"} />}
-      </div>
-
-      <div style={inputBar}>
-        <textarea
-          ref={taRef}
-          value={text}
-          rows={1}
-          onChange={(e) => setText(e.target.value)}
-          onFocus={() => onBlobState("listening")}
-          onBlur={() => onBlobState("idle")}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-          placeholder={busy ? "thinking…" : "Let’s chat..."}
-          style={{
-            flex: 1,
-            fontSize: 12,
-            fontWeight: 500,
-            lineHeight: "18px",
-            padding: 0,
-            border: "none",
-            outline: "none",
-            resize: "none",
-            overflowY: "auto",
-            fontFamily: "inherit",
-            background: "transparent",
-            color: COLORS.text,
-            minWidth: 0,
-            maxHeight: INPUT_MAX_H,
-            alignSelf: "center",
-          }}
-        />
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexShrink: 0,
-            paddingBottom: 0,
-            alignSelf: "flex-end",
-          }}
-        >
-          <MicButton
-            key={micKey}
-            variant="chat"
-            current={text}
-            onTranscript={setText}
-            onRecordingChange={setRecording}
-          />
-          <button
-            onClick={send}
-            disabled={!canSend}
-            title="send"
-            style={{
-              width: 22,
-              height: 22,
-              minWidth: 22,
-              borderRadius: 22,
-              border: "none",
-              background: active ? COLORS.accent : COLORS.sendIdle,
-              cursor: canSend ? "pointer" : "default",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 0,
-              transition: "background 0.2s ease, transform 0.15s ease",
-              transform: active ? "scale(1)" : "scale(0.96)",
-              opacity: busy ? 0.6 : 1,
-            }}
-          >
-            <img
-              src={sendIcon}
-              alt=""
-              width={12}
-              height={12}
-              style={{ display: "block", pointerEvents: "none" }}
-              draggable={false}
-            />
-          </button>
         </div>
+      )}
+
+      <div className="shrink-0 px-3 pb-3">
+        <InputGroup className="bg-card">
+          <InputGroupTextarea
+            ref={taRef}
+            value={text}
+            rows={1}
+            onChange={(e) => setText(e.target.value)}
+            onFocus={() => onBlobState("listening")}
+            onBlur={() => onBlobState("idle")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            placeholder={recording ? "Listening..." : `Message ${name}`}
+            className="min-h-0 py-2.5 text-[13px] leading-[18px]"
+            style={{ maxHeight: INPUT_MAX_H, overflowY: "auto" }}
+          />
+          <InputGroupAddon align="inline-end" className="self-end pb-1.5">
+            <MicButton key={micKey} variant="chat" current={text} onTranscript={setText} onRecordingChange={setRecording} />
+            <InputGroupButton
+              variant="default"
+              size="icon-xs"
+              className="size-7 rounded-full disabled:bg-primary/25 disabled:opacity-100"
+              onClick={send}
+              disabled={!canSend}
+              aria-label="send"
+            >
+              <ArrowUpIcon weight="bold" />
+            </InputGroupButton>
+          </InputGroupAddon>
+        </InputGroup>
       </div>
+    </Panel>
+  );
+}
+
+function DayDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 text-[11px] font-medium text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
+      {label}
     </div>
   );
 }
 
-function CloseBtn({ onClose }: { onClose: () => void }) {
+function Typing() {
   return (
-    <button
-      onClick={onClose}
-      title="close"
-      style={{
-        position: "absolute",
-        top: 8,
-        right: 8,
-        width: 22,
-        height: 22,
-        border: "none",
-        borderRadius: 11,
-        background: "rgba(255,255,255,0.55)",
-        color: COLORS.placeholder,
-        fontSize: 12,
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 0,
-        zIndex: 2,
-        fontFamily: "inherit",
-      }}
-    >
-      ✕
-    </button>
+    <div className="flex h-5 items-center gap-1" role="status" aria-label="thinking">
+      {[0, 150, 300].map((d) => (
+        <span key={d} className="size-1.5 animate-typing rounded-full bg-primary" style={{ animationDelay: `${d}ms` }} />
+      ))}
+    </div>
   );
 }
+
+function dayLabel(at: string | undefined): string | null {
+  if (!at) return null;
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return null;
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((startOf(new Date()) - startOf(d)) / 86_400_000);
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  if (diff < 7) return d.toLocaleDateString(undefined, { weekday: "long" });
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function openLink(e: React.MouseEvent, url: string) {
+  e.preventDefault();
+  window.companion.openLink(url);
+}
+
+const linkClass = "text-primary underline decoration-primary/30 underline-offset-2 hover:decoration-primary break-all";
 
 function renderInline(line: string, keyBase: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
@@ -318,34 +272,22 @@ function renderInline(line: string, keyBase: string): React.ReactNode[] {
     if (m.index > last) nodes.push(line.slice(last, m.index));
     const tok = m[0];
     if (tok.startsWith("**")) {
-      nodes.push(<b key={`${keyBase}-${i++}`}>{tok.slice(2, -2)}</b>);
+      nodes.push(
+        <strong key={`${keyBase}-${i++}`} className="font-semibold">
+          {tok.slice(2, -2)}
+        </strong>,
+      );
     } else if (tok.startsWith("[")) {
       const label = tok.slice(1, tok.indexOf("]"));
       const url = tok.slice(tok.indexOf("(") + 1, -1);
       nodes.push(
-        <a
-          key={`${keyBase}-${i++}`}
-          onClick={(e) => {
-            e.preventDefault();
-            window.companion.openLink(url);
-          }}
-          href={url}
-          style={{ color: COLORS.accent, textDecoration: "underline", cursor: "pointer", wordBreak: "break-all" }}
-        >
+        <a key={`${keyBase}-${i++}`} href={url} onClick={(e) => openLink(e, url)} className={linkClass}>
           {label}
         </a>,
       );
     } else {
       nodes.push(
-        <a
-          key={`${keyBase}-${i++}`}
-          onClick={(e) => {
-            e.preventDefault();
-            window.companion.openLink(tok);
-          }}
-          href={tok}
-          style={{ color: COLORS.accent, textDecoration: "underline", cursor: "pointer", wordBreak: "break-all" }}
-        >
+        <a key={`${keyBase}-${i++}`} href={tok} onClick={(e) => openLink(e, tok)} className={linkClass}>
           {shortLabel(tok)}
         </a>,
       );
@@ -358,12 +300,15 @@ function renderInline(line: string, keyBase: string): React.ReactNode[] {
 
 function renderRich(text: string): React.ReactNode[] {
   return text.split("\n").map((line, li) => {
-    const bullet = line.startsWith("- ");
+    if (!line.trim()) return <div key={li} className="h-1.5" />;
+    const bullet = line.startsWith("- ") || line.startsWith("• ");
     const content = renderInline(bullet ? line.slice(2) : line, `l${li}`);
-    return (
-      <div key={li} style={bullet ? { paddingLeft: 12, textIndent: -8, margin: "1px 0" } : undefined}>
-        {bullet ? <>• {content}</> : content.length ? content : " "}
+    return bullet ? (
+      <div key={li} className="relative my-0.5 pl-3.5 before:absolute before:top-[0.6em] before:left-1 before:size-1 before:rounded-full before:bg-primary/70">
+        {content}
       </div>
+    ) : (
+      <div key={li}>{content}</div>
     );
   });
 }
@@ -377,48 +322,32 @@ function shortLabel(title: string): string {
   return t.slice(0, 40);
 }
 
-function Bubble({ mine, text, sources }: { mine: boolean; text: string; sources?: { title: string; url: string }[] }) {
+function Message({
+  mine,
+  text,
+  sources,
+}: {
+  mine: boolean;
+  text: string;
+  sources?: { title: string; url: string }[];
+}) {
   return (
     <div
-      style={{
-        alignSelf: "stretch",
-        fontSize: 12,
-        fontWeight: 500,
-        lineHeight: "16.7px",
-        padding: 12,
-        borderRadius: 10,
-        background: mine ? COLORS.bubbleUser : COLORS.bubbleBot,
-        color: COLORS.text,
-        opacity: 0.9,
-        wordBreak: "break-word",
-        boxShadow: mine ? undefined : "0 1px 2px rgba(12, 12, 13, 0.06)",
-      }}
+      className={cn(
+        "cursor-text leading-relaxed break-words select-text",
+        mine ? "max-w-[85%] self-end rounded-2xl rounded-br-md bg-bubble px-3 py-1.5 text-bubble-foreground" : "self-stretch pr-2",
+      )}
     >
-      <div style={{ opacity: 0.78 }}>{renderRich(text)}</div>
+      {renderRich(text)}
       {sources && sources.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+        <div className="mt-2 flex flex-wrap gap-1">
           {sources.map((s) => (
-            <button
-              key={s.url}
-              onClick={() => window.companion.openLink(s.url)}
-              title={s.url}
-              style={{
-                fontSize: 10,
-                padding: "2px 7px",
-                borderRadius: 8,
-                border: "none",
-                background: COLORS.accentSoft,
-                color: COLORS.accent,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                maxWidth: 180,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              🔗 {shortLabel(s.title)}
-            </button>
+            <Badge key={s.url} variant="secondary" asChild className="max-w-[170px] cursor-pointer font-normal hover:bg-bubble">
+              <button onClick={() => window.companion.openLink(s.url)} title={s.url}>
+                <LinkSimpleIcon />
+                <span className="truncate">{shortLabel(s.title)}</span>
+              </button>
+            </Badge>
           ))}
         </div>
       )}
