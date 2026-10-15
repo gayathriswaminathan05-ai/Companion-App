@@ -87,6 +87,17 @@ function spriteScale(anim: SpriteAnimDef): number {
     return Math.max(0.7, Math.min(1.6, stageScale * potScale));
   }
 
+  // Per-stage stretch/walk: use the SAME on-screen scale as that stage's idle.
+  // Stretch metas (esp. after aspect fixes) don't match growth crop sizes, so
+  // the generic fit(base)/fit(anim) path makes the plant look tiny.
+  const stretchN = anim.frames[0]?.match(/\/stretching(\d)\//)?.[1];
+  if (stretchN) {
+    const stageIdle = SPRITES[`growth${stretchN}`] as SpriteAnimDef | undefined;
+    if (stageIdle?.srcW && stageIdle?.srcH) {
+      return spriteScale(stageIdle);
+    }
+  }
+
   let scale = 1;
   if (anim !== base && anim.srcW && anim.srcH && base?.srcW && base?.srcH) {
     scale = Math.max(0.7, Math.min(1.45, fit(base) / fit(anim)));
@@ -704,9 +715,8 @@ export default function Blob({
     const idleScale = spriteScale(stageLoop);
     // Read size lock from ref (same paint as grow→idle) — never one frame late.
     const wrapMul = sizeMulRef.current;
-    // Stage 6's baked idle has heavy half-lid / odd blink frames that read as
-    // weird twitching when looped. Prefer a calm open-eye hold + soft breathe.
-    const calmStill = growthStage === 6;
+    // Stage 6 used to freeze on frame 0 + fake lids (red cheek/rim patches).
+    // Play the idle clip like stages 1–5; bridge still freezes underneath.
     // Idle MUST use its own scale. While the handoff overlay is up, freeze on
     // frame 0 — otherwise the idle loop advances under the fade and flashes.
     return (
@@ -719,10 +729,15 @@ export default function Blob({
           transformOrigin: "bottom center",
         }}
       >
-        {bridge || calmStill ? (
+        {bridge ? (
           <div
-            className={calmStill && !bridge ? "growth-breathe" : undefined}
-            style={{ width: 204, height: 240 }}
+            style={{
+              position: "relative",
+              width: 204,
+              height: 240,
+              transform: idleScale !== 1 ? `scale(${idleScale})` : undefined,
+              transformOrigin: "bottom center",
+            }}
           >
             <img
               data-char-sprite="1"
@@ -735,26 +750,11 @@ export default function Blob({
                 objectFit: "contain",
                 objectPosition: "bottom center",
                 display: "block",
-                transform: idleScale !== 1 ? `scale(${idleScale})` : undefined,
-                transformOrigin: "bottom center",
                 pointerEvents: "none",
               }}
             />
-            {calmStill && !bridge && (
-              <style>{`
-                .growth-breathe {
-                  animation: growthBreathe 3.2s ease-in-out infinite;
-                  transform-origin: bottom center;
-                }
-                @keyframes growthBreathe {
-                  0%, 100% { transform: scaleX(1) scaleY(1); }
-                  50% { transform: scaleX(1.012) scaleY(0.985); }
-                }
-              `}</style>
-            )}
           </div>
         ) : (
-          // Wrapper already applies wrapMul — SpriteAnim keeps normal idle scale.
           <SpriteAnim key={growthKey} anim={stageLoop} />
         )}
         {bridge && (
@@ -770,7 +770,6 @@ export default function Blob({
               top: 0,
               objectFit: "contain",
               objectPosition: "bottom center",
-              // Cancel wrapper mul so bridge stays at true grow-end size.
               transform: `scale(${bridge.scale / (wrapMul || 1)})`,
               transformOrigin: "bottom center",
               animation: "growHandoffOut 480ms ease-out forwards",

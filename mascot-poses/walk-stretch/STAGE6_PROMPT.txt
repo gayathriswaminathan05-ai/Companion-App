@@ -1,0 +1,12 @@
+CRITICAL RULES:
+1) Background = SOLID PURE WHITE (#FFFFFF). Never magenta/pink plate.
+2) Plant LOCK = growth6 idle ONLY. Same leaves + SAME pink 5-petal flower with yellow bumpy center. Do not invent a different flower or remove it.
+3) Outfit refs = visor-ref.png + shoes-ref.png ONLY (not stage5 full still — that still is on magenta and has a different plant).
+
+STILL (nano_banana_2, count=1):
+Primary image: growth6 idle (character + plant identity).
+Optional refs: visor-ref, shoes-ref for accessories only.
+Prompt:
+"Edit ONLY: put the EXACT same terracotta pot character from the reference on a SOLID PURE WHITE background. Keep the IDENTICAL green succulent and the IDENTICAL pink five-petal flower with yellow center — do not change, shrink, replace, or remove the flower. Add a coral open-top visor with yellow brim (like the visor ref) and white/blue/orange high-top sneakers (like the shoes ref). Standing idle, full body, centered. Matte clay style. No magenta anywhere. No new plant design."
+
+VIDEO only after still approved (kling3_0, 10s, white BG, start=end=approved still).

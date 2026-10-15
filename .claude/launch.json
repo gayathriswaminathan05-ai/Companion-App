@@ -4,14 +4,36 @@
     {
       "name": "renderer-vite",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "--port", "5173"],
+      "runtimeArgs": [
+        "vite",
+        "--port",
+        "5173"
+      ],
       "port": 5173
     },
     {
       "name": "landing-page",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["http-server", "landing", "-p", "8788", "-c-1", "--silent"],
+      "runtimeArgs": [
+        "http-server",
+        "landing",
+        "-p",
+        "8788",
+        "-c-1",
+        "--silent"
+      ],
       "port": 8788
+    },
+    {
+      "name": "english-companion",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/supertail/Desktop/English Companion",
+        "run",
+        "dev"
+      ],
+      "port": 5174
     }
   ]
 }
