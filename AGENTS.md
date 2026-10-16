@@ -51,6 +51,14 @@ narrated trailer (`marketing/trailer/`).
 - Email (Gmail) is hidden on purpose (costly Google review): `src/features.ts`
   and `electron/calendar.cjs` GMAIL_FEATURE. Don't re-enable without asking.
 
+## Testing tools to remove before the PUBLIC launch (not before)
+Gayathri's own testing aids, kept on purpose during the beta:
+- Growth test bar beside the plant (src/ui/GrowthTestBar.tsx), dev app only.
+- Debug menu on right-click of the plant (DebugMenu in src/App.tsx), dev app only.
+- Showcase: the secret ✦ dot at the left end of the menu bar (src/ui/Showcase.tsx).
+  This one also shows in the testers' installer.
+When she says it's time for the public launch: remove or hide all three.
+
 ## Where things are
 - `electron/main.cjs` window, tray, saving, AI chat (ChatGPT or Claude: the
   saved key decides), voice, calendar. `electron/preload.cjs` = the bridge.

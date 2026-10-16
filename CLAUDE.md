@@ -715,6 +715,19 @@ Pricing/paywall copy intentionally NOT added yet.
   connection (or she generates on the Higgsfield site; clips go in
   assets/clips/ then scripts/pipeline/sprite-in.sh).
 
+## TESTING TOOLS IN THE APP — REMOVE BEFORE PUBLIC LAUNCH (owner, Oct 16)
+Owner's own testing aids; they stay through the beta, then go.
+1. GROWTH TEST BAR (src/ui/GrowthTestBar.tsx, rendered in App.tsx): strip
+   beside the plant to jump growth stages 1-7 and replay level-ups/watering.
+   Development app only (hidden when isPackaged), can be hidden via its chip.
+2. DEBUG MENU (DebugMenu in App.tsx): right-click the plant → any pose,
+   test nudges/jokes, sounds, growth stage. Development app only.
+3. SHOWCASE (src/ui/Showcase.tsx): the secret ✦ dot at the LEFT END of the
+   menu bar → plays any animation (also used to record marketing clips).
+   NOT dev-only: it is in the testers' installer too.
+At public launch: delete or dev-gate all three (and settings.growthTestVisible),
+re-check that nothing else is reachable only for testing.
+
 ## Remaining for beta (after design pass)
 - Onboarding flow + trial countdown/paywall/founder code (Days 11-12 in plan)
 - Final character art integration (swap procedural blob; single-clock juggle grip)
