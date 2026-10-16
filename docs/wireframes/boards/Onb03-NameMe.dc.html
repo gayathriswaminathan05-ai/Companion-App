@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Onboarding 3: Name me</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+<style>
+body{margin:0}
+a{color:#6A53E7}a:hover{color:#4B36C4}
+</style>
+</helmet>
+<div style="width: 560px; height: 480px; position: relative; overflow: hidden; box-sizing: border-box; background: #E2E0E9; font-family: Figtree, ui-sans-serif, system-ui, sans-serif; color: #201D2F">
+<div style="position: absolute; left: 24px; top: 24px; width: 230px; height: 150px; border-radius: 10px; background: rgba(255,255,255,0.75); border: 1px solid #D0CDD9; padding: 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px">
+<div style="height: 8px; width: 45%; background: #DCD9E3; border-radius: 4px"></div>
+<div style="height: 6px; width: 85%; background: #E6E4EC; border-radius: 4px"></div>
+<div style="height: 6px; width: 70%; background: #E6E4EC; border-radius: 4px"></div>
+<span style="margin-top: auto; font-size: 11px; color: #5E5B69">any app behind</span>
+</div>
+<div style="position: absolute; right: 120px; bottom: 175px; width: 300px; box-sizing: border-box; padding: 18px; border-radius: 18px; background: #FFFFFF; border: 1px solid #D6D3DF; display: flex; flex-direction: column; gap: 12px">
+<p style="margin: 0; font-size: 18px; font-weight: 700; line-height: 1.3">Lovely to meet you, [YOUR NAME]! What do you want to call me?</p>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="plantname" style="font-size: 12px; font-weight: 600; color: #5E5B69">My name (you can change it later)</label>
+<input id="plantname" type="text" value="[PLANT NAME]" style="min-height: 44px; box-sizing: border-box; padding: 0 12px; border-radius: 12px; border: 1px solid #CFCCD9; background: #FFFFFF; font: inherit; font-size: 15px; color: #201D2F">
+</div>
+<div style="display: flex; gap: 8px">
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 12px; border: none; background: #F5F3FF; color: #6A53E7; font: inherit; font-weight: 700">Shuffle</button>
+<button type="button" style="flex: 1 1 auto; min-height: 44px; padding: 0 20px; border-radius: 12px; border: none; background: #6A53E7; color: #FFFFFF; font: inherit; font-weight: 700">Next</button>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #5E5B69">
+<span>3 of 9</span>
+<a href="#skip">Skip setup</a>
+</div>
+<div style="position: absolute; right: 22px; bottom: -8px; width: 14px; height: 14px; background: #FFFFFF; border-right: 1px solid #D6D3DF; border-bottom: 1px solid #D6D3DF; transform: rotate(45deg)"></div>
+</div>
+<div style="position: absolute; right: 28px; bottom: 18px; display: flex; flex-direction: column; align-items: center; gap: 4px">
+<svg width="110" height="140" viewBox="0 0 120 150" fill="none" stroke="#201D2F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M60 62 C52 40 54 22 60 10 C66 22 68 40 60 62Z"></path>
+<path d="M56 64 C40 50 32 36 30 22 C42 30 52 44 56 64Z"></path>
+<path d="M64 64 C80 50 88 36 90 22 C78 30 68 44 64 64Z"></path>
+<rect x="22" y="62" width="76" height="16" rx="6"></rect>
+<path d="M28 78 L36 128 Q37 134 43 134 L77 134 Q83 134 84 128 L92 78"></path>
+<circle cx="48" cy="98" r="4" fill="#201D2F"></circle>
+<circle cx="72" cy="98" r="4" fill="#201D2F"></circle>
+<path d="M52 108 Q60 118 68 108"></path>
+<path d="M92 96 L100 110"></path>
+<path d="M28 96 L20 110"></path>
+<path d="M48 134 L48 142 M72 134 L72 142"></path>
+</svg>
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5E5B69">pose: little hop on Shuffle</span>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":560,"height":480}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

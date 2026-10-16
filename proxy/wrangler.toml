@@ -1,4 +1,4 @@
-# Cloudflare Worker that holds the Claude API key for the Companion app.
+# Cloudflare Worker that holds the AI keys (ChatGPT / Claude) for the Companion app.
 # See README.md for the step-by-step setup.
 
 name = "companion-proxy"
@@ -15,13 +15,15 @@ enabled = false
 # Run `npx wrangler kv namespace create RATE` and paste the id it prints here.
 [[kv_namespaces]]
 binding = "RATE"
-id = "REPLACE_ME"
+id = "f73bd067ecd3498dbe6ee833398485b2"
 
 # Non-secret settings. Change a number, then run `npx wrangler deploy`.
-# The API keys (ANTHROPIC_API_KEY, GOOGLE_TTS_KEY) and app token are SECRETS, set with `npx wrangler secret put`,
+# The API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_TTS_KEY) and app token are SECRETS, set with `npx wrangler secret put`,
 # and must never be written in this file.
 [vars]
 ALLOWED_MODELS = "claude-sonnet-5,claude-haiku-5-5"  # models the app may use
 MAX_TOKENS_CAP = "2048"                               # longest allowed reply
+OPENAI_ALLOWED_MODELS = "gpt-6.1-sol,gpt-6-luna"      # ChatGPT models the app may use
+OPENAI_OUTPUT_CAP = "4096"                            # ChatGPT reply + thinking cap
 DAILY_LIMIT = "60"                                    # chats per device per day (0 = pause chat)
-TTS_DAILY_CHARS = "20000"                             # Blob's cloud voice: letters per device per day
+TTS_DAILY_CHARS = "6000"                              # Blob's cloud voice: letters per device per day (then on-device voice)

@@ -43,6 +43,9 @@ app.whenReady().then(async () => {
       ctx.drawImage(img, 0, 0);
       const w = c.width, h = c.height;
       const d = ctx.getImageData(0, 0, w, h);
+      // CLIP_PREKEYED=1: frames already carry alpha (e.g. cut out with the
+      // Lumio / BiRefNet-matting tool). Skip keying; crop + scale only.
+      if (process.env.CLIP_PREKEYED === "1") return { canvas: c, data: d };
       const px = d.data;
       const mask = new Uint8Array(w * h);
       const T = parseInt(${JSON.stringify(process.env.CLIP_T || "")}, 10) || 45; // tolerance vs bg palette (CLIP_T env overrides; lower = protects bright character highlights on white bg)

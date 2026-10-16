@@ -1,5 +1,6 @@
-// Menu v7: floating pill bar above the plant. Round icon buttons, labels as
-// shadcn tooltips, small close button riding the bar's top-right corner.
+// Menu v7: floating pill bar above the plant (below it when the plant sits near
+// the top of the screen). Round icon buttons, labels as shadcn tooltips, small
+// close button riding the bar's top-right corner.
 import { XIcon } from "@phosphor-icons/react";
 import { MenuIcon, type MenuIconId } from "./MenuIcons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -11,11 +12,8 @@ export interface RadialItem {
   onClick: () => void;
 }
 
-const WIN_W = 384;
-const WIN_H = 600;
-const CHAR_H = 240;
-const PLANT_X = 192;
-const MENU_GAP = 55;
+const MENU_GAP = 81; // pill centre above the plant box top (same spot as before: art has headroom)
+const BELOW_GAP = 12; // pill top below the plant's feet when flipped
 const BTN = 36;
 const ICON = 19;
 const GAP = 6;
@@ -31,36 +29,42 @@ export const barButtonClass =
 
 export default function RadialMenu({
   items,
+  winW,
+  plantTop,
+  plantBottom,
+  below = false,
   clipLeft,
   clipRight,
   clipTop = 0,
-  clipBottom = 0,
-  plantScale = 1,
   onDismiss,
   onSecret,
 }: {
   items: RadialItem[];
+  /** Window width and the plant box (px from the window top). */
+  winW: number;
+  plantTop: number;
+  plantBottom: number;
+  /** Plant near the top of the screen: open under its feet instead. */
+  below?: boolean;
   clipLeft: number;
   clipRight: number;
   clipTop?: number;
-  clipBottom?: number;
-  plantScale?: number;
   onDismiss?: () => void;
   onSecret?: () => void;
 }) {
-  const scale = Math.min(1.2, Math.max(0.6, plantScale || 1));
   const pillH = PILL_PAD * 2 + BTN + 2;
-  let barY = WIN_H - CHAR_H * scale - MENU_GAP;
-  barY = Math.max(clipTop + pillH / 2 + 8, Math.min(barY, WIN_H - clipBottom - pillH / 2 - 8));
+  let barY = below ? plantBottom + BELOW_GAP + pillH / 2 : plantTop - MENU_GAP;
+  barY = Math.max(clipTop + pillH / 2 + 8, barY);
 
   const n = items.length;
   const pillW = PILL_PAD * 2 + n * BTN + (n - 1) * GAP + 2;
 
   const visL = clipLeft + 5;
-  const visR = WIN_W - clipRight - 5;
+  const visR = winW - clipRight - 5;
+  const plantX = winW / 2;
   // Leave a little room on the right for the floating close button.
   const closePad = onDismiss ? CLOSE / 2 + 4 : 0;
-  let barX = Math.min(Math.max(PLANT_X, visL + pillW / 2), visR - pillW / 2 - closePad);
+  let barX = Math.min(Math.max(plantX, visL + pillW / 2), visR - pillW / 2 - closePad);
   if (visR - visL < pillW + closePad) barX = (visL + visR - closePad) / 2;
 
   const pillLeft = barX - pillW / 2;

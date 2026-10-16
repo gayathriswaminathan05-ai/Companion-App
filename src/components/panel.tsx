@@ -1,15 +1,23 @@
 // App-level composites shared by the chat / tasks / settings panels.
 // Built from shadcn primitives; owns no colours of its own (see index.css).
 import * as React from "react";
-import { FlowerIcon, FlowerTulipIcon, PlantIcon, PottedPlantIcon, XIcon, type IconProps } from "@phosphor-icons/react";
+import { XIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { GrowthStage } from "@/growth";
 
-/** Plant-stage glyph used in UI chrome instead of the 🌱🌿🪴 emoji. */
-export function GrowthIcon({ stage, ...props }: { stage: GrowthStage } & IconProps) {
-  const Icon = stage <= 2 ? PlantIcon : stage <= 4 ? PottedPlantIcon : stage === 5 ? FlowerTulipIcon : FlowerIcon;
-  return <Icon weight="fill" {...props} />;
+/** Plant-stage icon: the real plant at that stage, in full colour
+ *  (public/icons/stage-N.png, made by scripts/make-stage-icons.py). */
+export function GrowthIcon({ stage, className }: { stage: GrowthStage; className?: string }) {
+  return (
+    <img
+      src={`./icons/stage-${stage}.png`}
+      alt=""
+      aria-hidden
+      draggable={false}
+      className={cn("size-4 shrink-0 object-contain", className)}
+    />
+  );
 }
 
 export function Panel({ className, ...props }: React.ComponentProps<"div">) {
@@ -74,8 +82,11 @@ export function SpeechBubble({ className, ...props }: React.ComponentProps<"div"
       data-slot="bubble"
       data-hit="1"
       className={cn(
-        "pointer-events-auto absolute inset-x-0 bottom-[214px] z-20 mx-auto w-64 origin-bottom animate-bubble-in rounded-2xl border border-white bg-background p-3.5 text-[13px] text-foreground shadow-panel dark:border-white/8",
-        "after:absolute after:-bottom-[7px] after:left-1/2 after:size-3 after:-translate-x-1/2 after:rotate-45 after:border-r after:border-b after:border-white after:bg-background dark:after:border-white/8",
+        // Horizontal spot comes from App (--bubble-left / --bubble-tail): centred
+        // over the plant, but slid inward when the plant sits in a screen corner
+        // so the bubble stays fully visible; the tail keeps pointing at the plant.
+        "pointer-events-auto absolute bottom-[214px] left-[var(--bubble-left,calc(50%-8rem))] z-20 w-64 origin-bottom animate-bubble-in rounded-2xl border border-white bg-background p-3.5 text-[13px] text-foreground shadow-panel dark:border-white/8",
+        "after:absolute after:-bottom-[7px] after:left-[var(--bubble-tail,50%)] after:size-3 after:-translate-x-1/2 after:rotate-45 after:border-r after:border-b after:border-white after:bg-background dark:after:border-white/8",
         className,
       )}
       {...props}

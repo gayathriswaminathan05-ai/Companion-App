@@ -41,18 +41,36 @@ function loadPosition() {
 
 function savePosition(bounds) {
   try {
-    fs.writeFileSync(stateFile(), JSON.stringify({ x: bounds.x, y: bounds.y }));
+    fs.writeFileSync(
+      stateFile(),
+      JSON.stringify({ x: bounds.x, y: bounds.y, plantTop: plantBox.top, plantH: plantBox.height }),
+    );
   } catch {}
 }
 
 let win = null;
+// Where the plant sits INSIDE the transparent window (px from the window top).
+// Normally at the bottom with UI stacked above; near the top of the screen the
+// renderer flips it to the top with UI below (set-window-size tells us).
+let plantBox = { top: WIN_H - 240, height: 240 };
+
+/** Window y range that keeps the PLANT itself on screen (the transparent
+ *  window around it may hang past the screen edge — enableLargerThanScreen). */
+function clampPlantY(y, wa) {
+  const minY = wa.y - plantBox.top;
+  const maxY = wa.y + wa.height - plantBox.top - plantBox.height;
+  return Math.round(Math.max(minY, Math.min(y, maxY)));
+}
 
 function createWindow() {
   const wa = screen.getPrimaryDisplay().workArea;
   const saved = loadPosition();
-  // Clamp so the (possibly larger) window never hangs off-screen.
+  if (saved && Number.isFinite(saved.plantTop) && Number.isFinite(saved.plantH)) {
+    plantBox = { top: saved.plantTop, height: saved.plantH };
+  }
+  // Clamp so the plant itself is on screen (the window may hang past an edge).
   const px = saved ? Math.min(saved.x, wa.x + wa.width - WIN_W) : wa.x + wa.width - WIN_W - 24;
-  const py = saved ? Math.min(saved.y, wa.y + wa.height - WIN_H) : wa.y + wa.height - WIN_H - 8;
+  const py = saved ? clampPlantY(saved.y, wa) : wa.y + wa.height - WIN_H - 8;
 
   win = new BrowserWindow({
     width: WIN_W,
@@ -62,6 +80,10 @@ function createWindow() {
     frame: false,
     transparent: true,
     resizable: false,
+    // Lets the (mostly empty) window hang above the menu bar so the plant can
+    // be dragged right up to the top of the screen. Drag/resize keep the
+    // plant itself on screen via clampPlantY.
+    enableLargerThanScreen: true,
     alwaysOnTop: true,
     hasShadow: false,
     skipTaskbar: true,
@@ -139,7 +161,8 @@ ipcMain.on("drag-start", () => {
   dragOffset = { x: cursor.x - wx, y: cursor.y - wy };
   dragTimer = setInterval(() => {
     const p = screen.getCursorScreenPoint();
-    win.setPosition(p.x - dragOffset.x, p.y - dragOffset.y);
+    const wa = screen.getDisplayNearestPoint(p).workArea;
+    win.setPosition(p.x - dragOffset.x, clampPlantY(p.y - dragOffset.y, wa));
   }, 16);
 });
 
@@ -283,7 +306,9 @@ ipcMain.handle("transcribe", async (_e, audioBuffer) => {
   }
 });
 
-// --- Chat brain: Claude API. Key lives ONLY in a local file on this machine. ---
+// --- Chat brain: ChatGPT (OpenAI) or Claude (Anthropic). Key lives ONLY in a
+// local file on this machine. Which AI answers is decided by the key itself:
+// Claude keys start "sk-ant-", anything else is an OpenAI key. ---
 const keyFile = () => path.join(app.getPath("userData"), "brain.key");
 
 function loadBrainKey() {
@@ -291,13 +316,14 @@ function loadBrainKey() {
     const k = fs.readFileSync(keyFile(), "utf8").trim();
     return k || null;
   } catch {
-    return process.env.ANTHROPIC_API_KEY || null;
+    return process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || null;
   }
 }
 
 // Beta / public builds: no key in the app. Chats go through our private proxy
 // (proxy/worker.js) which holds the key server-side and applies per-device
-// daily limits. electron/beta-config.json = { "proxyUrl", "appToken" } is
+// daily limits. electron/beta-config.json = { "proxyUrl", "appToken",
+// "provider": "openai" | "anthropic" (default anthropic) } is
 // gitignored and bundled at build time. A key saved on this Mac (founder /
 // dev) still wins, so local testing never touches the proxy allowance.
 function loadBetaConfig() {
@@ -324,28 +350,40 @@ function deviceId() {
   return id;
 }
 
-let anthropicClient = null;
+function brainProvider() {
+  const key = loadBrainKey();
+  if (key) return key.startsWith("sk-ant-") ? "anthropic" : "openai";
+  if (betaConfig) return betaConfig.provider === "openai" ? "openai" : "anthropic";
+  return null;
+}
+
+const brainClients = {}; // provider → SDK client
+function resetBrains() {
+  for (const k of Object.keys(brainClients)) delete brainClients[k];
+}
 
 function getBrain() {
-  if (!anthropicClient) {
-    const Anthropic = require("@anthropic-ai/sdk");
+  const provider = brainProvider();
+  if (!provider) return null;
+  if (!brainClients[provider]) {
     const key = loadBrainKey();
+    const SDK = provider === "openai" ? require("openai").default : require("@anthropic-ai/sdk");
     if (key) {
-      anthropicClient = new Anthropic({ apiKey: key });
-    } else if (betaConfig) {
-      anthropicClient = new Anthropic({
+      brainClients[provider] = new SDK({ apiKey: key });
+    } else {
+      const base = betaConfig.proxyUrl.replace(/\/+$/, "");
+      brainClients[provider] = new SDK({
         apiKey: "unused", // the real key lives only on the proxy
-        baseURL: betaConfig.proxyUrl.replace(/\/+$/, ""),
+        // OpenAI's SDK adds "/responses" to its base, Anthropic's adds "/v1/messages".
+        baseURL: provider === "openai" ? `${base}/v1` : base,
         defaultHeaders: {
           "x-companion-device": deviceId(),
           "x-companion-app": betaConfig.appToken,
         },
       });
-    } else {
-      return null;
     }
   }
-  return anthropicClient;
+  return { provider, client: brainClients[provider] };
 }
 
 // --- Cloud voice: Google Text-to-Speech (Chirp 3 HD), accent per country ---
@@ -431,7 +469,9 @@ async function cloudSynthesize({ text, languageCode, voiceName, speed }) {
 }
 
 const cloudVoice = {
-  available: () => !!(loadTtsKey() || betaConfig),
+  // Beta ships with the on-device voice: testers only get the Google voice
+  // once beta-config.json says "cloudVoice": true (proxy has GOOGLE_TTS_KEY).
+  available: () => !!(loadTtsKey() || (betaConfig && betaConfig.cloudVoice === true)),
   synthesize: cloudSynthesize,
 };
 
@@ -451,76 +491,172 @@ ipcMain.on("open-link", (_e, url) => {
 ipcMain.handle("brain-status", () => ({
   connected: !!loadBrainKey() || !!betaConfig,
   viaProxy: !loadBrainKey() && !!betaConfig,
+  provider: brainProvider(),
 }));
 
 ipcMain.handle("brain-connect", (_e, key) => {
   try {
     fs.writeFileSync(keyFile(), String(key).trim(), { mode: 0o600 });
-    anthropicClient = null; // rebuild with the new key
+    resetBrains(); // rebuild with the new key (it may be a different AI)
     return { ok: true };
   } catch (err) {
     return { ok: false, error: String(err.message || err) };
   }
 });
 
-// Chat model — swap this one line to change brains (user chose Sonnet for cost).
-const CHAT_MODEL = "claude-sonnet-5";
-
-// Streaming chat with web search; continues across pause_turn automatically.
-ipcMain.handle("chat-send", async (e, { id, system, messages }) => {
-  const client = getBrain();
-  if (!client) return { ok: false, error: "no-key" };
+// AI chat on/off (Settings → Privacy → "Chat with AI"). Read from the saved
+// settings, so even if the screen asked, nothing goes to the AI while it's off.
+function chatAllowed() {
   try {
-    let msgs = [...messages];
-    let full = "";
-    const sources = [];
-    for (let hop = 0; hop < 4; hop++) {
-      const stream = client.messages.stream({
-        model: CHAT_MODEL,
-        max_tokens: 2048,
-        system,
-        messages: msgs,
-        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8 }],
-      });
-      stream.on("text", (t) => {
-        full += t;
-        try {
-          e.sender.send("chat-chunk", { id, delta: t });
-        } catch {}
-      });
-      const final = await stream.finalMessage();
-      for (const b of final.content) {
-        if (b.type === "text" && Array.isArray(b.citations)) {
-          for (const c of b.citations) {
-            if (c.url && !sources.some((s) => s.url === c.url)) {
-              sources.push({ url: c.url, title: c.title || c.url });
-            }
+    const d = JSON.parse(fs.readFileSync(dataFile(), "utf8"));
+    return !(d && d.settings && d.settings.chatOn === false);
+  } catch {
+    return true;
+  }
+}
+
+// Chat models — swap one line to change brains.
+// Claude: Sonnet (owner chose it for cost). ChatGPT: gpt-6.1-sol is the same
+// tier ($2 / $10 per million tokens in / out, Oct 2026); "gpt-6-luna" is the
+// budget pick ($0.10 / $0.50) if replies still feel like the plant.
+const CHAT_MODEL = "claude-sonnet-5";
+const OPENAI_CHAT_MODEL = "gpt-6.1-sol";
+
+// brain.ts builds the system prompt as Claude-style blocks; ChatGPT takes one string.
+function systemText(system) {
+  return Array.isArray(system) ? system.map((b) => (b && b.text) || "").join("\n\n") : String(system || "");
+}
+
+// Rough place for web search ("movies near me"): country + time zone only.
+function searchLocation() {
+  const loc = { type: "approximate" };
+  const locale = app.getSystemLocale ? app.getSystemLocale() : app.getLocale();
+  const region = String(locale || "").split(/[-_]/)[1];
+  if (/^[A-Z]{2}$/.test(region || "")) loc.country = region;
+  try {
+    loc.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {}
+  return loc;
+}
+
+// Claude: streaming chat with web search; continues across pause_turn automatically.
+async function chatClaude(client, system, messages, onText) {
+  let msgs = [...messages];
+  let full = "";
+  const sources = [];
+  for (let hop = 0; hop < 4; hop++) {
+    const stream = client.messages.stream({
+      model: CHAT_MODEL,
+      max_tokens: 2048,
+      system,
+      messages: msgs,
+      // "direct" = plain web search. The default for this tool version runs the
+      // search inside Anthropic's code sandbox (kept up to 30 days, not covered
+      // by zero data retention), so we turn that off.
+      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8, allowed_callers: ["direct"] }],
+    });
+    stream.on("text", (t) => {
+      full += t;
+      onText(t);
+    });
+    const final = await stream.finalMessage();
+    for (const b of final.content) {
+      if (b.type === "text" && Array.isArray(b.citations)) {
+        for (const c of b.citations) {
+          if (c.url && !sources.some((s) => s.url === c.url)) {
+            sources.push({ url: c.url, title: c.title || c.url });
           }
         }
       }
-      if (final.stop_reason === "pause_turn") {
-        msgs = [...msgs, { role: "assistant", content: final.content }];
-        continue;
-      }
-      break;
     }
-    e.sender.send("chat-done", { id, text: full, sources });
+    if (final.stop_reason === "pause_turn") {
+      msgs = [...msgs, { role: "assistant", content: final.content }];
+      continue;
+    }
+    break;
+  }
+  return { text: full, sources };
+}
+
+// ChatGPT: one streaming request; OpenAI runs the web searches itself.
+async function chatOpenAI(client, system, messages, onText) {
+  const stream = client.responses.stream({
+    model: OPENAI_CHAT_MODEL,
+    instructions: systemText(system),
+    input: messages.map((m) => ({ role: m.role, content: m.content })),
+    tools: [{ type: "web_search", user_location: searchLocation() }],
+    reasoning: { effort: "low" }, // quick, chatty replies (thinking counts toward max_output_tokens)
+    max_output_tokens: 4096,
+    store: false, // privacy: OpenAI doesn't keep the reply around for later lookup
+    prompt_cache_key: "companion-chat", // same personality every time → cheaper cached input
+  });
+  let full = "";
+  let lastItem = null;
+  stream.on("response.output_text.delta", (ev) => {
+    // Text before and after a web search arrives as separate pieces: keep a gap.
+    const t = full && lastItem !== null && ev.output_index !== lastItem ? `\n\n${ev.delta}` : ev.delta;
+    lastItem = ev.output_index;
+    full += t;
+    onText(t);
+  });
+  const final = await stream.finalResponse();
+  const sources = [];
+  for (const item of final.output || []) {
+    if (item.type !== "message") continue;
+    for (const part of item.content || []) {
+      if (part.type !== "output_text") continue;
+      for (const a of part.annotations || []) {
+        if (a.type === "url_citation" && a.url && !sources.some((s) => s.url === a.url)) {
+          sources.push({ url: a.url, title: a.title || a.url });
+        }
+      }
+    }
+  }
+  if (!full.trim() && final.status === "incomplete") {
+    throw new Error(`incomplete reply (${(final.incomplete_details && final.incomplete_details.reason) || "unknown"})`);
+  }
+  return { text: full, sources };
+}
+
+ipcMain.handle("chat-send", async (e, { id, system, messages }) => {
+  if (!chatAllowed()) return { ok: false, error: "chat-off" };
+  const brain = getBrain();
+  if (!brain) return { ok: false, error: "no-key" };
+  const send = (channel, payload) => {
+    try {
+      e.sender.send(channel, payload);
+    } catch {}
+  };
+  try {
+    const chat = brain.provider === "openai" ? chatOpenAI : chatClaude;
+    const { text, sources } = await chat(brain.client, system, messages, (delta) => send("chat-chunk", { id, delta }));
+    send("chat-done", { id, text, sources });
     return { ok: true };
   } catch (err) {
     const msg = String((err && err.message) || err);
-    try {
-      e.sender.send("chat-error", { id, error: msg });
-    } catch {}
+    send("chat-error", { id, error: msg });
     return { ok: false, error: msg };
   }
 });
 
 // One-shot small requests (jokes, summaries) — no streaming, no tools.
 ipcMain.handle("brain-once", async (_e, { system, prompt, maxTokens }) => {
-  const client = getBrain();
-  if (!client) return { ok: false, error: "no-key" };
+  if (!chatAllowed()) return { ok: false, error: "chat-off" };
+  const brain = getBrain();
+  if (!brain) return { ok: false, error: "no-key" };
   try {
-    const res = await client.messages.create({
+    if (brain.provider === "openai") {
+      const res = await brain.client.responses.create({
+        model: OPENAI_CHAT_MODEL,
+        instructions: systemText(system),
+        input: prompt,
+        reasoning: { effort: "low" },
+        max_output_tokens: Math.max(1024, maxTokens || 300),
+        store: false,
+      });
+      return { ok: true, text: res.output_text || "" };
+    }
+    const res = await brain.client.messages.create({
       model: CHAT_MODEL,
       max_tokens: maxTokens || 300,
       system,
@@ -607,7 +743,7 @@ ipcMain.handle("brain-disconnect", () => {
   try {
     fs.unlinkSync(keyFile());
   } catch {}
-  anthropicClient = null;
+  resetBrains();
   return true;
 });
 
@@ -638,26 +774,34 @@ function getLayoutInfo() {
     clipRight: Math.max(0, b.x + b.width - (wa.x + wa.width)),
     clipTop: Math.max(0, wa.y - b.y),
     clipBottom: Math.max(0, b.y + b.height - (wa.y + wa.height)),
+    // For the renderer's "UI above or below the plant?" decision.
+    winY: b.y,
+    workTop: wa.y,
+    workBottom: wa.y + wa.height,
+    plantTop: plantBox.top,
   };
 }
 
 ipcMain.handle("layout-info", () => getLayoutInfo());
 
-// Grow/shrink the transparent window from the bottom-center so the plant
-// stays visually put while chat/panels get taller/wider.
+// Resize the transparent window (panel scale) and/or move the plant inside it
+// (UI above ↔ below near the top of the screen) while the plant stays visually
+// put: the window shifts by however much the plant moved inside it.
 ipcMain.handle("set-window-size", (_e, size = {}) => {
   if (!win) return getLayoutInfo();
   const w = Math.max(280, Math.min(560, Math.round(Number(size.width) || WIN_W)));
-  const h = Math.max(420, Math.min(900, Math.round(Number(size.height) || WIN_H)));
+  const h = Math.max(420, Math.min(1000, Math.round(Number(size.height) || WIN_H)));
   const b = win.getBounds();
   const wa = screen.getDisplayMatching(b).workArea;
+  const plantH = Number.isFinite(size.plantH) ? Math.round(size.plantH) : plantBox.height;
+  const plantTop = Number.isFinite(size.plantTop) ? Math.round(size.plantTop) : h - plantH;
   let x = Math.round(b.x + (b.width - w) / 2);
-  let y = Math.round(b.y + b.height - h);
-  // Keep a usable strip on-screen.
+  let y = Math.round(b.y + plantBox.top - plantTop);
+  plantBox = { top: plantTop, height: plantH };
+  // Keep a usable strip on-screen sideways; keep the plant on screen vertically.
   x = Math.min(x, wa.x + wa.width - 120);
   x = Math.max(x, wa.x + 120 - w);
-  y = Math.min(y, wa.y + wa.height - 160);
-  y = Math.max(y, wa.y);
+  y = clampPlantY(y, wa);
   if (b.width !== w || b.height !== h || b.x !== x || b.y !== y) {
     win.setBounds({ x, y, width: w, height: h });
     savePosition(win.getBounds());

@@ -1,7 +1,19 @@
 import { useEffect, useState } from "react";
-import { CalendarBlankIcon, CaretDownIcon, LockSimpleIcon, TrashIcon } from "@phosphor-icons/react";
+import {
+  BellRingingIcon,
+  CalendarBlankIcon,
+  CaretDownIcon,
+  ChatCircleDotsIcon,
+  HandGrabbingIcon,
+  LockSimpleIcon,
+  MoonStarsIcon,
+  PersonSimpleTaiChiIcon,
+  PlantIcon,
+  SmileyWinkIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 import type { Settings } from "../store";
-import { GROWTH_LABEL, type GrowthStage, type WeekStats } from "../growth";
+import { GROWTH_LABEL, GROWTH_MAX_POINTS, type GrowthStage, type WeekStats } from "../growth";
 import { GrowthIcon, ListCard, Panel, PanelHeader, SectionLabel } from "@/components/panel";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
 import { Switch } from "@/components/ui/switch";
@@ -13,6 +25,8 @@ import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ACCENTS, CLOUD_VOICES, speak, type CloudVoice } from "../voice";
+import { cn } from "@/lib/utils";
+import { FEATURES } from "../features";
 
 // Settings, in Blob's own voice. Grouped cards with the control on the right
 // (Wispr Flow / Obsidian pattern), built from shadcn Item rows.
@@ -85,6 +99,7 @@ export default function SettingsPanel({
   facts,
   week,
   growthStage,
+  points,
   onPatch,
   onDeleteFact,
   onClearChat,
@@ -92,12 +107,15 @@ export default function SettingsPanel({
   onDeleteAll,
   onClose,
   showKeyRow = true,
+  aiName = "ChatGPT",
   cloudVoice,
 }: {
   settings: Settings;
   facts: string[];
   week: WeekStats;
   growthStage: GrowthStage;
+  /** Today's growth points (0–12). */
+  points: number;
   onPatch: (patch: Partial<Settings>) => void;
   onDeleteFact: (fact: string) => void;
   onClearChat: () => void | Promise<void>;
@@ -106,6 +124,8 @@ export default function SettingsPanel({
   onClose: () => void;
   /** Hidden for beta testers, whose chats go through the proxy (no key). */
   showKeyRow?: boolean;
+  /** "ChatGPT" or "Claude": who answers chat (from the saved key / beta build). */
+  aiName?: string;
   /** Google voice available (online via proxy or local key) + region accent. */
   cloudVoice?: { available: boolean; autoAccent: string };
 }) {
@@ -160,7 +180,8 @@ export default function SettingsPanel({
     if (s) setCalStatus(s);
   };
 
-  const needsGoogleUpgrade = calStatus.connected && (!calStatus.canCreateEvents || !calStatus.gmail);
+  const needsGoogleUpgrade =
+    calStatus.connected && (!calStatus.canCreateEvents || (FEATURES.gmailAlerts && !calStatus.gmail));
 
   const canConnect =
     calStatus.hasClient || (!!clientId.trim() && !!clientSecret.trim());
@@ -225,38 +246,111 @@ export default function SettingsPanel({
       <PanelHeader title="Settings" onClose={onClose} />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-        <SectionLabel>This week</SectionLabel>
+        <SectionLabel>Today</SectionLabel>
         <ListCard>
-          <div className="flex items-center gap-3 p-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-success-soft text-success">
-              <GrowthIcon stage={growthStage} className="size-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="font-medium">Today I'm {GROWTH_LABEL[growthStage]}</div>
-              <div className="text-xs text-muted-foreground">
-                {weekQuiet
-                  ? "A quiet week so far. Stretch, sip water or finish a timed task and I'll grow."
-                  : "Every stretch, sip and timed task helps me grow."}
+          <div className="flex flex-col gap-3 p-3">
+            <div className="flex items-center gap-3">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-success-soft">
+                <GrowthIcon stage={growthStage} className="size-10" />
+              </div>
+              <div className="min-w-0">
+                <div className="font-medium">Today I'm {GROWTH_LABEL[growthStage]}</div>
+                <div className="text-xs text-muted-foreground tabular-nums">
+                  Stage {growthStage} of 7 · {points} of {GROWTH_MAX_POINTS} points
+                </div>
               </div>
             </div>
+            <div
+              className="h-2 overflow-hidden rounded-full bg-muted"
+              role="progressbar"
+              aria-label="How much I've grown today"
+              aria-valuemin={0}
+              aria-valuemax={GROWTH_MAX_POINTS}
+              aria-valuenow={points}
+            >
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#2ea064] via-[#7fd38a] to-[#f2a2bd] transition-[width] duration-500"
+                style={{ width: `${(Math.min(points, GROWTH_MAX_POINTS) / GROWTH_MAX_POINTS) * 100}%` }}
+              />
+            </div>
+            <div className="flex justify-between px-0.5" aria-hidden>
+              {STAGES.map((n) => (
+                <GrowthIcon
+                  key={n}
+                  stage={n}
+                  className={cn(
+                    "size-6 transition",
+                    n > growthStage && "opacity-45 grayscale-[0.6]",
+                    n === growthStage && "scale-125 drop-shadow-sm",
+                  )}
+                />
+              ))}
+            </div>
+            <p className="text-xs leading-relaxed text-muted-foreground">{nextStepHint(growthStage, points)}</p>
           </div>
           {!weekQuiet && (
             <div className="grid grid-cols-3 divide-x">
-              <Stat value={week.wellness} label="Self-care" />
+              <Stat value={week.wellness} label="Self-care this week" />
               <Stat value={week.taskBonus} label="Timed tasks" />
               <div className="px-3 py-2">
-                <GrowthIcon stage={week.stagePeak} className="size-5 text-success" />
+                <GrowthIcon stage={week.stagePeak} className="size-6" />
                 <div className="mt-0.5 text-[11px] text-muted-foreground">Best bloom</div>
               </div>
             </div>
           )}
         </ListCard>
 
+        <SectionLabel>How I work</SectionLabel>
+        <Collapsible defaultOpen>
+          <ListCard>
+            <CollapsibleTrigger className="group w-full text-left hover:bg-muted/40">
+              <Row label="A quick guide to me" desc="What I do, and how I grow with you">
+                <CaretDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+              </Row>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="divide-y border-t">
+              <HowRow icon={PlantIcon} tone="bg-success/12 text-success" title="I grow when you look after yourself">
+                A stretch or water break is +2, a finished timed task is +1. {GROWTH_MAX_POINTS} points is full bloom. I
+                start small again every morning, so there are no streaks and no guilt.
+              </HowRow>
+              <HowRow icon={PersonSimpleTaiChiIcon} tone="bg-primary/12 text-primary" title="Gentle nudges">
+                {settings.breakMins > 0
+                  ? `I suggest a stretch after about ${settings.breakMins} minutes of work`
+                  : "Stretch nudges are off"}
+                {settings.waterNudge ? `, and a water break every ${settings.waterMins} minutes` : ""}. Never more than
+                four a day{settings.autoHideOnCalls ? ", and I hide while you're on a call" : ""}.
+              </HowRow>
+              <HowRow icon={BellRingingIcon} tone="bg-[#e8a04a]/16 text-warning" title="Reminders">
+                Type or say “call mom at 6” in Tasks{settings.chatOn ? " or in chat" : ""}, and I ring my little bell right on time
+                {settings.calendarReminders ? ". Meetings too, from your calendar" : ""}.
+              </HowRow>
+              <HowRow icon={ChatCircleDotsIcon} tone="bg-[#2f6fb3]/12 text-[#2f6fb3] dark:text-[#8db8ec]" title="Chat with me">
+                {settings.chatOn
+                  ? "Click me, then Chat. Vent, plan or ask anything. I remember little things you tell me, and you can see or delete them under “What I remember”."
+                  : "Chat is off, so nothing you type is sent anywhere. Switch it on under Privacy whenever you'd like to talk."}
+              </HowRow>
+              <HowRow icon={SmileyWinkIcon} tone="bg-[#f2a2bd]/22 text-[#c2416b] dark:text-[#f2a2bd]" title="Silly jokes">
+                {settings.jokeEvery === "off"
+                  ? "Jokes are off. Switch them on below if you'd like a giggle."
+                  : `About every ${settings.jokeEvery === "rare" ? 6 : 3} hours I tell you one. Tap “What?” for the punchline.`}
+              </HowRow>
+              <HowRow icon={MoonStarsIcon} tone="bg-primary/12 text-primary" title="Bedtime">
+                {settings.bedtime
+                  ? `At ${clock12(settings.bedtime)} I get sleepy, say goodnight and nudge you to rest.`
+                  : "Bedtime care is off. Set a time below and I'll remind you to rest."}
+              </HowRow>
+              <HowRow icon={HandGrabbingIcon} tone="bg-muted text-foreground" title="Moving me around">
+                Click me for the menu, drag me anywhere on your screen, or tap Nap in the menu to tuck me away for a bit.
+              </HowRow>
+            </CollapsibleContent>
+          </ListCard>
+        </Collapsible>
+
         <SectionLabel>Me and you</SectionLabel>
         <ListCard>
           <Row label="My name">
             <Input
-              className="h-7 w-32 rounded-md text-right"
+              className="h-7 w-32 rounded-md text-left"
               value={settings.companionName}
               onChange={(e) => onPatch({ companionName: e.target.value })}
               aria-label="companion name"
@@ -264,7 +358,7 @@ export default function SettingsPanel({
           </Row>
           <Row label="What I call you">
             <Input
-              className="h-7 w-32 rounded-md text-right"
+              className="h-7 w-32 rounded-md text-left"
               placeholder="Your name"
               value={settings.userName}
               onChange={(e) => onPatch({ userName: e.target.value })}
@@ -485,16 +579,18 @@ export default function SettingsPanel({
         <SectionLabel>Google</SectionLabel>
         <ListCard>
           <Row
-            label="Calendar and Gmail"
+            label={FEATURES.gmailAlerts ? "Calendar and Gmail" : "Google Calendar"}
             desc={
               calStatus.connected ? (
                 needsGoogleUpgrade ? (
-                  <span className="text-warning">Reconnect to let me book meetings and spot new emails</span>
+                  <span className="text-warning">
+                    {FEATURES.gmailAlerts ? "Reconnect to let me book meetings and spot new emails" : "Reconnect to let me book meetings"}
+                  </span>
                 ) : (
                   <span className="font-medium text-success">Connected</span>
                 )
               ) : (
-                "Meeting pings, booking and new-email alerts"
+                FEATURES.gmailAlerts ? "Meeting pings, booking and new-email alerts" : "Meeting pings and booking"
               )
             }
           >
@@ -545,6 +641,7 @@ export default function SettingsPanel({
               aria-label="meeting reminders"
             />
           </Row>
+          {FEATURES.gmailAlerts && (
           <Row
             label="Tell me about new emails"
             desc={calStatus.connected && !calStatus.gmail ? "Needs Gmail access, reconnect above" : "Primary inbox only, sender and subject"}
@@ -555,6 +652,7 @@ export default function SettingsPanel({
               aria-label="new email alerts"
             />
           </Row>
+          )}
           <Row label="How early">
             <NativeSelect
               size="sm"
@@ -571,8 +669,9 @@ export default function SettingsPanel({
         </ListCard>
         {calMsg && <p className="px-1 pt-2 text-xs text-muted-foreground">{calMsg}</p>}
         <Note>
-          Meeting titles and email senders stay in memory for a moment. They're never saved and never sent
-          to Claude. I can only read email headers, never the emails themselves.
+          {FEATURES.gmailAlerts
+            ? "Meeting titles and email senders stay in memory for a moment. They're never saved and never sent to the AI. I can only read email headers, never the emails themselves."
+            : "Meeting titles stay in memory for a moment. They're never saved and never sent to the AI."}
         </Note>
 
         <SectionLabel>What I remember</SectionLabel>
@@ -621,7 +720,7 @@ export default function SettingsPanel({
             />
           </Row>
           {!showKeyRow ? null : !confirmKey ? (
-            <Row label="My brain key" desc="Your Claude API key">
+            <Row label="My brain key" desc={`Your ${aiName === "Claude" ? "Claude" : "OpenAI"} API key`}>
               <Button variant="secondary" size="sm" onClick={() => setConfirmKey(true)}>
                 Change key
               </Button>
@@ -642,6 +741,16 @@ export default function SettingsPanel({
 
         <SectionLabel>Privacy</SectionLabel>
         <ListCard>
+          <Row
+            label="Chat with AI"
+            desc={settings.chatOn ? `Your messages go to ${aiName} so I can reply` : "Off. Nothing you type is sent anywhere"}
+          >
+            <Switch
+              checked={settings.chatOn}
+              onCheckedChange={(v) => onPatch({ chatOn: v })}
+              aria-label="chat with AI"
+            />
+          </Row>
           <Row label="Chat history" desc="Deletes our messages. Memories stay.">
             {clearPhase === "idle" && (
               <Button variant="secondary" size="sm" onClick={runClearChat}>
@@ -673,13 +782,57 @@ export default function SettingsPanel({
           )}
         </ListCard>
         <Note>
-          Everything lives on this computer. Chats go to Claude only to think of a reply, never stored and
-          never used for training. Your voice never leaves at all.
+          Everything lives on this computer. With chat on, your messages and the little things I remember go to{" "}
+          {aiName === "Claude" ? "Claude (Anthropic's AI)" : "ChatGPT (OpenAI's AI)"} only to write a reply. They're not used to train AI and are deleted within 30
+          days. With chat off, nothing you type leaves this Mac. Your voice never leaves at all.
         </Note>
 
         <p className="pt-4 text-center text-[11px] text-muted-foreground/70">Companion 0.1.0 beta</p>
       </div>
     </Panel>
+  );
+}
+
+const STAGES: GrowthStage[] = [1, 2, 3, 4, 5, 6, 7];
+
+/** What gets me to the next stage, in plain words. */
+function nextStepHint(stage: GrowthStage, points: number): string {
+  if (stage === 7) return "In full bloom today! Tomorrow I start small again, tiny sprouts and all.";
+  const need = stage * 2 - points; // stage N+1 starts at 2N points
+  const next = GROWTH_LABEL[(stage + 1) as GrowthStage];
+  return need <= 1
+    ? `1 more point to ${next}: a stretch, a sip of water or a timed task.`
+    : `${need} more points to ${next}: one stretch or a glass of water.`;
+}
+
+/** "23:00" → "11:00 PM" */
+function clock12(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
+/** One line of the "How I work" guide: colour icon tile + short explanation. */
+function HowRow({
+  icon: Icon,
+  tone,
+  title,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string; weight?: "fill" | "regular" | "bold" | "duotone" }>;
+  tone: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3 px-3 py-2.5">
+      <div className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg", tone)}>
+        <Icon className="size-[18px]" weight="duotone" />
+      </div>
+      <div className="min-w-0">
+        <div className="text-[13px] font-medium">{title}</div>
+        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{children}</p>
+      </div>
+    </div>
   );
 }
 

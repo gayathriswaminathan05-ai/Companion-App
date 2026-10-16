@@ -1,7 +1,8 @@
 # Companion chat proxy
 
 A tiny "middleman" that runs on Cloudflare (free). Beta testers' apps send chat
-messages here. It adds your Claude API key and passes the chat on to Claude.
+messages here. It adds your AI key and passes the chat on to ChatGPT (OpenAI)
+or Claude (Anthropic), whichever the app build uses.
 **Your key only ever lives on Cloudflare. It is never inside the app.**
 
 It also:
@@ -81,6 +82,15 @@ UTC (5:30 AM in India).
 
 **Allow a different model / longer replies:** edit `ALLOWED_MODELS` or
 `MAX_TOKENS_CAP` in `wrangler.toml` the same way, then `npx wrangler deploy`.
+
+**Use ChatGPT (your own OpenAI account):**
+1. At https://platform.openai.com sign in, add a card under Billing, then
+   API keys → Create new secret key. (A ChatGPT Plus plan doesn't include this.)
+2. Run `npx wrangler secret put OPENAI_API_KEY` and paste the key.
+3. Run `npx wrangler deploy` (only needed once, to load the ChatGPT route).
+4. Tell Claude: the next app build then talks to ChatGPT. Replies are never
+   stored at OpenAI (the proxy forces `store: false`) and only web search is
+   allowed as a tool. Models: `OPENAI_ALLOWED_MODELS` in `wrangler.toml`.
 
 **Replace your Claude API key** (if it leaks, or just to be safe):
 1. Make a new key at https://console.anthropic.com → API Keys.

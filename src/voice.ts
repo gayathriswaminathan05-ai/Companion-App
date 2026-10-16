@@ -257,6 +257,40 @@ function untilEnded(src: AudioBufferSourceNode): Promise<void> {
   });
 }
 
+// Prefetch cache: lines we know are coming (a joke's punchline) are synthesized
+// ahead of time so they play the instant they're needed. Keyed by voice
+// settings + exact chunk text; holds the in-flight promise so a speak() that
+// arrives mid-prefetch simply waits for it instead of synthesizing twice.
+const PREFETCH_MAX = 12;
+const prefetched = new Map<string, Promise<SynthResult>>();
+
+function cacheKey(text: string, opts: SpeakOptions): string {
+  const c = opts.cloud ? `${opts.cloud.languageCode}/${opts.cloud.voiceName}` : "local";
+  return `${opts.voice ?? ""}|${opts.speed ?? ""}|${c}|${text}`;
+}
+
+/** Synthesize a line in the background now; a later speak() of the same text
+ *  (same options) plays it with no wait. Doesn't interrupt current speech. */
+export function prefetchSpeech(text: string, opts: SpeakOptions = {}): void {
+  if (!enabled) return;
+  const api = bridge();
+  const synth = api?.voiceSynthesize;
+  if (!synth) return;
+  for (const chunk of toSpeechChunks(text)) {
+    const key = cacheKey(chunk, opts);
+    if (prefetched.has(key)) continue;
+    const p = synth
+      .call(api, { text: chunk, voice: opts.voice, speed: opts.speed, cloud: opts.cloud ?? null })
+      .catch((err: unknown) => ({ error: String(err) }) as SynthResult);
+    prefetched.set(key, p);
+    // A failed prefetch shouldn't stick: speak() will just synthesize live.
+    void p.then((r) => {
+      if ("error" in r) prefetched.delete(key);
+    });
+    while (prefetched.size > PREFETCH_MAX) prefetched.delete(prefetched.keys().next().value!);
+  }
+}
+
 async function produce(
   api: Required<Pick<VoiceBridge, "voiceSynthesize">>,
   chunks: string[],
@@ -271,7 +305,10 @@ async function produce(
       if (my !== session) break;
       let res: SynthResult;
       try {
-        res = await api.voiceSynthesize({ text, voice: opts.voice, speed: opts.speed, cloud: opts.cloud ?? null });
+        const ready = prefetched.get(cacheKey(text, opts));
+        res = ready
+          ? await ready
+          : await api.voiceSynthesize({ text, voice: opts.voice, speed: opts.speed, cloud: opts.cloud ?? null });
       } catch (err) {
         res = { error: String(err) };
       }

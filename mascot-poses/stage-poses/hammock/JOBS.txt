@@ -1,0 +1,16 @@
+# Hammock per stage (Oct 15) — owner chose hammock for all stages. gpt_image_2_5 high 1k opaque 1.5cr; refs stage-N + hammock.png (media 95356a25-29f1-4ea1-88cd-4fe966c20ea7)
+hammock-stage1 04dfcc4d-1d1e-492f-9d54-95b8658fb490
+hammock-stage2 68c8bc33-3f47-49e7-8492-99d4ae66162f
+hammock-stage3 56fd7c75-5a8b-452c-aec8-63e3a6329e14
+hammock-stage5 fb5e1000-b6f4-4dba-b6ca-9f023b0ea15b
+hammock-stage6 caa9cc68-5f4d-4069-9a65-ae0d17bb78ef
+hammock-stage7 fed543c6-57a8-48fa-8c1d-f8a7f961b1fc
+# VIDEOS kling3_0 std 5s 1:1, start=end still (original hammock prompt + plant lock)
+hammock1-video ec3e2509-b46f-4457-a7e9-b208047b36d2
+hammock2-video 544a61fb-b3e3-4928-8b2d-45736600421c
+hammock3-video 076b94d4-e17f-458f-90da-0b4df3b94eff
+hammock5-video ea11ef2d-1ffa-447e-8f48-4d0ca7404232
+hammock6-video 3aac2c16-50ff-4368-9e0b-c9bfacb2a8e9
+hammock7-video 48386791-e355-4d5f-a3fa-5328f4b90058
+hammock1/2/3 ok (gentle sway, plant stable)
+hammock5/6/7 ok. ALL 6 HAMMOCK VIDEOS DONE (45cr) + stills 9cr

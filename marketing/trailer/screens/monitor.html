@@ -1,0 +1,156 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  /* Busy indie-dev desktop for the trailer (rendered to PNG by capture.cjs).
+     Generic, unbranded windows. 1600x900 layout, captured at 2x. */
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{overflow:hidden}body{width:1600px;height:900px;overflow:hidden}
+  body{zoom:var(--z,1);font-family:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif;
+    background:linear-gradient(160deg,#c9bdfd 0%,#f3c6d8 55%,#ffd9b8 100%);position:relative}
+  .menubar{height:26px;background:rgba(255,255,255,.72);backdrop-filter:blur(20px);display:flex;align-items:center;
+    padding:0 14px;gap:18px;font-size:13px;color:#1f1f2b}
+  .menubar b{font-weight:700}.menubar .r{margin-left:auto;display:flex;gap:14px}
+  .win{position:absolute;border-radius:12px;overflow:hidden;box-shadow:0 18px 50px rgba(30,20,60,.28),0 0 0 1px rgba(0,0,0,.12)}
+  .bar{height:30px;display:flex;align-items:center;padding:0 12px;gap:7px;font-size:12px}
+  .dot{width:12px;height:12px;border-radius:50%}
+  .r1{background:#ff5f57}.y1{background:#febc2e}.g1{background:#28c840}
+  /* editor */
+  .ed{left:24px;top:46px;width:900px;height:640px;background:#1e1e2e;color:#cdd6f4}
+  .ed .bar{background:#181825;color:#a6adc8}
+  .ed .tabs{display:flex;background:#181825;font-size:12px}
+  .ed .tab{padding:7px 14px;color:#7f849c;border-right:1px solid #11111b}
+  .ed .tab.on{background:#1e1e2e;color:#cdd6f4;border-top:2px solid #cba6f7}
+  .ed .body{display:flex;height:100%}
+  .tree{width:190px;background:#181825;font-size:12px;color:#a6adc8;padding:10px 0;line-height:23px}
+  .tree div{padding-left:14px}.tree .i{padding-left:30px}.tree .ii{padding-left:46px}.tree .on{background:#313244;color:#fff}
+  pre{font:13px/21px "SF Mono",Menlo,monospace;padding:12px 16px;white-space:pre}
+  .ln{color:#585b70;display:inline-block;width:28px}
+  .k{color:#cba6f7}.s{color:#a6e3a1}.f{color:#89b4fa}.t{color:#f9e2af}.c{color:#6c7086}.n{color:#fab387}.p{color:#f38ba8}
+  /* browser */
+  .br{left:940px;top:46px;width:636px;height:430px;background:#fff}
+  .br .bar{background:#f2f1f6;color:#555}
+  .url{flex:1;margin-left:12px;background:#fff;border-radius:7px;padding:4px 10px;font-size:12px;color:#444;border:1px solid #e3e1ea}
+  .page{padding:22px;font-size:13px;color:#201d2f}
+  .page h2{font-size:22px;margin-bottom:12px}
+  .item{display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px;background:#f7f5ff;margin-bottom:9px}
+  .sw{width:46px;height:46px;border-radius:10px}
+  .item b{display:block}.item span{color:#6c6977;font-size:12px}
+  .price{margin-left:auto;font-weight:700}
+  .btn{margin-top:12px;background:#6a53e7;color:#fff;border-radius:12px;padding:12px;text-align:center;font-weight:700}
+  /* terminal */
+  .tm{left:960px;top:452px;width:616px;height:300px;background:#0f0f17;color:#d6d6e7}
+  .tm .bar{background:#1b1b26;color:#9a9ab0}
+  .tm pre{font-size:12px;line-height:19px}
+  .ok{color:#a6e3a1}.warn{color:#f9e2af}.err{color:#ff6b81}.dim{color:#6c6f85}
+  /* chat */
+  .ch{left:250px;top:560px;width:380px;height:240px;background:#fff}
+  .ch .bar{background:#4a3aa8;color:#fff;font-weight:700}
+  .msg{display:flex;gap:9px;padding:9px 14px;font-size:13px;color:#201d2f}
+  .av{width:28px;height:28px;border-radius:8px;flex:none}
+  .msg b{font-size:12px}.msg small{color:#888;margin-left:6px;font-size:11px}
+  /* dock */
+  .dock{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;display:flex;gap:9px;padding:8px 12px;
+    background:rgba(255,255,255,.45);border-radius:18px;border:1px solid rgba(255,255,255,.6)}
+  .ic{width:44px;height:44px;border-radius:11px}
+  /* our companion */
+  .plant{position:absolute;right:30px;bottom:72px;height:230px}
+  .bubble{position:absolute;right:205px;bottom:250px;width:300px;background:#fff;border-radius:18px;padding:16px 18px;
+    box-shadow:0 14px 40px rgba(32,29,47,.25),0 0 0 1px rgba(32,29,47,.08);color:#201d2f}
+  .bubble p{font-size:17px;font-weight:700;line-height:1.3}
+  .bubble span{display:block;font-size:13px;color:#6c6977;margin-top:4px}
+  .bubble .row{display:flex;gap:8px;margin-top:12px}
+  .bubble .a{background:#6a53e7;color:#fff;border-radius:10px;padding:8px 14px;font-weight:700;font-size:13px}
+  .bubble .b{background:#f5f3ff;color:#6a53e7;border-radius:10px;padding:8px 14px;font-weight:700;font-size:13px}
+</style></head>
+<body>
+<div class="menubar"><b>Code</b><span>File</span><span>Edit</span><span>Selection</span><span>View</span><span>Go</span><span>Terminal</span>
+  <div class="r"><span>⚡ 82%</span><span>Wed 15 Oct</span><span>4:12 PM</span></div></div>
+
+<div class="win ed">
+  <div class="bar"><i class="dot r1"></i><i class="dot y1"></i><i class="dot g1"></i><span style="margin-left:12px">shop-app — CartDrawer.tsx</span></div>
+  <div class="body">
+    <div class="tree">
+      <div>▾ shop-app</div><div class="i">▸ public</div><div class="i">▾ src</div>
+      <div class="ii">▸ api</div><div class="ii">▾ components</div>
+      <div class="ii on">&nbsp;&nbsp;&nbsp;CartDrawer.tsx</div><div class="ii">&nbsp;&nbsp;&nbsp;Checkout.tsx</div>
+      <div class="ii">&nbsp;&nbsp;&nbsp;PriceTag.tsx</div><div class="ii">▸ hooks</div><div class="ii">&nbsp;App.tsx</div>
+      <div class="ii">&nbsp;main.tsx</div><div class="i">package.json</div><div class="i">vite.config.ts</div>
+    </div>
+    <div style="flex:1">
+      <div class="tabs"><span class="tab on">CartDrawer.tsx</span><span class="tab">Checkout.tsx</span><span class="tab">api.ts</span><span class="tab">styles.css</span></div>
+<pre><span class="ln">31</span><span class="k">export function</span> <span class="f">CartDrawer</span>({ <span class="t">items</span>, <span class="t">onClose</span> }: <span class="t">Props</span>) {
+<span class="ln">32</span>  <span class="k">const</span> [<span class="t">coupon</span>, <span class="f">setCoupon</span>] = <span class="f">useState</span>(<span class="s">""</span>);
+<span class="ln">33</span>  <span class="k">const</span> { <span class="t">rates</span> } = <span class="f">useShipping</span>(<span class="t">items</span>);
+<span class="ln">34</span>
+<span class="ln">35</span>  <span class="c">// TODO: why is subtotal NaN on Safari??</span>
+<span class="ln">36</span>  <span class="k">const</span> <span class="t">subtotal</span> = <span class="f">useMemo</span>(() =&gt;
+<span class="ln">37</span>    <span class="t">items</span>.<span class="f">reduce</span>((<span class="t">sum</span>, <span class="t">it</span>) =&gt; <span class="t">sum</span> + <span class="t">it</span>.<span class="t">variant</span>.<span class="t">price</span> * <span class="t">it</span>.<span class="t">qty</span>, <span class="n">0</span>),
+<span class="ln">38</span>  [<span class="t">items</span>]);
+<span class="ln">39</span>
+<span class="ln">40</span>  <span class="k">const</span> <span class="t">total</span> = <span class="t">subtotal</span> - <span class="f">discount</span>(<span class="t">coupon</span>) + (<span class="t">rates</span>[<span class="n">0</span>]?.<span class="t">amount</span> ?? <span class="n">0</span>);
+<span class="ln">41</span>
+<span class="ln">42</span>  <span class="k">return</span> (
+<span class="ln">43</span>    &lt;<span class="p">Sheet</span> <span class="t">open</span> <span class="t">onOpenChange</span>={<span class="t">onClose</span>}&gt;
+<span class="ln">44</span>      &lt;<span class="p">SheetHeader</span>&gt;Your cart ({<span class="t">items</span>.<span class="t">length</span>})&lt;/<span class="p">SheetHeader</span>&gt;
+<span class="ln">45</span>      {<span class="t">items</span>.<span class="f">map</span>((<span class="t">it</span>) =&gt; (
+<span class="ln">46</span>        &lt;<span class="p">CartRow</span> <span class="t">key</span>={<span class="t">it</span>.<span class="t">id</span>} <span class="t">item</span>={<span class="t">it</span>} /&gt;
+<span class="ln">47</span>      ))}
+<span class="ln">48</span>      &lt;<span class="p">PriceTag</span> <span class="t">label</span>=<span class="s">"Total"</span> <span class="t">value</span>={<span class="t">total</span>} /&gt;
+<span class="ln">49</span>      &lt;<span class="p">Button</span> <span class="t">onClick</span>={<span class="f">checkout</span>}&gt;Checkout&lt;/<span class="p">Button</span>&gt;
+<span class="ln">50</span>    &lt;/<span class="p">Sheet</span>&gt;
+<span class="ln">51</span>  );
+<span class="ln">52</span>}
+<span class="ln">53</span>
+<span class="ln">54</span><span class="k">function</span> <span class="f">discount</span>(<span class="t">code</span>: <span class="t">string</span>) {
+<span class="ln">55</span>  <span class="k">if</span> (<span class="t">code</span> === <span class="s">"LAUNCH20"</span>) <span class="k">return</span> <span class="n">20</span>;
+<span class="ln">56</span>  <span class="k">return</span> <span class="n">0</span>;
+<span class="ln">57</span>}</pre>
+    </div>
+  </div>
+</div>
+
+<div class="win br">
+  <div class="bar"><i class="dot r1"></i><i class="dot y1"></i><i class="dot g1"></i><span class="url">localhost:5173/checkout</span></div>
+  <div class="page">
+    <h2>Your cart (3)</h2>
+    <div class="item"><i class="sw" style="background:#ffd166"></i><div><b>Mango tote bag</b><span>Size M · Qty 1</span></div><div class="price">₹1,299</div></div>
+    <div class="item"><i class="sw" style="background:#9ad1ff"></i><div><b>Cloud socks (3 pack)</b><span>Free size · Qty 2</span></div><div class="price">₹598</div></div>
+    <div class="item"><i class="sw" style="background:#ffa8c5"></i><div><b>Desk plant sticker</b><span>Qty 1</span></div><div class="price">₹99</div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font-weight:700"><span>Total</span><span class="err" style="color:#d4304a">₹NaN</span></div>
+    <div class="btn">Checkout</div>
+  </div>
+</div>
+
+<div class="win tm">
+  <div class="bar"><i class="dot r1"></i><i class="dot y1"></i><i class="dot g1"></i><span style="margin-left:12px">zsh — shop-app</span></div>
+<pre><span class="dim">~/projects/shop-app</span> <span class="ok">❯</span> npm run dev
+
+  <span class="ok">VITE v8.0.3</span>  ready in <b>412 ms</b>
+  ➜  Local:   <span class="f" style="color:#89b4fa">http://localhost:5173/</span>
+
+<span class="dim">4:09:51 PM</span> <span class="ok">[vite]</span> hmr update /src/components/CartDrawer.tsx
+<span class="dim">4:10:07 PM</span> <span class="warn">[warn]</span> useShipping: rates not loaded yet
+<span class="dim">4:11:32 PM</span> <span class="err">TypeError: Cannot read properties of undefined</span>
+<span class="err">    (reading 'price')</span>
+<span class="dim">    at CartDrawer.tsx:37:41</span>
+<span class="dim">4:12:03 PM</span> <span class="ok">[vite]</span> hmr update /src/components/CartDrawer.tsx
+</pre>
+</div>
+
+<div class="win ch">
+  <div class="bar">#launch-week</div>
+  <div class="msg"><i class="av" style="background:#ffb4c8"></i><div><b>Priya</b><small>4:02 PM</small><div>can we still demo at 5? 🙏</div></div></div>
+  <div class="msg"><i class="av" style="background:#a6d8ff"></i><div><b>Rohan</b><small>4:06 PM</small><div>build is red again 😬</div></div></div>
+  <div class="msg"><i class="av" style="background:#ffb4c8"></i><div><b>Priya</b><small>4:07 PM</small><div>no pressure 😅</div></div></div>
+</div>
+
+<div class="dock">
+  <i class="ic" style="background:#2f80ed"></i><i class="ic" style="background:#1e1e2e"></i><i class="ic" style="background:#4a3aa8"></i>
+  <i class="ic" style="background:#ff7a59"></i><i class="ic" style="background:#2fbf71"></i><i class="ic" style="background:#f2c94c"></i>
+  <i class="ic" style="background:#eb5757"></i><i class="ic" style="background:#9b51e0"></i>
+</div>
+
+<div class="bubble"><p>Stretch with me?</p><span>You've been coding for 2 hours straight.</span>
+  <div class="row"><span class="a">Did it! 🌱</span><span class="b">Not now</span></div></div>
+<img class="plant" src="../../../public/character/stretching4/f-030.png">
+</body></html>

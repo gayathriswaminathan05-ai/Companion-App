@@ -1,4 +1,5 @@
 // Blob's personality + memory → prompt assembly for the chat brain.
+import { JOKES } from "./jokes";
 import type { AppData } from "./store";
 import { GROWTH_LABEL, growthStageFor } from "./growth";
 
@@ -161,93 +162,8 @@ export function extractMemory(reply: string): { clean: string; facts: string[] }
   return { clean, facts };
 }
 
-export const FALLBACK_JOKES: { setup: string; punchline: string }[] = [
-  // classics (kept)
-  { setup: "what do you call a sleepy dinosaur?", punchline: "a dino-SNORE 🦕💤" },
-  { setup: "what do you call a sad cup of coffee?", punchline: "a depresso ☕" },
-  { setup: "what do you call a fish with no eyes?", punchline: "a fsh 🐟" },
-  { setup: "what do you call a bear with no teeth?", punchline: "a gummy bear 🐻" },
-  { setup: "what do you call a fake noodle?", punchline: "an impasta 🍝" },
-  { setup: "what do you call a cow with no legs?", punchline: "ground beef 🐄" },
-  { setup: "what do you call a boomerang that won't come back?", punchline: "a stick" },
-  { setup: "what do you call a dog that does magic?", punchline: "a labracadabrador 🐶✨" },
-  // food & kitchen
-  { setup: "what do you call cheese that isn't yours?", punchline: "nacho cheese 🧀" },
-  { setup: "what do you call a pig that does karate?", punchline: "a pork chop 🐷" },
-  { setup: "what do you call an alligator in a vest?", punchline: "an investigator 🐊" },
-  { setup: "what do you call a duck that gets all A's?", punchline: "a wise quacker 🦆" },
-  { setup: "what do you call a snowman in summer?", punchline: "a puddle ⛄" },
-  { setup: "what do you call a belt made of watches?", punchline: "a waist of time ⌚" },
-  { setup: "what do you call a factory that sells passable products?", punchline: "a satisfactory 🏭" },
-  { setup: "what do you call a sad strawberry?", punchline: "a blueberry 🍓😢" },
-  { setup: "what do you call a can opener that doesn't work?", punchline: "a can't opener 🥫" },
-  { setup: "what do you call a sleeping bull?", punchline: "a bulldozer 🐂💤" },
-  { setup: "what do you call a funny mountain?", punchline: "hill-arious ⛰️" },
-  { setup: "what do you call a cow that plays an instrument?", punchline: "a moo-sician 🐄🎵" },
-  { setup: "what do you call a bee that can't make up its mind?", punchline: "a maybe 🐝" },
-  { setup: "what do you call a train full of bubblegum?", punchline: "a chew-chew train 🚂" },
-  { setup: "what do you call a lazy kangaroo?", punchline: "a pouch potato 🦘" },
-  { setup: "what do you call a dinosaur that crashes its car?", punchline: "a tyrannosaurus wrecks 🚗" },
-  // animals
-  { setup: "what do you call a fly without wings?", punchline: "a walk 🪰" },
-  { setup: "what do you call a pony with a sore throat?", punchline: "a little horse 🐴" },
-  { setup: "what do you call a sheep that does karate?", punchline: "a lamb chop 🐑" },
-  { setup: "what do you call a cat that joined the Red Cross?", punchline: "a first-aid kit 🐱" },
-  { setup: "what do you call a rabbit with fleas?", punchline: "bugs bunny 🐰" },
-  { setup: "what do you call a dog on the beach in summer?", punchline: "a hot dog 🌭" },
-  { setup: "what do you call a thieving alligator?", punchline: "a crookodile 🐊" },
-  { setup: "what do you call a fish wearing a bowtie?", punchline: "so-fish-ticated 🐠" },
-  { setup: "what do you call an owl that does magic?", punchline: "hoodini 🦉✨" },
-  { setup: "what do you call a penguin in the desert?", punchline: "lost 🐧" },
-  { setup: "what do you call a goat that tells jokes?", punchline: "a silly billy 🐐" },
-  { setup: "what do you call a frog that parks illegally?", punchline: "toad away 🐸" },
-  { setup: "what do you call a deer with no eyes?", punchline: "no eye-deer 🦌" },
-  { setup: "what do you call a deer with no eyes and no legs?", punchline: "still no eye-deer" },
-  // plant / pot / sprout-friendly
-  { setup: "what do you call a plant that sings?", punchline: "a rapp-erb 🌱🎤" },
-  { setup: "what do you call a flower that runs on electricity?", punchline: "a power plant ⚡🌸" },
-  { setup: "what do you call a cactus that won the lottery?", punchline: "a prickly rich 🌵💰" },
-  { setup: "what do you call a vegetable that's also a musician?", punchline: "a beet-box 🥁" },
-  { setup: "what do you call a nervous tree?", punchline: "a stressed oak 🌳" },
-  { setup: "what do you call a plant that's always late?", punchline: "a dande-LYIN' 🌼" },
-  { setup: "what do you call dirt that wrote a book?", punchline: "a best-soil-er 📖" },
-  { setup: "what do you call a sprout that does yoga?", punchline: "flexible greens 🧘🌱" },
-  { setup: "what do you call a pot that tells secrets?", punchline: "a tea-pot — it spills 🫖" },
-  { setup: "what do you call a leaf that loves gossip?", punchline: "a tea leaf 🍃" },
-  // silly everyday
-  { setup: "what do you call a stubbed toe?", punchline: "a toe-tal disaster 🦶" },
-  { setup: "what do you call a messy room?", punchline: "a disaster-piece 🎨" },
-  { setup: "what do you call a ghost's true love?", punchline: "his ghoul-friend 👻💕" },
-  { setup: "what do you call a skeleton who uses the doorbell?", punchline: "a dead ringer 💀🔔" },
-  { setup: "what do you call a witch at the beach?", punchline: "a sand-witch 🏖️" },
-  { setup: "what do you call a group of musical whales?", punchline: "an orca-stra 🐋" },
-  { setup: "what do you call a tired candle?", punchline: "burnt out 🕯️" },
-  { setup: "what do you call a computer that sings?", punchline: "a Dell 🎵" },
-  { setup: "what do you call a chilly library book?", punchline: "a cold case 📚" },
-  { setup: "what do you call a shoe made of bananas?", punchline: "a slipper 🍌" },
-  { setup: "what do you call an island that gets smaller every day?", punchline: "a shrink-island 🏝️" },
-  { setup: "what do you call a snowstorm of jokes?", punchline: "a pun-blizzard ❄️" },
-  { setup: "what do you call a clock that's hungry?", punchline: "lunchtime 🕒" },
-  { setup: "what do you call a balloon that needs a nap?", punchline: "deflated 🎈💤" },
-  { setup: "what do you call a happy pickle?", punchline: "a jolly green 🥒" },
-  { setup: "what do you call a spider that just got married?", punchline: "a newlyweb 🕷️" },
-  { setup: "what do you call a mushroom that loves parties?", punchline: "a fun-gi 🍄🎉" },
-  { setup: "what do you call nervous bread?", punchline: "toast with anxiety 🍞" },
-  { setup: "what do you call a cow in an earthquake?", punchline: "a milkshake 🥛" },
-  { setup: "what do you call a dinosaur that loves spicy food?", punchline: "a jalapeño-saurus 🌶️" },
-  { setup: "what do you call an elephant that doesn't matter?", punchline: "an irrelephant 🐘" },
-  { setup: "what do you call a sleeping pizza?", punchline: "a piZZZZa 🍕💤" },
-  { setup: "what do you call a cat in a spaceship?", punchline: "a meow-tronaut 🐱🚀" },
-  { setup: "what do you call a bee that lives in America?", punchline: "a USB 🐝" },
-  { setup: "what do you call a penguin's favorite relative?", punchline: "aunt-arctica 🐧" },
-  { setup: "what do you call a duck detective?", punchline: "a private quacker 🕵️🦆" },
-  { setup: "what do you call a potato that got famous?", punchline: "a speck-tato 🥔⭐" },
-  { setup: "what do you call a snail on a ship?", punchline: "a snailor 🐌⛵" },
-  { setup: "what do you call a kangaroo's favorite sneakers?", punchline: "hop-tops 👟" },
-  { setup: "what do you call a cheerful lemon?", punchline: "a lemonade 🍋😊" },
-  { setup: "what do you call a cloud that loves drama?", punchline: "a soap opera in the sky ☁️" },
-  { setup: "what do you call a plant that texts too much?", punchline: "a leaf on read 📱🌱" },
-];
+// The plant's joke book lives in jokes.ts (300+ wholesome riddles).
+export const FALLBACK_JOKES = JOKES;
 
 /** Normalize setup text for "already told" matching. */
 export function jokeKey(setup: string): string {

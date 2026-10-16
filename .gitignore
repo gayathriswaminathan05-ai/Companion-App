@@ -14,3 +14,6 @@ electron/beta-config.json
 # Working copies of raw videos for manual background removal
 /Video assets for background removal/
 /Voice samples/
+
+# Big re-makeable cut-outs for the trailer close-ups (marketing/trailer/rebuild.sh plants)
+/marketing/trailer/plant-hi/

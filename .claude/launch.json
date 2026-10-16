@@ -34,6 +34,19 @@
         "dev"
       ],
       "port": 5174
+    },
+    {
+      "name": "beta-site",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "http-server",
+        "site",
+        "-p",
+        "8790",
+        "-c-1",
+        "--silent"
+      ],
+      "port": 8790
     }
   ]
 }

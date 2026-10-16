@@ -18,7 +18,11 @@ const { createGmailWatcher } = require("./gmail.cjs");
 // Scopes we ask for on Connect.
 const SCOPE_CAL_EVENTS = "https://www.googleapis.com/auth/calendar.events"; // read + create events
 const SCOPE_GMAIL_METADATA = "https://www.googleapis.com/auth/gmail.metadata"; // headers/labels, NO bodies
-const SCOPES = [SCOPE_CAL_EVENTS, SCOPE_GMAIL_METADATA];
+// Gmail alerts are switched OFF for now (owner, Oct 16): the Gmail scope is
+// "restricted" (paid yearly security assessment to go public). Keep in sync
+// with src/features.ts FEATURES.gmailAlerts.
+const GMAIL_FEATURE = false;
+const SCOPES = GMAIL_FEATURE ? [SCOPE_CAL_EVENTS, SCOPE_GMAIL_METADATA] : [SCOPE_CAL_EVENTS];
 // Older / broader scopes we may find in a saved grant.
 const SCOPE_CAL_READONLY = "https://www.googleapis.com/auth/calendar.readonly"; // first-version connect
 const SCOPE_CAL_EVENTS_READONLY = "https://www.googleapis.com/auth/calendar.events.readonly";
@@ -337,7 +341,7 @@ async function pollMeetings(dataFile) {
 function syncGmail() {
   if (!userDataPath) return;
   const f = scopeFlags(loadTokens());
-  if (gmailEnabled && f.connected && f.gmail) gmail.start();
+  if (GMAIL_FEATURE && gmailEnabled && f.connected && f.gmail) gmail.start();
   else gmail.stop();
 }
 

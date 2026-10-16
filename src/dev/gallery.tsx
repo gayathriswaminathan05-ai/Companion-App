@@ -159,6 +159,20 @@ function Gallery() {
           onBlobState={noop}
         />
       </Frame>
+      <Frame label="Chat: switched off">
+        <ChatPanel
+          chatOn={false}
+          onEnableChat={noop}
+          messages={MESSAGES}
+          streamText={null}
+          busy={false}
+          connected
+          onConnectKey={noop}
+          onSend={noop}
+          onClose={noop}
+          onBlobState={noop}
+        />
+      </Frame>
       <Frame label="Chat: connect brain">
         <ChatPanel
           messages={[]}
@@ -212,6 +226,7 @@ function Gallery() {
           facts={facts}
           week={{ key: "w", wellness: 7, taskBonus: 3, stagePeak: 5 }}
           growthStage={3}
+            points={5}
           onPatch={(p) => setSettings((s) => ({ ...s, ...p }))}
           onDeleteFact={noop}
           onClearChat={async () => {}}
@@ -234,18 +249,42 @@ function Gallery() {
       </Frame>
       <Frame label="Menu bar (click plant)" w={384} h={600}>
         <RadialMenu
+          winW={384}
+          plantTop={360}
+          plantBottom={600}
           clipLeft={0}
           clipRight={0}
           onDismiss={noop}
           onSecret={noop}
-          items={[
-            { icon: "chat", label: "chat", onClick: noop },
-            { icon: "tasks", label: "tasks", onClick: noop },
-            { icon: "settings", label: "settings", onClick: noop },
-            { icon: "tuck", label: "nap", onClick: noop },
-          ]}
+          items={MENU_ITEMS}
         />
         <PlantStub />
+      </Frame>
+      <Frame label="Menu bar: plant at the top of the screen (opens below)" w={384} h={420}>
+        <RadialMenu
+          winW={384}
+          plantTop={80}
+          plantBottom={320}
+          below
+          clipLeft={0}
+          clipRight={0}
+          onDismiss={noop}
+          onSecret={noop}
+          items={MENU_ITEMS}
+        />
+        <PlantStub top={80} />
+      </Frame>
+      <Frame label="Nudge: plant at the top of the screen (opens below)" w={384} h={520}>
+        <div className="ui-flip" style={{ position: "absolute", inset: 0, "--bubble-top": "330px" } as React.CSSProperties}>
+          <NudgeBubble
+            text="you've been at it a while. stretch with me?"
+            actions={[
+              { label: "Did it", primary: true, onClick: noop },
+              { label: "Not now", onClick: noop },
+            ]}
+          />
+          <PlantStub top={80} />
+        </div>
       </Frame>
       <Frame label="Growth: stage 6 vs stage 7 (pot sizes should match)" w={420} h={300}>
         <div style={{ position: "absolute", left: 0, bottom: 0, width: 204, height: 240 }}>
@@ -347,12 +386,29 @@ function ConfettiDemo() {
   );
 }
 
-function PlantStub() {
+const MENU_ITEMS = [
+  { icon: "chat" as const, label: "chat", onClick: noop },
+  { icon: "tasks" as const, label: "tasks", onClick: noop },
+  { icon: "settings" as const, label: "settings", onClick: noop },
+  { icon: "tuck" as const, label: "nap", onClick: noop },
+];
+
+/** Stage-2 plant at the bottom of a frame (or `top` px from the top: plant near the screen top). */
+function PlantStub({ top }: { top?: number }) {
   return (
     <img
       src="./character/growth2/f-001.png"
       alt=""
-      style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", width: 204, height: 240, objectFit: "contain", objectPosition: "bottom center" }}
+      style={{
+        position: "absolute",
+        ...(top === undefined ? { bottom: 0 } : { top }),
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: 204,
+        height: 240,
+        objectFit: "contain",
+        objectPosition: "bottom center",
+      }}
     />
   );
 }

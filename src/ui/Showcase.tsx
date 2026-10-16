@@ -19,7 +19,6 @@ const SHOW: { state: CharacterState; icon: string; label: string }[] = [
   { state: "stretching", icon: "🤸", label: "stretch" },
   { state: "watering", icon: "💧", label: "water" },
   { state: "dragged", icon: "✋", label: "dangle" },
-  { state: "juggling", icon: "🤹", label: "juggle" },
   { state: "celebrating", icon: "🎉", label: "party" },
   { state: "noting", icon: "📝", label: "notes" },
   { state: "sleeping", icon: "😴", label: "sleep" },

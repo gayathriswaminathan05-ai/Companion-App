@@ -36,6 +36,18 @@ function stageSprite(prefix: string, stage: number): { key: string; anim: Sprite
   return undefined;
 }
 
+/** Per-stage variant of a pose whose original art (SPRITES[prefix]) already
+ *  looks like stage 4: stage 4 uses that original; other stages use
+ *  `${prefix}${stage}`, falling back to the nearest lower stage. */
+function stageVariant(prefix: string, stage: number): SpriteAnimDef | undefined {
+  for (let s = stage; s >= 1; s--) {
+    if (s === 4 && SPRITES[prefix]) return SPRITES[prefix] as SpriteAnimDef;
+    const anim = SPRITES[`${prefix}${s}`] as SpriteAnimDef | undefined;
+    if (anim?.frames?.length) return anim;
+  }
+  return SPRITES[prefix] as SpriteAnimDef | undefined;
+}
+
 function isPartyState(state: CharacterState): boolean {
   return state === "celebrating" || /^grow\dto\d$/.test(state);
 }
@@ -53,6 +65,29 @@ function spriteScale(anim: SpriteAnimDef): number {
     const stageScale = fit(base) / fit(stage);
     const potScale = anim.potScale ?? 1;
     return Math.max(0.7, Math.min(1.6, stageScale * potScale));
+  }
+
+  // Per-stage champagne: that stage's idle scale × pot-width match (potScale,
+  // measured on the clip's first frames by process-clip), so the pot is the
+  // same size as the idle it interrupts.
+  const celebrateN = anim.frames[0]?.match(/\/celebrating(\d)\//)?.[1];
+  if (celebrateN) {
+    const stageIdle = SPRITES[`growth${celebrateN}`] as SpriteAnimDef | undefined;
+    if (stageIdle?.srcW && stageIdle?.srcH) {
+      return Math.max(0.6, Math.min(1.8, spriteScale(stageIdle) * (anim.potScale ?? 1)));
+    }
+  }
+
+  // Per-stage coffee / wave / sleep: same rule as champagne — that stage's
+  // idle scale × pot-rim match, so the pot never jumps size on a pose change
+  // (sleep retakes framed the plant smaller to leave room for the blanket).
+  // Capped so the lying pose still fits the 384px window.
+  const poseN = anim.frames[0]?.match(/\/(?:coffee|waving|sleeping)(\d)\//)?.[1];
+  if (poseN && anim.potScale) {
+    const stageIdle = SPRITES[`growth${poseN}`] as SpriteAnimDef | undefined;
+    if (stageIdle?.srcW && stageIdle?.srcH) {
+      return Math.max(0.6, Math.min(1.8, spriteScale(stageIdle) * anim.potScale));
+    }
   }
 
   // Per-stage stretch/walk: use the SAME on-screen scale as that stage's idle.
@@ -684,6 +719,33 @@ export default function Blob({
       </div>
     );
   }
+  // Click hop: every stage hops AS ITSELF — its own idle loop with a CSS
+  // crouch → spring → squash landing. (SPRITES.idlehop is the July pre-growth
+  // plant: no bud, different leaves, so it no longer matches any stage.)
+  // Swap for per-stage hop videos when there are credits (~7.5cr each).
+  if (state === "idlehop" && stageLoop?.frames?.length) {
+    return (
+      <div className="growth-hop">
+        <SpriteAnim key={growthKey} anim={stageLoop} />
+        <style>{`
+          .growth-hop {
+            animation: growthHop 1.1s both;
+            transform-origin: bottom center;
+          }
+          @keyframes growthHop {
+            0%   { transform: translateY(0) scale(1, 1); animation-timing-function: ease-out; }
+            14%  { transform: translateY(0) scale(1.1, 0.86); animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1); }
+            44%  { transform: translateY(-58px) scale(0.95, 1.07); animation-timing-function: cubic-bezier(0.55, 0, 0.8, 0.4); }
+            64%  { transform: translateY(0) scale(0.97, 1.04); animation-timing-function: ease-out; }
+            72%  { transform: translateY(0) scale(1.12, 0.86); animation-timing-function: ease-in-out; }
+            84%  { transform: translateY(0) scale(0.97, 1.04); animation-timing-function: ease-in-out; }
+            93%  { transform: translateY(0) scale(1.02, 0.98); }
+            100% { transform: translateY(0) scale(1, 1); }
+          }
+        `}</style>
+      </div>
+    );
+  }
   if (state === "idle" && stageLoop?.frames?.length) {
     // bridgeTick forces a re-render when the overlay clears.
     const bridge = bridgeTick >= 0 ? growBridgeRef.current : null;
@@ -779,8 +841,24 @@ export default function Blob({
     state === "stretching"
       ? stageSprite("stretching", growthStage)?.anim || SPRITES.stretching
       : undefined;
+  // Champagne: per-stage clips (same plant as idle N) when available.
+  const celebratingSprite =
+    state === "celebrating" ? stageSprite("celebrating", growthStage)?.anim : undefined;
+  // Chat sip (also thinking/listening), bedtime and hello match the plant's stage.
+  const stagePose =
+    state === "coffee" || state === "thinking" || state === "listening"
+      ? stageVariant("coffee", growthStage)
+      : state === "sleeping"
+        ? stageVariant("sleeping", growthStage)
+        : state === "waving"
+          ? stageVariant("waving", growthStage)
+          : state === "hammock"
+            ? stageVariant("hammock", growthStage)
+            : undefined;
   const sprite =
     idleSprite ||
+    celebratingSprite ||
+    stagePose ||
     wateringSprite ||
     meetingSprite ||
     stretchingSprite ||

@@ -1,0 +1,32 @@
+# Per-stage pose stills (Oct 15 2026) — gpt_image_2_5 high 1k opaque, 1.5cr each, WHITE BG
+# Refs: stage-N.png uploads (1 bf800be6, 2 ec844791, 3 4c3113c5, 4 8ecd0744, 5 2974b258,
+#   6 d166a1fd; 7 = still job 72455a45) + pose refs: celebrating.png 53bc21b2,
+#   bell stage6 44be538c, watering.png a43b1c8b, walk stage6-still-b 4d2f8366
+celebrate-stage1  8b71d784-5f9c-44a4-aeac-9446ca9447fc
+celebrate-stage2  39e34a2c-9bd3-4ec7-8cc2-3b741b943d5a
+celebrate-stage3  4b91cd23-c9ce-4e0b-93a9-0af82178c525
+celebrate-stage4  ee49e0cc-337d-45fc-83af-8be4b20a16d8
+celebrate-stage5  fd5702cf-dc71-4c6e-b97d-f49a240b94eb
+celebrate-stage6  d468a8ce-90ae-4186-8cab-96b63ed8977b
+celebrate-stage7  6da00f26-656c-4010-bff2-d043c7ea5181
+bell-stage7       888a7209-1adf-470c-9b14-00bcb8f3bfa8
+water-stage7      d800a9b9-2e91-4a40-9c87-70ef50d97f58
+walk-stage7       00fb04ea-d7bf-4a31-a9a5-9dba071f3a35
+water-stage7 (REJECTED long arm) d800a9b9-2e91-4a40-9c87-70ef50d97f58
+water-stage7-a   de8aacab-0cb1-433b-8160-eabcf34af7cd
+water-stage7-b   6256172c-6077-42f2-94ce-91d1c311a7c2
+# APPROVED (owner Oct 15): celebrate 1-7, bell7, water7 = B, walk7. Videos kling3_0 std 1:1 sound off.
+# VIDEO JOBS (Oct 15 2026) kling3_0 std 1:1 sound off, declined preset 24bae836
+celebrate1 c6cd3172-08f8-4ac3-a20d-db6ba7fad74f  (start only, 5s)
+celebrate2 60f504c9-6b75-47ee-aa95-48ea74581c24
+celebrate3 df2cec5b-60fb-45f3-bab6-1607bc0bd91f
+celebrate4 d3abe119-64bc-4b98-a48d-c8196ef82a19
+celebrate5 a79a59ee-fb65-4893-b680-64784ea100ff
+celebrate6 f233d038-9e86-4f58-a557-7ec8e949999d
+celebrate7 5d0c4dec-11d4-4be0-a7ec-76a53eb208d8
+meeting7   7f6c6cd7-6deb-4211-9247-3fb9ed2acc84  (start=end bell7, 5s)
+watering7  15d3228e-a3ae-473a-a6ee-c9849f7264e4  (start=end water-b, 5s)
+walk7      bb718ad5-036a-447f-8f15-6e8937220e0f  (start=end walk7, 10s)
+stage-6-white 3bda01ab-cfcd-4d7f-a010-d49b57607838
+draggedgrowth7 81de1dd9-3100-4a25-b749-984a90c0089b
+grow6to7 b4ca86d4-c18c-4b66-84ca-6b6d7f8da14e (start 3bda01ab stage6-white, end 72455a45)

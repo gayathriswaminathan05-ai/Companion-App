@@ -10,7 +10,7 @@ export type CharacterState =
   | "sleeping"
   | "waking"
   | "waving"
-  | "meeting" // calendar alert: rings a handheld bell
+  | "meeting" // calendar alert or task alarm: rings a handheld bell
   | "celebrating"
   | "laughing" // joke punchline — party laugh clip
   | "writing"
@@ -27,7 +27,8 @@ export type CharacterState =
   | "grow2to3"
   | "grow3to4"
   | "grow4to5"
-  | "grow5to6";
+  | "grow5to6"
+  | "grow6to7";
 
 export type SproutStage = "bud" | "leaf" | "leaves" | "bloom";
 

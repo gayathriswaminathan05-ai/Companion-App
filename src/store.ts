@@ -44,6 +44,8 @@ export interface Settings {
   matchBackdrop: boolean;
   /** Bubble when new Primary-inbox Gmail arrives (sender + subject in RAM only). */
   gmailAlerts: boolean;
+  /** AI chat on/off. Off = nothing typed is ever sent anywhere (owner: 100% sure). */
+  chatOn: boolean;
   /** On-device voice (Kokoro): speak reminders, nudges, jokes, mail. */
   voiceOn: boolean;
   /** Also read chat replies aloud (mute button in the chat header). */
@@ -104,6 +106,7 @@ export const defaultSettings = (): Settings => ({
   calendarLeadMins: 10,
   matchBackdrop: false,
   gmailAlerts: false,
+  chatOn: true,
   welcomed: false,
   voiceOn: true,
   voiceChat: true,
@@ -172,7 +175,7 @@ export async function loadData(): Promise<AppData> {
   if (data.chat.messages.length > 60) data.chat.messages = data.chat.messages.slice(-60);
   if (data.chat.facts.length > 40) data.chat.facts = data.chat.facts.slice(-40);
   if (!Array.isArray(data.chat.jokeRecent)) data.chat.jokeRecent = [];
-  if (data.chat.jokeRecent.length > 40) data.chat.jokeRecent = data.chat.jokeRecent.slice(-40);
+  if (data.chat.jokeRecent.length > 250) data.chat.jokeRecent = data.chat.jokeRecent.slice(-250);
   if (!data.wellness || data.wellness.date !== today()) {
     data.wellness = { ...emptyWellness(), bedtimeDate: data.wellness?.bedtimeDate ?? null };
   }

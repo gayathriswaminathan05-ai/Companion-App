@@ -1,0 +1,65 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  /* Laptop screen for the trailer: API docs + a design file, unbranded. */
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{overflow:hidden}body{width:1512px;height:982px;overflow:hidden}
+  body{zoom:var(--z,1);font-family:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif;background:#2b2440;position:relative}
+  .menubar{height:26px;background:rgba(255,255,255,.75);display:flex;align-items:center;padding:0 14px;gap:18px;font-size:13px;color:#1f1f2b}
+  .menubar .r{margin-left:auto}
+  .win{position:absolute;border-radius:12px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.35),0 0 0 1px rgba(0,0,0,.2)}
+  .bar{height:32px;display:flex;align-items:center;padding:0 12px;gap:7px;font-size:12px;background:#f2f1f6;color:#555}
+  .dot{width:12px;height:12px;border-radius:50%}.r1{background:#ff5f57}.y1{background:#febc2e}.g1{background:#28c840}
+  .url{flex:1;margin-left:12px;background:#fff;border-radius:7px;padding:4px 10px;border:1px solid #e3e1ea}
+  .docs{left:20px;top:44px;width:900px;height:900px;background:#fff}
+  .docs .wrap{display:flex;height:100%}
+  .nav{width:210px;background:#faf9fd;border-right:1px solid #eee;padding:18px;font-size:13px;line-height:30px;color:#555}
+  .nav b{color:#201d2f}.nav .on{color:#6a53e7;font-weight:700}
+  .art{flex:1;padding:28px 34px;color:#201d2f}
+  .art h1{font-size:28px;margin-bottom:8px}.art p{font-size:14px;line-height:1.6;color:#4a4757;margin-bottom:14px}
+  .art h3{font-size:17px;margin:18px 0 8px}
+  code,pre{font-family:"SF Mono",Menlo,monospace}
+  pre{background:#1e1e2e;color:#cdd6f4;border-radius:10px;padding:14px;font-size:13px;line-height:20px}
+  .k{color:#cba6f7}.s{color:#a6e3a1}.n{color:#fab387}
+  table{border-collapse:collapse;width:100%;font-size:13px}td{border-top:1px solid #eee;padding:8px 6px}
+  .design{left:700px;top:330px;width:790px;height:620px;background:#e9e6f2}
+  .design .canvas{position:relative;height:100%;background:#e9e6f2}
+  .phone{position:absolute;top:40px;width:200px;height:420px;border-radius:26px;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.12);padding:16px}
+  .blk{border-radius:10px;margin-bottom:10px}
+  .lbl{position:absolute;top:16px;font-size:12px;color:#6c6977}
+</style></head>
+<body>
+<div class="menubar"><b>Browser</b><span>File</span><span>Edit</span><span>View</span><span>History</span><div class="r">4:12 PM</div></div>
+<div class="win docs">
+  <div class="bar"><i class="dot r1"></i><i class="dot y1"></i><i class="dot g1"></i><span class="url">docs.payments.dev/reference/checkout-sessions</span></div>
+  <div class="wrap">
+    <div class="nav"><b>API reference</b><div>Authentication</div><div>Errors</div><div>Customers</div><div class="on">Checkout sessions</div><div>Payment links</div><div>Refunds</div><div>Webhooks</div><div>Testing</div></div>
+    <div class="art">
+      <h1>Create a checkout session</h1>
+      <p>Creates a session for a customer to pay for line items. Amounts are in the smallest currency unit (paise for INR).</p>
+<pre><span class="k">const</span> session = <span class="k">await</span> payments.checkout.create({
+  currency: <span class="s">"inr"</span>,
+  line_items: cart.map((i) =&gt; ({
+    price: i.variant.price * <span class="n">100</span>,
+    quantity: i.qty,
+  })),
+  success_url: <span class="s">"https://shop.local/thanks"</span>,
+});</pre>
+      <h3>Parameters</h3>
+      <table><tr><td><code>currency</code></td><td>required · three-letter ISO code</td></tr>
+      <tr><td><code>line_items</code></td><td>required · up to 100 items</td></tr>
+      <tr><td><code>success_url</code></td><td>required · redirect after payment</td></tr>
+      <tr><td><code>coupon</code></td><td>optional · applies a discount</td></tr></table>
+    </div>
+  </div>
+</div>
+<div class="win design">
+  <div class="bar"><i class="dot r1"></i><i class="dot y1"></i><i class="dot g1"></i><span style="margin-left:12px">Shop app — Checkout v3</span></div>
+  <div class="canvas">
+    <span class="lbl" style="left:40px">Cart</span><span class="lbl" style="left:290px">Checkout</span><span class="lbl" style="left:540px">Success</span>
+    <div class="phone" style="left:40px"><div class="blk" style="height:24px;width:60%;background:#201d2f"></div><div class="blk" style="height:70px;background:#fff3c4"></div><div class="blk" style="height:70px;background:#dbefff"></div><div class="blk" style="height:70px;background:#ffe0eb"></div><div class="blk" style="height:44px;background:#6a53e7"></div></div>
+    <div class="phone" style="left:290px"><div class="blk" style="height:24px;width:70%;background:#201d2f"></div><div class="blk" style="height:120px;background:#f5f3ff"></div><div class="blk" style="height:36px;background:#eee"></div><div class="blk" style="height:36px;background:#eee"></div><div class="blk" style="height:44px;background:#6a53e7"></div></div>
+    <div class="phone" style="left:540px"><div class="blk" style="height:140px;margin-top:60px;border-radius:50%;width:140px;margin-left:14px;background:#c9f2d9"></div><div class="blk" style="height:24px;width:80%;background:#201d2f"></div><div class="blk" style="height:14px;width:60%;background:#ccc"></div></div>
+  </div>
+</div>
+</body></html>

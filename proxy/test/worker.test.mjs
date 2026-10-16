@@ -537,3 +537,199 @@ test("tts: not configured without the Google key", async () => {
   assert.equal(res.status, 500);
   assert.equal((await res.json()).error.message, "tts_not_configured");
 });
+
+// ---------------------------------------------------------------------------
+// /v1/responses — ChatGPT (OpenAI Responses API)
+// ---------------------------------------------------------------------------
+
+const OPENAI_SECRET = "sk-proj-test-OPENAI-SECRET";
+const oaEnv = (o = {}) => fakeEnv({ OPENAI_API_KEY: OPENAI_SECRET, ...o });
+const oaTurn = (text = "hello") => ({
+  model: "gpt-6.1-sol",
+  instructions: "You are Blob.",
+  input: [{ role: "user", content: text }],
+  tools: [{ type: "web_search", user_location: { type: "approximate", country: "IN" } }],
+  reasoning: { effort: "low" },
+  max_output_tokens: 4096,
+  store: false,
+});
+const oaCall = (body, opts = {}) => call(body, { ...opts, path: "/v1/responses" });
+
+test("openai: forwards to OpenAI with the server key; client credentials stripped; store forced off", async () => {
+  const env = oaEnv();
+  const ctx = fakeCtx();
+  const res = await oaCall({ ...oaTurn(), store: true, max_output_tokens: 99999 }, { env, ctx });
+  assert.equal(res.status, 200);
+  assert.equal(upstreamCalls.length, 1);
+  const up = upstreamCalls[0];
+  assert.equal(up.url, "https://api.openai.com/v1/responses");
+  assert.equal(up.headers.get("authorization"), `Bearer ${OPENAI_SECRET}`);
+  assert.equal(up.headers.get("x-api-key"), null);
+  assert.equal(up.headers.get("x-companion-app"), null);
+  assert.equal(up.headers.get("x-companion-device"), null);
+  const sent = JSON.parse(up.body);
+  assert.equal(sent.store, false);
+  assert.equal(sent.max_output_tokens, 4096);
+  assert.equal(sent.instructions, "You are Blob.");
+  await ctx.flush();
+  assert.equal(env.RATE.map.get(counterKey()), "1");
+});
+
+test("openai: guards (secret, model, tools, stored state)", async () => {
+  // Only the Claude key configured: the ChatGPT route is not set up.
+  let res = await oaCall(oaTurn(), { env: fakeEnv() });
+  assert.equal(res.status, 500);
+  assert.equal((await errorBody(res)).message, "proxy_not_configured");
+
+  res = await oaCall({ ...oaTurn(), model: "gpt-6-astra" }, { env: oaEnv() });
+  assert.equal(res.status, 400);
+  assert.equal((await errorBody(res)).message, "model_not_allowed");
+
+  res = await oaCall({ ...oaTurn(), tools: [{ type: "code_interpreter", container: { type: "auto" } }] }, { env: oaEnv() });
+  assert.equal(res.status, 400);
+  assert.equal((await errorBody(res)).message, "tool_not_allowed");
+
+  for (const extra of [{ previous_response_id: "resp_1" }, { conversation: "conv_1" }, { background: true }]) {
+    res = await oaCall({ ...oaTurn(), ...extra }, { env: oaEnv() });
+    assert.equal(res.status, 400);
+    assert.equal((await errorBody(res)).message, "stored_state_not_allowed");
+  }
+  res = await oaCall(oaTurn(), { env: oaEnv(), headers: { "x-companion-app": "nope" } });
+  assert.equal(res.status, 401);
+  assert.equal(upstreamCalls.length, 0);
+});
+
+test("openai: daily limit is shared with Claude and failed calls are free", async () => {
+  const env = oaEnv({ DAILY_LIMIT: "2" });
+  const ctx = fakeCtx();
+  upstreamQueue.push(() => jsonUpstream(500, { error: { message: "boom", type: "server_error" } }));
+  assert.equal((await oaCall(oaTurn(), { env, ctx })).status, 500);
+  await ctx.flush();
+  assert.equal(env.RATE.map.get(counterKey()), undefined);
+  assert.equal((await oaCall(oaTurn(), { env, ctx })).status, 200);
+  assert.equal((await call(userTurn(), { env, ctx })).status, 200); // a Claude turn counts too
+  await ctx.flush();
+  const res = await oaCall(oaTurn(), { env, ctx });
+  assert.equal(res.status, 429);
+  assert.equal((await errorBody(res)).message, "daily_limit");
+});
+
+// ---------- end-to-end through the real OpenAI SDK (the app's ChatGPT path) ----------
+
+let OpenAI = null;
+try {
+  OpenAI = (await import("openai")).default;
+} catch {
+  // SDK not installed next to the repo: skip these.
+}
+
+function responsesSse(pieces, citation) {
+  let seq = 0;
+  const ev = (type, data) => `event: ${type}\ndata: ${JSON.stringify({ type, sequence_number: seq++, ...data })}\n\n`;
+  const base = { id: "resp_1", object: "response", created_at: 1, model: "gpt-6.1-sol", output: [], usage: null };
+  const text = pieces.join("");
+  const ann = citation ? [{ type: "url_citation", url: citation.url, title: citation.title, start_index: 0, end_index: 3 }] : [];
+  const msg = (status, content) => ({ id: "msg_1", type: "message", status, role: "assistant", content });
+  let out =
+    ev("response.created", { response: { ...base, status: "in_progress" } }) +
+    ev("response.output_item.added", { output_index: 0, item: { id: "ws_1", type: "web_search_call", status: "in_progress" } }) +
+    ev("response.output_item.done", { output_index: 0, item: { id: "ws_1", type: "web_search_call", status: "completed", action: { type: "search", query: "cafes" } } }) +
+    ev("response.output_item.added", { output_index: 1, item: msg("in_progress", []) }) +
+    ev("response.content_part.added", { item_id: "msg_1", output_index: 1, content_index: 0, part: { type: "output_text", text: "", annotations: [] } });
+  for (const p of pieces) {
+    out += ev("response.output_text.delta", { item_id: "msg_1", output_index: 1, content_index: 0, delta: p, logprobs: [] });
+  }
+  if (citation) {
+    out += ev("response.output_text.annotation.added", { item_id: "msg_1", output_index: 1, content_index: 0, annotation_index: 0, annotation: ann[0] });
+  }
+  const part = { type: "output_text", text, annotations: ann };
+  out +=
+    ev("response.output_text.done", { item_id: "msg_1", output_index: 1, content_index: 0, text, logprobs: [] }) +
+    ev("response.content_part.done", { item_id: "msg_1", output_index: 1, content_index: 0, part }) +
+    ev("response.output_item.done", { output_index: 1, item: msg("completed", [part]) }) +
+    ev("response.completed", {
+      response: {
+        ...base,
+        status: "completed",
+        output: [{ id: "ws_1", type: "web_search_call", status: "completed", action: { type: "search", query: "cafes" } }, msg("completed", [part])],
+        usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 },
+      },
+    });
+  const bytes = new TextEncoder().encode(out);
+  const stream = new ReadableStream({
+    start(controller) {
+      for (let i = 0; i < bytes.length; i += 41) controller.enqueue(bytes.slice(i, i + 41));
+      controller.close();
+    },
+  });
+  return new Response(stream, { status: 200, headers: { "content-type": "text/event-stream; charset=utf-8", "x-request-id": "req_oa" } });
+}
+
+function openaiClient(env, ctx, seen) {
+  return new OpenAI({
+    apiKey: "unused",
+    baseURL: `${BASE}/v1`,
+    defaultHeaders: { "x-companion-device": DEVICE, "x-companion-app": APP_TOKEN },
+    maxRetries: 2,
+    fetch: async (url, init) => {
+      seen.push(String(url));
+      return worker.fetch(new Request(url, init), env, ctx);
+    },
+  });
+}
+
+test("SDK openai: streaming chat with web search, text + sources (main.cjs chatOpenAI shape)", { skip: !OpenAI }, async () => {
+  const env = oaEnv();
+  const ctx = fakeCtx();
+  const seen = [];
+  const client = openaiClient(env, ctx, seen);
+  upstreamQueue.push(() => responsesSse(["ok I went ", "FULL detective mode"], { url: "https://cafes.example", title: "Cafes" }));
+
+  const stream = client.responses.stream({ ...oaTurn("find me a cafe"), prompt_cache_key: "companion-chat" });
+  let full = "";
+  stream.on("response.output_text.delta", (ev) => (full += ev.delta));
+  const final = await stream.finalResponse();
+  const sources = [];
+  for (const item of final.output || []) {
+    if (item.type !== "message") continue;
+    for (const part of item.content || []) {
+      for (const a of part.annotations || []) if (a.type === "url_citation") sources.push({ url: a.url, title: a.title });
+    }
+  }
+  assert.equal(full, "ok I went FULL detective mode");
+  assert.deepEqual(sources, [{ url: "https://cafes.example", title: "Cafes" }]);
+  assert.ok(seen.every((u) => u.startsWith(BASE + "/v1/responses")));
+  assert.equal(upstreamCalls.length, 1);
+  assert.equal(JSON.parse(upstreamCalls[0].body).store, false);
+  await ctx.flush();
+  assert.equal(env.RATE.map.get(counterKey()), "1");
+});
+
+test("SDK openai: daily limit surfaces with 'daily_limit' in the message, no retries", { skip: !OpenAI }, async () => {
+  const env = oaEnv({ DAILY_LIMIT: "0" });
+  const seen = [];
+  const client = openaiClient(env, fakeCtx(), seen);
+  await assert.rejects(client.responses.create(oaTurn()), (err) => {
+    assert.ok(err instanceof OpenAI.RateLimitError);
+    assert.ok(err.message.includes("daily_limit"), err.message);
+    return true;
+  });
+  assert.equal(seen.length, 1, "SDK must not retry the daily-limit 429");
+});
+
+test("SDK openai: out-of-credit error reaches the app with OpenAI's wording", { skip: !OpenAI }, async () => {
+  const env = oaEnv();
+  const client = openaiClient(env, fakeCtx(), []);
+  upstreamDefault = () =>
+    jsonUpstream(429, {
+      error: {
+        message: "You exceeded your current quota, please check your plan and billing details.",
+        type: "insufficient_quota",
+        code: "insufficient_quota",
+      },
+    }, { "x-should-retry": "false" });
+  await assert.rejects(client.responses.create(oaTurn()), (err) => {
+    assert.ok(/quota/.test(err.message), err.message);
+    return true;
+  });
+});

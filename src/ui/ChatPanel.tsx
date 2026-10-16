@@ -24,6 +24,9 @@ const INPUT_MAX_H = 120; // grows upward until this, then scrolls
 const SUGGESTIONS = ["I need to vent", "Help me plan today", "Tell me some gossip"];
 
 export default function ChatPanel({
+  chatOn = true,
+  aiName = "ChatGPT",
+  onEnableChat,
   messages,
   streamText,
   busy,
@@ -37,6 +40,11 @@ export default function ChatPanel({
   onClose,
   onBlobState,
 }: {
+  /** Off = AI chat switched off in Settings. Nothing can be sent; the panel says so. */
+  chatOn?: boolean;
+  /** "ChatGPT" or "Claude": who reads the messages, for the privacy line. */
+  aiName?: string;
+  onEnableChat?: () => void;
   messages: ChatMsg[];
   streamText: string | null;
   busy: boolean;
@@ -87,31 +95,64 @@ export default function ChatPanel({
 
   const name = companionName.trim() || "Blob";
 
+  if (!chatOn) {
+    return (
+      <Panel>
+        <PanelHeader title={name} onClose={onClose} />
+        <Empty className="gap-3 p-4">
+          <EmptyHeader className="gap-1">
+            <div className="mb-1 flex size-9 items-center justify-center rounded-full bg-secondary text-primary">
+              <LockSimpleIcon className="size-4.5" weight="bold" />
+            </div>
+            <EmptyTitle className="text-[15px] font-semibold">Chat is off</EmptyTitle>
+            <EmptyDescription className="text-[13px]">
+              Nothing you type here is sent anywhere. I still do your reminders, stretches, water breaks and jokes.
+            </EmptyDescription>
+          </EmptyHeader>
+          {onEnableChat && (
+            <EmptyContent>
+              <Button size="sm" onClick={onEnableChat}>
+                Turn chat on
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                When it's on, your messages go to an AI ({aiName}) so I can reply.
+              </p>
+            </EmptyContent>
+          )}
+        </Empty>
+      </Panel>
+    );
+  }
+
   if (!connected) {
     const key = keyDraft.trim();
     return (
       <Panel>
         <PanelHeader title={`Connect ${name}'s brain`} onClose={onClose} />
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4">
-          <p className="text-muted-foreground">To really talk with you, I need a Claude API key. It takes a minute.</p>
+          <p className="text-muted-foreground">
+            To really talk with you, I need an OpenAI API key. It takes a minute. (A ChatGPT Plus plan doesn't include
+            one.)
+          </p>
           <ol className="flex flex-col gap-2.5">
             {[
               <>
                 Open{" "}
                 <a
-                  href="https://platform.claude.com"
+                  href="https://platform.openai.com/api-keys"
                   onClick={(e) => {
                     e.preventDefault();
-                    window.companion.openLink("https://platform.claude.com");
+                    window.companion.openLink("https://platform.openai.com/api-keys");
                   }}
                   className="font-medium text-primary underline-offset-4 hover:underline"
                 >
-                  platform.claude.com
+                  platform.openai.com
                 </a>{" "}
                 and sign in
               </>,
               <>
-                Go to <span className="font-medium">API Keys</span>, then <span className="font-medium">Create key</span>
+                Go to <span className="font-medium">API keys</span>, then{" "}
+                <span className="font-medium">Create new secret key</span>
               </>,
               <>Copy it and paste it below</>,
             ].map((step, i) => (
@@ -132,7 +173,7 @@ export default function ChatPanel({
                 value={keyDraft}
                 onChange={(e) => setKeyDraft(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && key && onConnectKey(key)}
-                placeholder="sk-ant-..."
+                placeholder="sk-proj-..."
                 type="password"
                 autoComplete="off"
               />

@@ -1,9 +1,9 @@
 // Companion chat proxy (Cloudflare Worker).
 //
-// The desktop app points the official Anthropic SDK at this Worker. We check a
-// few guards, add the real API key (which lives ONLY here, as a Cloudflare
-// secret), forward the request to api.anthropic.com, and stream the answer
-// back untouched.
+// The desktop app points the official OpenAI SDK (/v1/responses → ChatGPT) or
+// Anthropic SDK (/v1/messages → Claude) at this Worker. We check a few guards,
+// add the real API key (which lives ONLY here, as a Cloudflare secret), forward
+// the request, and stream the answer back untouched.
 //
 // PRIVACY (binding product rule): never log or store message content. There
 // is deliberately no console.* anywhere in this file. The only thing ever
@@ -11,9 +11,14 @@
 
 const UPSTREAM_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
+const OPENAI_URL = "https://api.openai.com/v1/responses";
 
 const DEFAULT_ALLOWED_MODELS = "claude-sonnet-5,claude-haiku-5-5";
 const DEFAULT_MAX_TOKENS_CAP = 2048;
+const DEFAULT_OPENAI_MODELS = "gpt-6.1-sol,gpt-6-luna";
+const DEFAULT_OPENAI_OUTPUT_CAP = 4096; // ChatGPT's "thinking" counts toward this too
+// The only ChatGPT tool the app may use (others can run code or keep files).
+const OPENAI_TOOLS = new Set(["web_search"]);
 const DEFAULT_DAILY_LIMIT = 60;
 
 // Blob's cloud voice (Google Text-to-Speech, Chirp 3 HD). The Google key is
@@ -21,7 +26,7 @@ const DEFAULT_DAILY_LIMIT = 60;
 // Google to be spoken and never logged or stored here.
 const TTS_URL = "https://texttospeech.googleapis.com/v1/text:synthesize";
 const TTS_LOCALES = ["en-US", "en-GB", "en-IN", "en-AU"];
-const DEFAULT_TTS_DAILY_CHARS = 20000; // ~ a few hundred spoken lines / device / day
+const DEFAULT_TTS_DAILY_CHARS = 6000; // ~120 short spoken lines / device / day; then the app falls back to on-device
 const TTS_MAX_CHARS = 600;
 
 const COUNTER_TTL_SECONDS = 2 * 24 * 60 * 60; // counters expire after ~2 days
@@ -33,6 +38,7 @@ const PASS_THROUGH_RESPONSE_HEADERS = [
   "content-type",
   "cache-control",
   "request-id",
+  "x-request-id",
   "retry-after",
   "x-should-retry",
 ];
@@ -61,14 +67,15 @@ async function handle(request, env, ctx) {
     return handleTts(request, env, ctx);
   }
 
-  if (url.pathname !== "/v1/messages") {
+  if (url.pathname !== "/v1/messages" && url.pathname !== "/v1/responses") {
     return apiError(404, "not_found_error", "not_found");
   }
   if (request.method !== "POST") {
     return apiError(405, "invalid_request_error", "method_not_allowed");
   }
+  const openai = url.pathname === "/v1/responses";
 
-  if (!env.ANTHROPIC_API_KEY || !env.APP_TOKEN || !env.RATE) {
+  if (!(openai ? env.OPENAI_API_KEY : env.ANTHROPIC_API_KEY) || !env.APP_TOKEN || !env.RATE) {
     return apiError(500, "api_error", "proxy_not_configured");
   }
 
@@ -84,7 +91,7 @@ async function handle(request, env, ctx) {
     return apiError(400, "invalid_request_error", "bad_device_id");
   }
 
-  // Parse the Messages API body (only to read model / max_tokens / last role).
+  // Parse the body (only to read model / token cap / tools / last role).
   const raw = await request.text();
   let body;
   try {
@@ -95,6 +102,8 @@ async function handle(request, env, ctx) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return apiError(400, "invalid_request_error", "invalid_json");
   }
+
+  if (openai) return forwardOpenAI(body, url, request, env, ctx, device);
 
   // Guard 3: model allow-list.
   const allowedModels = String(env.ALLOWED_MODELS ?? DEFAULT_ALLOWED_MODELS)
@@ -158,6 +167,69 @@ async function handle(request, env, ctx) {
     else await bump;
   }
 
+  return passThrough(upstream);
+}
+
+// ChatGPT (OpenAI Responses API). Same guards as Claude, plus: replies are
+// never stored on OpenAI's side (store: false is forced) and only web search
+// may be used as a tool.
+async function forwardOpenAI(body, url, request, env, ctx, device) {
+  const allowedModels = String(env.OPENAI_ALLOWED_MODELS ?? DEFAULT_OPENAI_MODELS)
+    .split(",")
+    .map((m) => m.trim())
+    .filter(Boolean);
+  if (typeof body.model !== "string" || !allowedModels.includes(body.model)) {
+    return apiError(400, "invalid_request_error", "model_not_allowed");
+  }
+  if (body.tools !== undefined) {
+    const ok = Array.isArray(body.tools) && body.tools.every((t) => t && OPENAI_TOOLS.has(t.type));
+    if (!ok) return apiError(400, "invalid_request_error", "tool_not_allowed");
+  }
+  // Nothing that only works when OpenAI keeps the conversation.
+  if (body.previous_response_id || body.conversation || body.background) {
+    return apiError(400, "invalid_request_error", "stored_state_not_allowed");
+  }
+  const cap = intSetting(env.OPENAI_OUTPUT_CAP, DEFAULT_OPENAI_OUTPUT_CAP);
+  if (typeof body.max_output_tokens !== "number" || body.max_output_tokens > cap) body.max_output_tokens = cap;
+  body.store = false;
+
+  // Daily limit: every ChatGPT request is one new user turn (no continuations).
+  const countsTowardLimit = isNewUserTurn(body.input);
+  const counterKey = `d:${device}:${utcDay()}`;
+  if (countsTowardLimit) {
+    const limit = intSetting(env.DAILY_LIMIT, DEFAULT_DAILY_LIMIT);
+    const used = await readCount(env.RATE, counterKey);
+    if (used >= limit) {
+      return apiError(429, "rate_limit_error", "daily_limit");
+    }
+  }
+
+  const upstreamHeaders = new Headers({
+    "content-type": "application/json",
+    authorization: `Bearer ${String(env.OPENAI_API_KEY)}`,
+  });
+  const accept = request.headers.get("accept");
+  if (accept) upstreamHeaders.set("accept", accept);
+
+  let upstream;
+  try {
+    upstream = await fetch(OPENAI_URL + url.search, {
+      method: "POST",
+      headers: upstreamHeaders,
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return apiError(502, "api_error", "upstream_unreachable", { "x-should-retry": "true" });
+  }
+  if (countsTowardLimit && upstream.ok) {
+    const bump = incrementCount(env.RATE, counterKey);
+    if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(bump);
+    else await bump;
+  }
+  return passThrough(upstream);
+}
+
+function passThrough(upstream) {
   const headers = new Headers();
   for (const name of PASS_THROUGH_RESPONSE_HEADERS) {
     const value = upstream.headers.get(name);
@@ -240,6 +312,7 @@ async function handleTts(request, env, ctx) {
 }
 
 function isNewUserTurn(messages) {
+  if (typeof messages === "string") return messages.trim().length > 0; // ChatGPT one-shot input
   if (!Array.isArray(messages) || messages.length === 0) return false;
   const last = messages[messages.length - 1];
   return !!last && last.role === "user";
@@ -290,7 +363,8 @@ function jsonResponse(status, obj, extraHeaders = {}) {
   });
 }
 
-// Anthropic-style error so the SDK raises its usual typed errors.
+// Anthropic-style error so the SDK raises its usual typed errors (OpenAI's SDK
+// reads the same error.message field).
 // x-should-retry: false stops the SDK from pointlessly retrying guard errors.
 function apiError(status, type, message, extraHeaders = {}) {
   return jsonResponse(

@@ -1,0 +1,51 @@
+white-stage1 0f64a6fb-239f-4e38-9f16-421a76bfa8b8
+white-stage2 e61a5189-6b99-48f8-b70d-85a107c44dc2
+white-stage3 a4ac9f1f-6913-4087-b8b5-8460aabf6ce1
+white-stage5 fd91b7f3-0f69-4006-b6a6-9f2c9a676ea6
+coffee-stage1 b7eb40d7-b9f9-4f6f-a2aa-20e53225ca08
+coffee-stage2 5c1f0f2e-eb23-472f-9075-71320b38944d
+coffee-stage3 90dc2ad9-debd-409e-b276-e814d9f45441
+coffee-stage5 4f671865-5035-4dbf-a9e0-0f6e13fc097e
+coffee-stage6 942d789b-f13e-439d-b63f-5f764a8f6d7a
+coffee-stage7 92cc93e8-894d-463e-a419-556823be85d5
+noting-stage1 9938a907-bf70-4be8-b87f-021d73435b49
+noting-stage2 28f1c234-fb74-4651-b319-add6348ea6d4
+noting-stage3 8e67d240-d59d-407f-b352-928226272a70
+noting-stage5 21ec54b3-16cf-4794-b570-90cb1b0fffe5
+noting-stage6 79a3797d-25f0-4faf-8fc3-97bd4c0b5fc4
+noting-stage7 53248a2a-3d13-4a91-a4f4-5b009a839ef9
+yawn-stage1 52e383a3-6bfb-4e58-ba47-cca4c13b3c3b
+yawn-stage2 83b9ef3a-71d2-431d-aed9-fc73f52cf5ba
+yawn-stage3 223426b0-4775-43a1-8d90-9c88e0a9237f
+yawn-stage5 43b34d94-9c3c-49b9-be89-f46658f735e1
+yawn-stage6 d16a24a7-2be9-4e1d-8e8c-6d179063033c
+yawn-stage7 d6daa4cf-f99e-4dd6-a815-0582e9d91372
+# VIDEOS (kling3_0 std 5s 1:1, start=end still unless noted) — notepad SKIPPED (owner: stills flawed)
+coffee1-video 51883849-ba0f-4e8e-b073-71472b0a13f5
+coffee2-video 3c48bc9f-7637-4c5e-b002-813c830ece1d
+coffee3-video fbe3ea55-0349-4ca4-a656-690a26301535
+coffee5-video 36c446d3-f503-4943-9bd1-2f70cb947404
+coffee6-video 19a8b4eb-b66f-4241-a91a-b2111bb62a54
+coffee7-video e8af2fd4-0b5e-4f92-9050-02bdb5a76746
+sleeping1-video 02c92241-b415-4cfb-a122-ed08c791d6f9 (start = yawn-stage1 only)
+coffee3 ok; wave1-video 7ea42f0a-ad3b-41d9-bb81-55e576239147
+sleeping1 ok (blanket touches left edge → feather in processing); coffee6 ok
+sleeping2-video 8d6af8ba-9225-4f29-8ef7-b04a3f4084b8
+sleeping3-video 95e54067-86df-4118-aa07-da7ff86d8ad8
+coffee7 ok; waving1 ok
+waving2-video 81e5811c-4bf4-4464-a7e0-6b9159f2b06f
+waving3-video 6539539b-6605-4d9e-a879-5055349b0ef7
+sleeping5-video d7a2b963-40d8-489c-af4e-5c7336d312f9 (start = yawn-stage5)
+sleeping6-video c1cac290-8d41-4ca6-b05a-5786ae922269 (start = yawn-stage6)
+sleeping7-video c7058094-c068-40b2-bc1a-d574b5ac649f (start = yawn-stage7)
+waving5-video f78edbac-f739-48fd-9b4f-c66acee1196c
+sleeping2 ok; sleeping3 ok; waving2 ok; waving3 ok (arm stretches a little on the big flick)
+waving6-video 9e6e1d95-2472-4226-be4e-f984fccac6c5
+waving7-video f1a252e6-4706-42e8-b6f6-97ed71cec9f2
+waving5 ok; sleeping5 REJECTED (camera zooms in ~1.5x as it lies down, blanket cut off left/bottom) -> not in app, stage 5 falls back to stage-4 sleeping
+sleeping5/6/7: edges cut (flowers/blanket at left+right); processed FREE with feathered edges for owner review; retake = 22.5cr if she wants
+waving6 ok; waving7 ok
+sleeping5b-video 1e652ba7-78bc-4e8f-b082-592d933f52f9 (start = yawn-stage5-padded media 9b1be41c-386d-4d67-b0cc-f86685e60254)
+sleeping6b-video 94a69a84-5369-4eae-b81c-14237497776e (start = yawn-stage6-padded media 078cd10f-e138-4197-a50b-557415218d21)
+sleeping7b-video f7bf2ffb-f0b8-48d8-a801-05f1a95d9320 (start = yawn-stage7-padded media 186bc13e-7a04-4a36-a7b9-3a110378c3b4)
+sleeping5b ok (blanket over leaves, face peeks; blanket off left edge -> feathered); sleeping6b ok; sleeping7b ok. Old cropped takes kept as assets/clips/sleeping{5,6,7}-v1-cropped.mp4

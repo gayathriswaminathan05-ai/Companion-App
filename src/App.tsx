@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Blob from "./character/Blob";
 import DebugMenu from "./DebugMenu";
 import RadialMenu from "./ui/RadialMenu";
@@ -14,7 +14,7 @@ import PanelResizeHandles from "./ui/PanelResizeHandles";
 import { GrowthIcon } from "@/components/panel";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { usePanelTheme } from "./usePanelTheme";
-import { speak, stopSpeaking, setVoiceEnabled, warmUpVoice, accentForLocale, type CloudVoice } from "./voice";
+import { speak, prefetchSpeech, stopSpeaking, setVoiceEnabled, warmUpVoice, accentForLocale, type CloudVoice } from "./voice";
 import { formatDue, parseWhen } from "./reminders";
 import { useCharacter } from "./character/useCharacter";
 import { AppData, emptyData, loadData, saveData, today } from "./store";
@@ -30,12 +30,14 @@ import {
 import { buildSystem, buildMessages, extractOutputs, jokeKey, pickFallbackJoke } from "./brain";
 import { chirp, setSoundsEnabled, startDangle, stopDangle } from "./sounds";
 import { isOpaqueCharacterAt, isUiHitAt } from "./clickThrough";
+import { EdgeClipContext } from "./edgeClip";
+import { FEATURES } from "./features";
 import { SPRITES } from "./generated/sprites";
 import type { CharacterState } from "./character/types";
 
 // Which stage→stage clap-and-grow transition clips are actually processed.
 const TRANSITION_CLIPS = new Set<CharacterState>(
-  (["grow1to2", "grow2to3", "grow3to4", "grow4to5", "grow5to6"] as CharacterState[]).filter(
+  (["grow1to2", "grow2to3", "grow3to4", "grow4to5", "grow5to6", "grow6to7"] as CharacterState[]).filter(
     (k) => (SPRITES as Record<string, unknown>)[k],
   ),
 );
@@ -53,7 +55,7 @@ declare global {
       dataLoad: () => Promise<unknown>;
       dataSave: (data: unknown) => Promise<unknown> | void;
       layoutInfo: () => Promise<unknown>;
-      setWindowSize: (size: { width: number; height: number }) => Promise<unknown>;
+      setWindowSize: (size: { width: number; height: number; plantTop?: number; plantH?: number }) => Promise<unknown>;
       ensureMic: () => Promise<unknown>;
       voiceWarmup?: () => Promise<unknown>;
       voiceSynthesize?: (req: { text: string; voice?: string; speed?: number }) => Promise<unknown>;
@@ -124,6 +126,14 @@ export default function App() {
   const [data, setData] = useState<AppData>(emptyData());
   const [open, setOpen] = useState<"none" | "menu" | "tasks" | "chat" | "settings">("none");
   const [clip, setClip] = useState<Clip>(EMPTY_CLIP);
+  // Plant near the TOP of the screen → plant at the top of the window and all
+  // UI opens below it ("flip"). relayout hides everything for the couple of
+  // frames while the window shifts so the plant never visibly jumps.
+  const [flip, setFlip] = useState(false);
+  const flipRef = useRef(false);
+  const [relayout, setRelayout] = useState(true);
+  const layoutRef = useRef({ plantH: 240, need: 400 });
+  const placedOnce = useRef(false);
   const [firedQueue, setFiredQueue] = useState<FiredReminder[]>([]);
   const [toast, setToast] = useState<{ text: string; stage?: GrowthStage } | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
@@ -153,6 +163,36 @@ export default function App() {
     }
   };
 
+  const unhideSoon = () => requestAnimationFrame(() => requestAnimationFrame(() => setRelayout(false)));
+  /** Is there room for the panels above the plant? If not (plant near the top
+   *  of the screen) flip the UI below it. Hysteresis avoids flip-flopping.
+   *  Returns true when the layout changed (the window will shift next). */
+  const decideFlip = (raw: unknown): boolean => {
+    const r = raw as { winY?: number; workTop?: number; workBottom?: number; plantTop?: number } | null;
+    if (!r || ![r.winY, r.workTop, r.workBottom, r.plantTop].every((v) => Number.isFinite(v))) return false;
+    const { plantH: ph, need } = layoutRef.current;
+    const top = r.winY! + r.plantTop!;
+    const above = top - r.workTop!;
+    const below = r.workBottom! - (top + ph);
+    const was = flipRef.current;
+    const want = was ? above < need + 40 && below >= above : above < need && below > above;
+    if (want === was) return false;
+    flipRef.current = want;
+    setRelayout(true);
+    setFlip(want);
+    return true;
+  };
+  /** After the plant was dropped somewhere new: edge clips + above/below. */
+  const placeAfterMove = async () => {
+    try {
+      const raw = await window.companion.layoutInfo();
+      setClip(normalizeClip(raw as Partial<Clip>));
+      decideFlip(raw);
+    } catch {
+      /* ignore */
+    }
+  };
+
   useEffect(() => {
     loadData().then((d) => {
       setData(d);
@@ -166,12 +206,16 @@ export default function App() {
       }
     });
     window.companion?.setClickThrough(true);
+    void refreshClip();
     const stop = () => {
       setDragging((was) => {
         if (was) {
           window.companion?.dragEnd();
           stopDangle();
           set("idle");
+          // New spot may be in a screen corner / near the top: re-measure so
+          // bubbles, tooltips and panels open where they fit.
+          window.setTimeout(() => void placeAfterMove(), 120);
         }
         return false;
       });
@@ -298,6 +342,38 @@ export default function App() {
   useEffect(() => {
     nudgeRef.current = nudge;
   }, [nudge]);
+
+  // --- Rest poses: after ~12 quiet minutes on idle the plant lounges for ~4
+  // minutes, then comes back. Only poses with art for its CURRENT stage are
+  // picked (hammock exists for every stage; the older poses only for stage 4),
+  // so the plant never changes shape mid-nap. Any click/nudge/panel interrupts.
+  const restUntil = useRef(0);
+  const nextRestAt = useRef(Date.now() + 12 * 60_000);
+  useEffect(() => {
+    const REST_POSES: CharacterState[] = ["hammock", "lying", "meditate", "picnic", "groove", "hula"];
+    const id = window.setInterval(() => {
+      const s = stateRef.current;
+      const resting = REST_POSES.includes(s);
+      if (openRef.current !== "none" || nudgeRef.current) {
+        nextRestAt.current = Date.now() + 12 * 60_000;
+        return;
+      }
+      if (resting && Date.now() >= restUntil.current) {
+        set("idle");
+        nextRestAt.current = Date.now() + 12 * 60_000;
+      } else if (s === "idle" && Date.now() >= nextRestAt.current) {
+        const stage = growthStageFor(dataRef.current.sprout.points);
+        const poses = REST_POSES.filter((p) => (stage === 4 ? SPRITES[p] : SPRITES[`${p}${stage}`])?.frames?.length);
+        nextRestAt.current = Date.now() + 12 * 60_000;
+        if (!poses.length) return;
+        restUntil.current = Date.now() + 4 * 60_000;
+        set(poses[Math.floor(Math.random() * poses.length)]);
+      } else if (!resting && s !== "idle") {
+        nextRestAt.current = Math.max(nextRestAt.current, Date.now() + 2 * 60_000);
+      }
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [set]);
   const activeMsRef = useRef(0);
   const waterMsRef = useRef(0);
 
@@ -400,15 +476,34 @@ export default function App() {
     const lang = st.voiceAccent && st.voiceAccent !== "auto" ? st.voiceAccent : accentForLocale(cloudInfoRef.current.systemLocale);
     return { languageCode: lang, voiceName: `${lang}-Chirp3-HD-${st.cloudVoice || "Puck"}` };
   };
-  const say = (text: string, opts: { private?: boolean } = {}) => {
+  const voiceOpts = (priv = false) => {
     const st = dataRef.current.settings;
-    if (!st.voiceOn || document.visibilityState === "hidden") return;
-    void speak(text, { voice: st.voiceName || "af_heart", cloud: opts.private ? null : cloudVoiceFor(st) });
+    return { voice: st.voiceName || "af_heart", cloud: priv ? null : cloudVoiceFor(st) };
+  };
+  const canSpeak = () => !!dataRef.current.settings.voiceOn && document.visibilityState !== "hidden";
+  const say = (text: string, opts: { private?: boolean } = {}) => {
+    if (!canSpeak()) return;
+    void speak(text, voiceOpts(opts.private));
+  };
+  /** Get a line we'll say next ready now, so it plays with no pause. */
+  const presay = (text: string) => {
+    if (canSpeak()) prefetchSpeech(text, voiceOpts());
   };
 
   // --- Chat brain -----------------------------------------------------------
   const [brainConnected, setBrainConnected] = useState(false);
   const [brainViaProxy, setBrainViaProxy] = useState(false);
+  // Which AI answers chat (set by the saved key or the beta build). Shown in Settings / Chat.
+  const [brainProvider, setBrainProvider] = useState<"openai" | "anthropic" | null>(null);
+  const aiName = brainProvider === "anthropic" ? "Claude" : "ChatGPT";
+  const refreshBrainStatus = () =>
+    (
+      window.companion.brainStatus() as Promise<{ connected: boolean; viaProxy?: boolean; provider?: "openai" | "anthropic" | null }>
+    ).then((s) => {
+      setBrainConnected(!!s?.connected);
+      setBrainViaProxy(!!s?.viaProxy);
+      setBrainProvider(s?.provider ?? null);
+    });
   const [streamText, setStreamText] = useState<string | null>(null);
   const [chatBusy, setChatBusy] = useState(false);
   const streamRef = useRef("");
@@ -422,10 +517,7 @@ export default function App() {
   }, [open, chatBusy, state, set]);
 
   useEffect(() => {
-    (window.companion.brainStatus() as Promise<{ connected: boolean; viaProxy?: boolean }>).then((s) => {
-      setBrainConnected(!!s?.connected);
-      setBrainViaProxy(!!s?.viaProxy);
-    });
+    void refreshBrainStatus();
     const offChunk = window.companion.onChatEvent("chat-chunk", (d) => {
       const { delta } = d as { delta: string };
       streamRef.current += delta;
@@ -504,8 +596,8 @@ export default function App() {
       update((x) => {
         const friendly = error.includes("daily_limit")
           ? "we've chatted SO much today, my brain needs a nap 😴 I'll be fully back tomorrow morning!"
-          : error.includes("credit balance")
-          ? "my thinking credits ran out 😅 top me up at platform.claude.com → Plans & Billing and I'll be right back!"
+          : error.includes("credit balance") || /quota|billing/i.test(error)
+          ? "my thinking credits ran out 😅 add credits on my AI account's Billing page and I'll be right back!"
           : error.includes("401")
             ? "I'm having trouble thinking right now 😅 (is my key okay?)"
             : "I'm having trouble thinking right now 😅 (are we online?)";
@@ -530,6 +622,8 @@ export default function App() {
   }, []);
 
   const sendChat = (text: string) => {
+    // AI chat switched off: nothing typed ever leaves this Mac.
+    if (!dataRef.current.settings.chatOn) return;
     stopSpeaking();
     const userMsg = { role: "user" as const, text, at: new Date().toISOString() };
     const draft = structuredClone(dataRef.current);
@@ -561,6 +655,7 @@ export default function App() {
     const res = (await window.companion.brainConnect(key)) as { ok: boolean };
     if (res?.ok) {
       setBrainConnected(true);
+      void refreshBrainStatus();
       showToast("Brain connected");
     } else {
       showToast("Hmm, couldn't save the key");
@@ -621,11 +716,11 @@ export default function App() {
   // or sent to Claude.
   const [mail, setMail] = useState<{ from: string; subject: string; count?: number } | null>(null);
   useEffect(() => {
-    void window.companion.gmailSetEnabled?.(!!data.settings.gmailAlerts);
+    void window.companion.gmailSetEnabled?.(FEATURES.gmailAlerts && !!data.settings.gmailAlerts);
   }, [data.settings.gmailAlerts]);
   useEffect(() => {
     const offMail = window.companion.onGmailNew?.((m) => {
-      if (!dataRef.current.settings.gmailAlerts) return;
+      if (!FEATURES.gmailAlerts || !dataRef.current.settings.gmailAlerts) return;
       if (document.visibilityState === "hidden") return;
       if (stateRef.current === "sleeping" || stateRef.current === "dragged") return;
       setMail({ from: m.from, subject: m.subject, count: m.count });
@@ -641,29 +736,12 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Jokes come from the plant's own joke book (src/jokes.ts, 300+): instant,
+  // offline, free, hand-picked. The last 250 told are skipped so it takes
+  // months before one comes back.
   const tellJoke = async () => {
     const recent = dataRef.current.chat.jokeRecent ?? [];
-    let j = pickFallbackJoke(recent);
-    try {
-      const avoid =
-        recent.length > 0
-          ? `\nDo NOT reuse any of these recent setups (pick something different):\n- ${recent.slice(-15).join("\n- ")}`
-          : "";
-      const res = (await window.companion.brainOnce({
-        system:
-          'You write one original, silly, wholesome joke in the exact format: a question starting with "what do you call" and a short punchline. Vary topics — animals, food, plants, everyday life. Never repeat a joke from the avoid-list. Reply with ONLY JSON: {"setup":"what do you call …?","punchline":"…"}',
-        prompt: `one fresh joke please. make it giggle-worthy and kid-friendly.${avoid}`,
-        maxTokens: 120,
-      })) as { ok: boolean; text?: string };
-      if (res?.ok && res.text) {
-        const parsed = JSON.parse(res.text.slice(res.text.indexOf("{"), res.text.lastIndexOf("}") + 1));
-        if (parsed.setup && parsed.punchline) {
-          const key = jokeKey(parsed.setup);
-          // If the model echoed a recent one, keep the local fresh pick instead.
-          if (!recent.map(jokeKey).includes(key)) j = parsed;
-        }
-      }
-    } catch {}
+    const j = pickFallbackJoke(recent);
     setJoke({ setup: j.setup, punchline: j.punchline, revealed: false });
     set("waving");
     chirp("pop");
@@ -671,7 +749,7 @@ export default function App() {
       d.chat.jokeLastAt = new Date().toISOString();
       const key = jokeKey(j.setup);
       const next = [...(d.chat.jokeRecent ?? []).filter((x) => jokeKey(x) !== key), key];
-      d.chat.jokeRecent = next.slice(-40);
+      d.chat.jokeRecent = next.slice(-250);
       return d;
     });
   };
@@ -721,11 +799,12 @@ export default function App() {
           return d;
         });
         setFiredQueue((q) => (q.some((f) => f.id === fired.id) ? q : [...q, fired]));
-        chirp("pop");
+        chirp("bell");
         try {
           new Notification("Your companion 🌱", { body: `⏰ ${t.text}` });
         } catch {}
-        set("waving");
+        // Task alarm = the same per-stage handbell ring as meetings (owner, Oct 15).
+        set("meeting");
       }
     };
     const id = window.setInterval(check, 8000);
@@ -860,10 +939,17 @@ export default function App() {
   const WIN_W = Math.round(BASE_W * (1 + (panelScale - 1) * 0.55));
   const PANEL_H = Math.round(BASE_PANEL_H * panelScale);
   const plantH = CHAR_H * plantScale;
+  // FLIP_PAD: room above the plant when it sits at the window top (the hop and
+  // poses drawn taller than the plant box).
+  const FLIP_PAD = 80;
   const WIN_H = Math.max(
     BASE_H,
-    Math.ceil(plantH + PLANT_GAP + PANEL_H + STACK_GAP + NAV_H + 20),
+    Math.ceil(FLIP_PAD + plantH + PLANT_GAP + PANEL_H + STACK_GAP + NAV_H + 20),
   );
+  const plantTopY = flip ? FLIP_PAD : WIN_H - plantH; // plant box inside the window
+  const plantBottomY = plantTopY + plantH;
+  const stackSpan = PANEL_H + STACK_GAP + NAV_H;
+  layoutRef.current = { plantH, need: stackSpan + PLANT_GAP + 16 };
   const PANEL_W = WIN_W - uiPad * 2;
   const visL = clip.clipLeft + uiPad;
   const visR = WIN_W - clip.clipRight - uiPad;
@@ -872,8 +958,18 @@ export default function App() {
   let panelLeft = uiPad;
   if (panelLeft < visL) panelLeft = visL;
   if (panelLeft + panelW > visR) panelLeft = Math.max(visL, visR - panelW);
-  // Distance from window bottom → keeps stack glued to the plant.
-  const stackBottom = plantH + PLANT_GAP;
+  // Keeps the stack glued to the plant: above it normally (distance from the
+  // window bottom), below it when flipped (distance from the window top).
+  const stackBottom = WIN_H - plantTopY + PLANT_GAP;
+  const stackTop = plantBottomY + PLANT_GAP;
+  const stackPos: CSSProperties = flip ? { top: stackTop } : { bottom: stackBottom };
+  // Speech bubbles (w-64) sit over the plant but slide inward when the plant
+  // is in a screen corner; the tail keeps pointing at the plant.
+  const BUBBLE_W = 256;
+  const plantCx = WIN_W / 2;
+  const bubbleLeft = Math.max(visL, Math.min(plantCx - BUBBLE_W / 2, visR - BUBBLE_W));
+  const bubbleTail = Math.max(22, Math.min(BUBBLE_W - 22, plantCx - bubbleLeft));
+  const edgeClip = { left: clip.clipLeft, right: clip.clipRight, top: clip.clipTop, bottom: clip.clipBottom };
 
   // Voice: mute switch + warm the model a little after launch (it's ~450MB
   // of RAM, so only when the voice is on).
@@ -906,8 +1002,17 @@ export default function App() {
     if (nudge) say(NUDGE_TEXT[nudge]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nudge]);
+  // Joke voice: ask the question, and meanwhile prepare the punchline (plus the
+  // plant laughing at its own joke) so it plays the instant "What?" is tapped.
+  const withLaugh = (punchline: string) => `${punchline.replace(/[.!?\s]+$/, "")}! Ha ha ha!`;
   useEffect(() => {
-    if (joke) say(joke.revealed ? joke.punchline : joke.setup);
+    if (!joke) return;
+    if (joke.revealed) {
+      say(withLaugh(joke.punchline));
+    } else {
+      say(joke.setup);
+      presay(withLaugh(joke.punchline));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [joke?.setup, joke?.revealed]);
   useEffect(() => {
@@ -927,42 +1032,67 @@ export default function App() {
   usePanelTheme(
     !!data.settings.matchBackdrop,
     panelOpen || open === "menu" || showcase || firedQueue.length > 0 || !!nudge || !!joke || !!meeting,
-    {
-      top: Math.max(0, WIN_H - stackBottom - PANEL_H - STACK_GAP - NAV_H),
-      bottom: Math.max(0, WIN_H - stackBottom),
-    },
+    flip
+      ? { top: stackTop, bottom: stackTop + stackSpan }
+      : { top: Math.max(0, plantTopY - PLANT_GAP - stackSpan), bottom: Math.max(0, plantTopY - PLANT_GAP) },
   );
 
-  // Keep Electron window sized for the chosen panel scale (grow up from plant).
+  // Keep the Electron window sized for the panel scale and tell main where the
+  // plant sits inside it; main shifts the window so the plant stays put.
   useEffect(() => {
     void (async () => {
       try {
-        const raw = await window.companion.setWindowSize({ width: WIN_W, height: WIN_H });
+        const raw = await window.companion.setWindowSize({ width: WIN_W, height: WIN_H, plantTop: plantTopY, plantH });
         setClip(normalizeClip(raw as Partial<Clip>));
+        // First placement after launch: the saved spot may be near the top.
+        if (!placedOnce.current) {
+          placedOnce.current = true;
+          if (decideFlip(raw)) return; // layout flips → this effect runs again
+        }
       } catch {
         /* ignore */
       }
+      unhideSoon();
     })();
-  }, [WIN_W, WIN_H]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [WIN_W, WIN_H, plantTopY, plantH]);
 
   // Refresh edge clips when UI opens — never nudge the window/plant.
+  // Speech bubbles / toasts too (the window can be moved by a display change).
+  const bubbleUp = !!(firedQueue.length || meeting || welcome || booking || mail || joke || nudge || toast);
   useEffect(() => {
-    if (panelOpen || open === "menu" || showcase) void refreshClip();
+    if (panelOpen || open === "menu" || showcase || bubbleUp) void refreshClip();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [panelOpen, open, showcase]);
+  }, [panelOpen, open, showcase, bubbleUp]);
 
   return (
+    <EdgeClipContext.Provider value={edgeClip}>
     <TooltipProvider delayDuration={350}>
-    <div style={{ width: "100%", height: "100%", position: "relative", pointerEvents: "none" }}>
+    <div
+      style={
+        {
+          width: "100%",
+          height: "100%",
+          position: "relative",
+          pointerEvents: "none",
+          "--bubble-left": `${bubbleLeft}px`,
+          "--bubble-tail": `${bubbleTail}px`,
+          "--bubble-top": `${plantBottomY + 10}px`,
+          opacity: relayout ? 0 : 1,
+        } as CSSProperties
+      }
+      className={flip ? "ui-flip" : undefined}
+    >
       {panelOpen && (
         <div
           style={{
             position: "absolute",
             left: panelLeft,
             width: panelW,
-            bottom: stackBottom,
+            ...stackPos,
             display: "flex",
-            flexDirection: "column",
+            // Flipped: panel right under the plant, QuickNav below it.
+            flexDirection: flip ? "column-reverse" : "column",
             alignItems: "center",
             gap: STACK_GAP,
             pointerEvents: "none",
@@ -1016,6 +1146,7 @@ export default function App() {
                 facts={data.chat.facts}
                 week={week}
                 growthStage={growthStage}
+                points={data.sprout.date === today() ? data.sprout.points : 0}
                 onPatch={patchSettings}
                 onDeleteFact={(f) =>
                   update((d) => {
@@ -1033,6 +1164,7 @@ export default function App() {
                   await window.companion.dataSave(next);
                 }}
                 showKeyRow={!brainViaProxy}
+                aiName={aiName}
                 cloudVoice={{ available: cloudInfo.available, autoAccent: accentForLocale(cloudInfo.systemLocale) }}
                 onChangeKey={async () => {
                   await window.companion.brainDisconnect();
@@ -1051,6 +1183,9 @@ export default function App() {
             )}
             {open === "chat" && (
               <ChatPanel
+                chatOn={data.settings.chatOn}
+                aiName={aiName}
+                onEnableChat={() => patchSettings({ chatOn: true })}
                 messages={data.chat.messages}
                 streamText={streamText}
                 busy={chatBusy}
@@ -1085,7 +1220,7 @@ export default function App() {
             position: "absolute",
             left: panelLeft,
             width: panelW,
-            bottom: stackBottom,
+            ...stackPos,
             zIndex: 30,
           }}
         >
@@ -1104,11 +1239,13 @@ export default function App() {
 
       {open === "menu" && (
         <RadialMenu
+          winW={WIN_W}
+          plantTop={plantTopY}
+          plantBottom={plantBottomY}
+          below={flip}
           clipLeft={clip.clipLeft}
           clipRight={clip.clipRight}
           clipTop={clip.clipTop}
-          clipBottom={clip.clipBottom}
-          plantScale={data.settings.plantScale ?? 1}
           onDismiss={() => {
             setOpen("none");
             set("idle");
@@ -1264,21 +1401,27 @@ export default function App() {
       )}
 
       {toast && (
+        // Centred in the on-screen part of the window (plant may be in a corner).
         <div
-          key={toast.text}
-          data-slot="toast"
-          role="status"
-          className="absolute bottom-[216px] left-1/2 z-30 inline-flex h-8 -translate-x-1/2 animate-toast-in items-center gap-1.5 rounded-full bg-foreground px-3.5 text-[13px] font-medium whitespace-nowrap text-background shadow-float"
+          className="absolute z-30 flex justify-center"
+          style={{ left: visL, width: Math.max(0, visR - visL), ...(flip ? { top: plantBottomY + 10 } : { bottom: 216 }) }}
         >
-          {toast.stage && <GrowthIcon stage={toast.stage} className="size-4 text-success-soft" />}
-          {toast.text}
+          <div
+            key={toast.text}
+            data-slot="toast"
+            role="status"
+            className="inline-flex h-8 max-w-full animate-toast-in items-center gap-1.5 rounded-full bg-foreground px-3.5 text-[13px] font-medium whitespace-nowrap text-background shadow-float"
+          >
+            {toast.stage && <GrowthIcon stage={toast.stage} className="size-5" />}
+            <span className="truncate">{toast.text}</span>
+          </div>
         </div>
       )}
 
       <div
         style={{
           position: "absolute",
-          bottom: 0,
+          bottom: WIN_H - plantBottomY, // 0 normally; plant at the window top when flipped
           left: "50%",
           transform: "translateX(-50%)",
           width: 204,
@@ -1357,6 +1500,7 @@ export default function App() {
       {/* Always-on growth test strip (beside plant) — idle stages + level-up clips */}
       {!window.companion?.isPackaged && (
       <GrowthTestBar
+        bottom={WIN_H - plantBottomY + 16}
         growthStage={growthStage}
         visible={data.settings.growthTestVisible}
         onVisibleChange={(v) =>
@@ -1393,7 +1537,7 @@ export default function App() {
       )}
 
       {debugOpen && (
-        <div data-hit="1" style={{ position: "absolute", left: 8, top: 8, pointerEvents: "auto", zIndex: 50 }}>
+        <div data-hit="1" style={{ position: "absolute", left: clip.clipLeft + 8, top: clip.clipTop + 8, pointerEvents: "auto", zIndex: 50 }}>
           <DebugMenu
             current={state}
             growthStage={growthStage}
@@ -1416,5 +1560,6 @@ export default function App() {
       )}
     </div>
     </TooltipProvider>
+    </EdgeClipContext.Provider>
   );
 }

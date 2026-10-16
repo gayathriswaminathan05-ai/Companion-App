@@ -1,0 +1,17 @@
+test-back-a 0d14c060-7b86-4f62-8266-925c7bc46be0 (gpt_image_2_5 high 2k, refs room2-2 + actor2-A)
+test-back-b bd3ea504-972e-44ea-a3a0-8001f71bb7c5
+busy-day-a e352fd51-d65c-4592-8b19-e7e3515f9cfe (monitor+laptop, daylight)
+busy-day-b 79d9b449-cfa1-4697-abda-537678497f42
+busy-dim-a d582ac0a-e7db-4b5b-b58c-ec330ad95be7 (monitor+laptop, EVENING dim)
+busy-dim-b a9e5dd37-69e6-4f68-90ae-32c36cddb9be
+05-stretch-raw 7fb76695-0652-4437-8126-f4a0eb325bff kling3_0 pro 5s from busy-dim-a
+headdown e08c0d0d-76be-4154-a125-ddc7b2d656df
+water 200683ec-ecfb-4128-80de-1b748f5f1016
+golden 7d48794f-afa3-41a3-9191-2ded1e0f20fb
+01-struggle 893c89b0-33fb-45c4-9099-8bc2a771c4c2
+04-hello 6a655acc-445a-4ed9-b9da-5c843fff5bf0
+06a-water 132b30a3-16a6-4342-a023-5809d504cbd1
+06b-email 470b322b-c0b7-41ab-8613-855561febaae
+07-callmom 80150e6f-8b00-4abd-8682-182fd28940dd
+08-win b8dfc083-0986-4163-ace7-4a0cc07ee8dc
+09-goodnight e73244b7-deab-4093-991a-72519f8b62bd

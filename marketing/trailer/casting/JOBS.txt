@@ -1,0 +1,17 @@
+# Trailer casting (Oct 15 2026) — soul_2 2k 16:9 (~0.12 cr each)
+actor-A 7daf7200-3ab8-49be-b570-5bd886d89837
+actor-B 70bf8a69-d7a7-4387-9a45-ef68990b86ca
+actor-C c24059d8-236f-4cfe-8f07-ef1d3200b576
+actor-D c022d22c-c377-4de9-bf8e-687edcc2acf7
+room-1  3f50297a-753b-4190-ad15-249801c4abe8
+room-2  feed4f45-d862-4d0a-9a68-e1ce01ea16c0
+room-3  7ebdb872-3c49-434d-94bc-29e99989439a
+room-4  ed6123b1-7135-4849-9ebc-735276b055ed
+actor2-A 07268566-a199-44d4-b461-93302a65b121
+actor2-B ddee94b5-ab66-4e7a-bde0-89ded1148b7d
+actor2-C 33d42b3a-528d-4cbe-980d-b5ed5718b975
+actor2-D 04240424-cdb3-4b46-be1b-58555bf8677e
+room2-1 f9d6b9e6-c45e-4f78-8655-f31d1e83e64e
+room2-2 4812566f-a8e7-41cb-8394-7474b10d6ca2
+room2-3 dbca9613-c3fc-4d11-8dd7-858c0e757f76
+room2-4 31075b54-beb3-4999-bc25-06d90de42f5c

@@ -9,7 +9,7 @@ const TIMED: Partial<Record<CharacterState, number>> = {
   waking: 1100,
   waving: 1700,
   meeting: 4200, // handbell ring oneshot (per-stage clips ~3–4s)
-  celebrating: 3000, // cork-pull @ 16fps (~2.8s)
+  celebrating: 3200, // per-stage cork-pull + foam: 48 frames @ 16fps (3.0s)
   laughing: 2800,
   writing: 2800,
   // Per-stage stretch→walk: stage1≈5s, stage3+≈10s; holdLast freezes short clips.
@@ -23,6 +23,7 @@ const TIMED: Partial<Record<CharacterState, number>> = {
   grow3to4: 3800,
   grow4to5: 3800,
   grow5to6: 3800,
+  grow6to7: 3800, // crouch → jump → bushier + five flowers (jump peak frames cut)
 };
 
 export function useCharacter() {

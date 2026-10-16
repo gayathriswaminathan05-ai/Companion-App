@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Landing v3 on a phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+<style>
+body{margin:0}
+a{color:#6A53E7}a:hover{color:#4B36C4}
+</style>
+</helmet>
+<div style="width: 390px; height: 1800px; overflow: hidden; box-sizing: border-box; font-family: Figtree, ui-sans-serif, system-ui, sans-serif; color: #201D2F; font-size: 16px; line-height: 1.5">
+
+<section style="background: #FFF8EE; padding: 18px 16px 36px; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center">
+<div style="display: flex; width: 100%; align-items: center; justify-content: space-between"><span style="font-weight: 800">[APP NAME]</span><span style="font-size: 13px; color: #5E5B69">Mac app</span></div>
+<div style="width: 100%; box-sizing: border-box; padding: 16px; border-radius: 20px; background: #FFFFFF; border: 1px solid #E3DED3">
+<p style="margin: 0; font-size: 22px; font-weight: 800">Hi! I'm [PLANT NAME] 👋</p>
+<p style="margin: 6px 0 0; color: #3F3C4A">I live in the corner of your screen and keep you company on long work days.</p>
+</div>
+<div style="width: 150px; height: 180px; border-radius: 20px; border: 2px dashed #8E8A9C; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #5E5B69">THE PLANT, waving</div>
+<button type="button" style="min-height: 46px; padding: 0 18px; border-radius: 14px; border: none; background: #6A53E7; color: #FFFFFF; font: inherit; font-weight: 700">Say hi back 🔊</button>
+<span style="font-size: 13px; font-weight: 700; color: #6A53E7">A day with me ↓</span>
+</section>
+
+<section style="background: #FFF8EE; padding: 8px 16px 36px; display: flex; flex-direction: column; gap: 12px">
+<div style="aspect-ratio: 9 / 16; max-height: 420px; width: 100%; border-radius: 16px; background: #E9E3D8; display: grid; place-items: center; text-align: center; font-size: 13px; font-weight: 700; color: #5E5B69">VERTICAL VIDEO · shots 1–3</div>
+<p style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #A65A0B">☀ 9:00 am</p>
+<h2 style="margin: 0; font-size: 28px; line-height: 1.12">Long days. Just you and the screen.</h2>
+<p style="margin: 0; color: #4A4757">Chai, good plans… and by noon your neck hurts and the inbox has doubled.</p>
+</section>
+
+<section style="background: #F7F5FF; padding: 36px 16px; display: flex; flex-direction: column; gap: 12px">
+<div style="aspect-ratio: 9 / 16; max-height: 420px; width: 100%; border-radius: 16px; background: #E4DEFA; display: grid; place-items: center; text-align: center; font-size: 13px; font-weight: 700; color: #4A3AA8">VERTICAL VIDEO · stretch shot</div>
+<p style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6A53E7">☀ 3:00 pm</p>
+<h2 style="margin: 0; font-size: 28px; line-height: 1.12">"Stretch with me?"</h2>
+<p style="margin: 0; color: #4A4757">You stretch, I stretch, and I grow a little.</p>
+<span style="font-size: 12px; color: #8E8A9C">…same pattern for water, email, call mom, the win, goodnight</span>
+</section>
+
+<section style="background: #1B1824; color: #FFFFFF; padding: 40px 16px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center">
+<h2 style="margin: 0; font-size: 30px; line-height: 1.1">You're not alone at your desk.</h2>
+<a href="#share" style="display: flex; align-items: center; justify-content: center; width: 100%; min-height: 50px; border-radius: 14px; background: #FFFFFF; color: #201D2F; font-weight: 800; text-decoration: none">Send this to my Mac</a>
+<span style="font-size: 12px; color: #B9B4CC">Opens the share sheet. We collect nothing.</span>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1800}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -15,6 +15,7 @@ const TRANSITIONS: { from: GrowthStage; to: GrowthStage }[] = [
   { from: 3, to: 4 },
   { from: 4, to: 5 },
   { from: 5, to: 6 },
+  { from: 6, to: 7 },
 ];
 
 function hasClip(from: GrowthStage, to: GrowthStage): boolean {
@@ -26,13 +27,13 @@ function hasClip(from: GrowthStage, to: GrowthStage): boolean {
 const shell: React.CSSProperties = {
   position: "absolute",
   right: 6,
-  bottom: 16,
   zIndex: 40,
   pointerEvents: "auto",
   fontFamily: "system-ui, sans-serif",
 };
 
 export default function GrowthTestBar({
+  bottom = 16,
   growthStage,
   visible,
   onVisibleChange,
@@ -40,6 +41,8 @@ export default function GrowthTestBar({
   onPlayTransition,
   onPlayWatering,
 }: {
+  /** px from the window bottom (follows the plant when the UI is flipped). */
+  bottom?: number;
   growthStage: GrowthStage;
   visible: boolean;
   onVisibleChange: (v: boolean) => void;
@@ -78,6 +81,7 @@ export default function GrowthTestBar({
         data-hit="1"
         style={{
           ...shell,
+          bottom,
           width: 34,
           height: 34,
           borderRadius: 12,
@@ -102,6 +106,7 @@ export default function GrowthTestBar({
       data-hit="1"
       style={{
         ...shell,
+        bottom,
         width: 78,
         display: "flex",
         flexDirection: "column",

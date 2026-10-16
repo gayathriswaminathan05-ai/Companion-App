@@ -157,11 +157,11 @@
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translate(-50%, 6px) scale(0.96);
+    transform: translateY(6px) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translateY(0);
   }
 }
 @keyframes check-pop {
@@ -195,4 +195,18 @@
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Plant near the top of the screen (App adds .ui-flip): speech bubbles open
+   BELOW the plant with the tail pointing up. Unlayered, so it beats the
+   utility classes on SpeechBubble. */
+.ui-flip [data-slot="bubble"] {
+  bottom: auto;
+  top: var(--bubble-top);
+  transform-origin: top;
+}
+.ui-flip [data-slot="bubble"]::after {
+  bottom: auto;
+  top: -7px;
+  rotate: 225deg;
 }

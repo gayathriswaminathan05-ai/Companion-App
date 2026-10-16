@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>In-app feedback button</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+<style>
+body{margin:0}
+a{color:#6A53E7}a:hover{color:#4B36C4}
+</style>
+</helmet>
+<div style="width: 560px; height: 480px; position: relative; overflow: hidden; box-sizing: border-box; background: #E2E0E9; font-family: Figtree, ui-sans-serif, system-ui, sans-serif; color: #201D2F">
+<div style="position: absolute; left: 24px; top: 24px; width: 270px; display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5E5B69">A · always there: 5th button in the menu</span>
+<p style="margin: 0; font-size: 13px; color: #3F3C4A">Opens the feedback form in the browser. Same form as the landing page.</p>
+</div>
+<div style="position: absolute; right: 16px; bottom: 210px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px">
+<span style="font-size: 13px; font-weight: 600; background: #201D2F; color: #FFFFFF; border-radius: 8px; padding: 5px 10px">Tell us what you think</span>
+<div style="display: flex; gap: 10px; padding: 8px; border-radius: 999px; background: rgba(255,255,255,0.9); border: 1px solid #D6D3DF">
+<button type="button" aria-label="Chat" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid #D6D3DF; background: #FFFFFF; color: #6A53E7; font: inherit; font-size: 11px; font-weight: 700">Chat</button>
+<button type="button" aria-label="Tasks" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid #D6D3DF; background: #FFFFFF; color: #6A53E7; font: inherit; font-size: 11px; font-weight: 700">Tasks</button>
+<button type="button" aria-label="Settings" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid #D6D3DF; background: #FFFFFF; color: #6A53E7; font: inherit; font-size: 10px; font-weight: 700">Set</button>
+<button type="button" aria-label="Send feedback" style="width: 44px; height: 44px; border-radius: 50%; border: none; background: #6A53E7; color: #FFFFFF; font: inherit; font-size: 10px; font-weight: 700">Idea</button>
+<button type="button" aria-label="Nap" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid #D6D3DF; background: #FFFFFF; color: #6A53E7; font: inherit; font-size: 11px; font-weight: 700">Nap</button>
+</div>
+</div>
+<div style="position: absolute; left: 24px; bottom: 24px; width: 290px; box-sizing: border-box; padding: 16px; border-radius: 18px; background: #FFFFFF; border: 1px solid #D6D3DF; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5E5B69">B · one gentle ask, around day 5</span>
+<p style="margin: 0; font-size: 16px; font-weight: 700; line-height: 1.3">Got two minutes to tell [MAKER NAME] how I'm doing?</p>
+<div style="display: flex; gap: 8px">
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 12px; border: none; background: #6A53E7; color: #FFFFFF; font: inherit; font-weight: 700">Open the form</button>
+<button type="button" style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: none; background: #F5F3FF; color: #6A53E7; font: inherit; font-weight: 700">Not now</button>
+</div>
+<p style="margin: 0; font-size: 12px; color: #5E5B69">Counts toward the 4-nudges-a-day limit. Asked once, never repeated.</p>
+</div>
+<div style="position: absolute; right: 28px; bottom: 18px; display: flex; flex-direction: column; align-items: center; gap: 4px">
+<svg width="110" height="140" viewBox="0 0 120 150" fill="none" stroke="#201D2F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M60 62 C52 40 54 22 60 10 C66 22 68 40 60 62Z"></path>
+<path d="M56 64 C40 50 32 36 30 22 C42 30 52 44 56 64Z"></path>
+<path d="M64 64 C80 50 88 36 90 22 C78 30 68 44 64 64Z"></path>
+<rect x="22" y="62" width="76" height="16" rx="6"></rect>
+<path d="M28 78 L36 128 Q37 134 43 134 L77 134 Q83 134 84 128 L92 78"></path>
+<circle cx="48" cy="98" r="4" fill="#201D2F"></circle>
+<circle cx="72" cy="98" r="4" fill="#201D2F"></circle>
+<path d="M54 110 Q60 115 66 110"></path>
+<path d="M92 96 L100 110"></path>
+<path d="M28 96 L20 110"></path>
+<path d="M48 134 L48 142 M72 134 L72 142"></path>
+</svg>
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5E5B69">pose: idle</span>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":560,"height":480}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

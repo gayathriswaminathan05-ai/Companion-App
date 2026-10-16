@@ -333,8 +333,13 @@ Pricing/paywall copy intentionally NOT added yet.
   bubble; RAM only. Old read-only connections show "Reconnect". Testing-mode
   caveats: test users only, weekly reconnect (google-auth-expired toast),
   gmail.metadata is RESTRICTED (public launch needs paid security assessment).
-- CHAT PROXY: proxy/ (Cloudflare Worker, tests pass, NOT deployed yet — needs
-  her Cloudflare account; README has steps). main.cjs: local brain.key wins;
+- CHAT PROXY: proxy/ (Cloudflare Worker, 25 tests pass). DEPLOYED on her
+  portfolio Cloudflare account (gayathri.swaminathan05@gmail.com) as
+  companion-proxy → https://companion-proxy.companion-proxy.workers.dev
+  (/health). KV "RATE" id in wrangler.toml. Secrets: APP_TOKEN (also in
+  beta-config.json), ANTHROPIC_API_KEY (she pipes it in herself from
+  userData/brain.key — key never passes through Claude). DAILY_LIMIT 60
+  msgs/device. Redeploy: cd proxy && npx wrangler deploy. main.cjs: local brain.key wins;
   else electron/beta-config.json {proxyUrl, appToken} (GITIGNORED) → SDK
   baseURL=proxy + anonymous device-id. Daily limit 429 "daily_limit" → friendly
   nap message. Settings hides key row for proxy users.
@@ -356,12 +361,76 @@ Pricing/paywall copy intentionally NOT added yet.
   that can't run live): Google TTS Chirp 3 HD, accent per country (en-IN/US/GB/
   AU from app.getSystemLocale region, Settings "Accent" override), voices
   Puck/Fenrir/Charon/Leda/Aoede/Zephyr (default Puck). Proxy route /v1/tts
-  (GOOGLE_TTS_KEY secret, TTS_DAILY_CHARS 20000/device/day). Founder testing
+  (GOOGLE_TTS_KEY secret, TTS_DAILY_CHARS 6000/device/day, then on-device). Founder testing
   without proxy: userData/google-tts.key. main converts LINEAR16 WAV → Float32
   so playback path is shared; any failure falls back to Kokoro. Meeting titles
   + email senders ALWAYS on-device (say(..., {private:true})). NOT yet heard:
   needs her Google API key (enable Cloud Text-to-Speech API).
+  BETA SHIPS WITH ON-DEVICE VOICE (owner, Oct 15): beta-config cloudVoice=false.
 - WELCOME: first-run bubble (settings.welcomed).
+- LUMIO CUT-OUTS (her own BG remover, ~/Desktop/Background remover, BiRefNet
+  matting + foreground colour estimation): replaces chroma keying — no pink
+  fringe/shadows. scripts/lumio_cutout.py (Lumio venv python; 12fps 540px;
+  LUMIO_RES 1024 default, 768 fine) → scripts/lumio_match.py places new frames
+  EXACTLY on the old frames' box (median scale/offset over 9 frames; keeps
+  meta.json/manifest so in-app sizes don't move; refuses on frame-count
+  mismatch). Batch driver: scripts/pipeline/recut-existing.sh clip:state; new clips: scripts/pipeline/sprite-in.sh <clip> <state>.
+  Raw clips for her own tools: "Video assets for background removal/" (gitignored).
+  Box = solid pieces >=2% of the biggest (shoes count, specks don't).
+  LUMIO_MATCH=perframe for walk clips (stretching1-7 were CLIP_CROP=perframe).
+  scripts/lumio_verify.py <state_dir> <old_frames> prints worst drift (px).
+  NEW clips (no old frames): lumio_cutout.py → CLIP_PREKEYED_DIR=<cut> node
+  scripts/process-clip.cjs <clip> <state>.
+  DONE Oct 15: every state re-cut with Lumio (growth1-7, watering1-6,
+  meeting1-6, grow transitions, stretching1-6, celebrating, coffee,
+  thinking, listening, noting, sleeping, idle, idlehop, dragged, waving) +
+  the 10 new clips. Drift ≤3px for static clips. grow4to5 needed
+  LUMIO_MATCH=perframe (old frames were per-frame cropped; potScale back
+  to 1.138). Old frames restorable via git (HEAD).
+- PER-STAGE POSES (Oct 15, owner-approved, ~101 credits total): stills in
+  mascot-poses/stage-poses/ (JOBS.txt has every still + video job id; white
+  BG, gpt_image_2_5 high 1k = 1.5cr; two refs: stage-N plant + pose ref).
+  celebrating1..7 (cork twist→pop→foam; trimmed 1.0–5.0s; 16fps oneshot;
+  potScale = stage idle pot width ÷ clip start pot width), meeting7 (bell,
+  0–4.2s), watering7 (short arm — she rejected the long-arm look; pour trim
+  1.2–3.0s), stretching7 (walk7, 10s, perframe). Blob picks
+  stageSprite("celebrating", stage). TASK ALARMS now ring the per-stage bell
+  (set("meeting") + bell chirp) instead of waving (owner choice).
+  Watering 1–6 still have the long-arm look; ~54cr to redo if she wants.
+  BUNDLE B (Oct 15, owner: "be very careful with credits, priority order"):
+  per-stage coffee (sip; also thinking/listening), sleeping (yawn → tip over
+  → moon blanket → asleep, ONE clip, start = yawn still only, holdLast) and
+  waving, for stages 1–3, 5–7 (stage 4 = the original clips). Stills in
+  mascot-poses/stage-poses/bundleB/ (JOBS.txt = all ids + QA verdicts).
+  Notepad stills were flawed → NO notepad videos (owner). Blob:
+  stageVariant(prefix, stage) walks down to the nearest stage with frames
+  (stage 4 → the unsuffixed clip). Sleeping clips get scripts/pipeline/feather_edges.py
+  (28px alpha ramp) because the blanket runs off the frame. sleeping5–7 v1
+  cropped flowers at the edge (plant too wide lying down) → RETAKEN (owner
+  OK, 22.5cr) from yawn-stage{5,6,7}-padded.png (still shrunk to 68%, shifted
+  right, "tips over toward the left, camera stays wide") → clips
+  sleeping{5,6,7}b.mp4; v1 kept as sleeping{5,6,7}-v1-cropped.mp4.
+  POSE SIZE MATCH: process-clip computes potScale for coffee/waving/
+  sleeping{N} = growthN pot RIM ÷ clip-start rim (solid pot rows only, so
+  arms/buds/flowers don't count); Blob scale = spriteScale(growthN) ×
+  potScale (cap 1.8 for the 384px window). Coffee was already ±3%; wave
+  +5–8% and yawn +8–13% are now fixed.
+  HAMMOCK (owner pick: one rest pose for every stage, 54cr): stills + jobs in
+  mascot-poses/stage-poses/hammock/ (refs stage-N + hammock.png), Kling
+  start=end gentle sway → hammock1..7 (4 = original). REST ROTATION back in
+  App.tsx: after ~12 quiet min on idle the plant lounges ~4 min in a rest
+  pose that has art for its CURRENT stage (hammock all stages; lying/
+  meditate/picnic/groove/hula only stage 4), any click/nudge/panel
+  interrupts. Hula + picnic per stage = next when she buys credits.
+  FIXES (free, on the PNGs — redo after any reprocess): hammock6 right post
+  smeared by Kling in 5 frames → scripts/patch_static_region.py
+  public/character/hammock6 290 326 (copies the static post band from f-001);
+  original stage-4 hammock had white pockets between rope and posts →
+  near-white opaque pixels cleared in all 61 frames.
+  Balance 10.24 (Oct 15 late).
+  HIGGSFIELD: the claude.ai connector works without /mcp (balance 273.9 →
+  ~173 after this). gpt_image_2_5 rate-limits >4 parallel; Kling batch needs
+  declined_preset_id 24bae836-2c4a-48e0-89b6-49fcc0b21612.
 - PACKAGING: `npm run dist` = vite build → scripts/optimize-sprites.cjs (dist PNG
   → WebP q90 lossless-alpha, ~14% size, rewrites bundle paths) → electron-builder
   arm64 DMG, ad-hoc signed (identity "-"; signIgnore skips onnx/png/webp/json —
@@ -371,6 +440,280 @@ Pricing/paywall copy intentionally NOT added yet.
   transformers, kokoro-js (everything else devDependencies).
 - TESTER GUIDE (artifact): https://claude.ai/artifact/XQermrBPf5YRdWUUatoBck
   (install + Open Anyway, usage, Google opt-in, privacy, feedback questions).
+
+- OWNER BUG FIXES (Oct 16):
+  1) CLICK HOP per stage: SPRITES.idlehop is the July pre-growth plant (no
+     bud) → Blob now hops the stage's OWN idle loop with a CSS crouch →
+     spring → squash landing (.growth-hop, like the drag swing). Real per-stage
+     hop videos = ~7.5cr each later (start=end = stage-N still).
+  2) STAGE-7 BELL lag: meeting7 clip froze 0.83s before ringing while the
+     bell chirp fires at once → re-trimmed from meeting7-full.mp4 0.75–4.95s
+     (old cut = meeting7-v1-leadin.mp4). NOTE: scratchpad lumio/new/<state>
+     is a CACHE — delete it before re-cutting a re-trimmed clip.
+  3) EDGE CROPPING: speech bubbles were always centred and tooltips only knew
+     the window. Now: App sets --bubble-left/--bubble-tail (SpeechBubble
+     slides inside the on-screen band, tail still points at the plant);
+     src/edgeClip.ts EdgeClipContext → TooltipContent default collisionPadding
+     = off-screen px + 6; toast centred in the visible band; clip re-measured
+     after every drag, at launch and when any bubble/toast appears.
+     (Top/bottom edge: panels/bubbles above the plant can still go off the
+     top if the plant is dragged to the very top of the screen.)
+
+- OWNER FIXES (Oct 16, round 2):
+  JOKES: src/jokes.ts = the plant's joke book (314 wholesome Q→A riddles,
+  dupes auto-dropped; no emoji, no stretched letters — TTS reads "moooon" as
+  "mon"). tellJoke uses ONLY the book now (no Claude call); last 250 told are
+  skipped (store caps jokeRecent at 250). Voice: punchline + "Ha ha ha!" is
+  PREFETCHED (voice.ts prefetchSpeech cache) while the question shows, so it
+  plays instantly on "What?". Name inputs in Settings left-aligned.
+  COLOUR GROWTH ICONS: GrowthIcon = real plant thumbnail public/icons/
+  stage-N.png (scripts/make-stage-icons.py from growthN f-001; re-run if
+  growth art changes). Click hop stays CSS (owner: no hop videos).
+  TOP EDGE: macOS clamps windows below the menu bar → plant couldn't go up
+  (verified: y forced to 30). main.cjs enableLargerThanScreen:true + plantBox
+  {top,height} from the renderer; clampPlantY keeps the PLANT on screen while
+  the window may hang past edges; set-window-size shifts the window so the
+  plant stays put; window-state.json saves plantTop/plantH. Renderer "flip":
+  when panels don't fit above the plant (decideFlip on launch + drag end,
+  hysteresis), plant sits at window top (FLIP_PAD 80) and menu (below its
+  feet), panel stack (column-reverse), bubbles (.ui-flip CSS, tail up) and
+  toast open BELOW. relayout hides the UI ~2 frames during the shift.
+  RadialMenu now takes real winW/plantTop/plantBottom (was hardcoded 384x600;
+  MENU_GAP 81 = same look as before). Gallery has top-of-screen examples.
+
+## Onboarding + landing — DECISIONS (Oct 15, discussed, NOT built; she said
+## "do not start building" until she confirms)
+- NAMES: she will pick a new app name + plant default name (replaces
+  "Companion"/"Blob" on landing, installer, onboarding). Wait for them.
+- ONBOARDING: plant talks you through it on the desktop (speech bubbles, one
+  question at a time, Finch-style, "Skip setup" always visible, ~2 min,
+  scripted not AI, spoken aloud + mutable, no pricing). Proposed steps: hello
+  wave → your name / its name (+Shuffle) → "drag me anywhere" (wait for drag)
+  → "click me" (menu) → first reminder by typing or mic (mic permission asked
+  only here) → care card (stretch/water/bedtime defaults) → start at login →
+  growth explainer. Privacy line: "I notice when you step away, never what
+  you type." Permissions in context only.
+- LANDING: simple private (unlisted) beta page on her Cloudflare (Pages +
+  DMG on R2): hero = headline + Download for Mac + plant animated on a Mac
+  desktop mock; 3-step install incl. Open Anyway; what it does; privacy;
+  feedback. Refs: Tana / Grain download heroes, Finch setup flow (Mobbin).
+- FEEDBACK: short form (Google/Tally) linked from page AND an in-app menu
+  button (+ one gentle day-5 ask, counts toward the 4-nudge cap).
+- WIREFRAMES (Design canvas artifact, private): https://claude.ai/artifact/PTD5iYxQVt6jzmAi5DEPVz
+  — landing page + onboarding steps 1–9 + feedback button. SAVED COPY in
+  docs/wireframes/ (boards + snapshots PNGs), Oct 16.
+
+## Landing page v2 + trailer (Oct 15, wireframes only — nothing built)
+- Canvas https://claude.ai/artifact/PTD5iYxQVt6jzmAi5DEPVz rows: landing v1,
+  onboarding 1–9, feedback, Trailer (look + 9-shot storyboard), Landing v2:
+  hero Option A playful desk / Option B busy WORK desk (owner leaning B:
+  "show the busy-ness"), intro sequence (watering loader → plant says hi,
+  "Say hi back 🔊" unlocks sound → "try the phone!" → auto-scroll to videos
+  with polite rules), use-case video chapters (sticky video + 6 chapters),
+  phone version ("Send this to my Mac" share sheet). Inspired by
+  play.jegteixeira.com (pannable desk, interactive objects). Every desk
+  object = a feature that plays the real plant animation + sound.
+- Trailer pipeline + approved test shot: marketing/trailer/ (SHOTLIST.md).
+  ALL 8 SHOTS DONE (Oct 15): shots/01-struggle, 04-hello, 05-stretch-v2,
+  06a-water, 06b-email, 07-callmom, 08-win, 09-goodnight (.mp4 with audio).
+  compose_shot.py = virtual camera (log-zoom push-in onto the plant, screens
+  replaced from green with captured HTML at @4x, occluders kept, green
+  spill filled before blur); audio/mix_shot.py = room tone + typing + the
+  app's own chirps + Kokoro VO (plant af_heart, "Hi Ma!" am_michael).
+  09 re-rendered with the STAGE-7 sleeping plant (continuity: 08 ends in
+  full bloom); stage-4 version kept as 09-goodnight-stage4.mp4. Plant growth
+  across the day: hello/stretch/water/email = 4, call mom = 5, win/night = 7.
+  Pending: background music; full 60s cut + per-section landing videos.
+- LANDING v3 (owner's current direction, Oct 15): SIMPLE story narrative.
+  Hero = the plant introduces itself (big plant, speech bubble, "Say hi
+  back 🔊"), then auto-scrolls (politely) into 8 sections, morning → night,
+  each = use-case video one side + copy the other (alternating), section
+  backgrounds darken with the time of day; ends "You're not alone at your
+  desk." + Download. Canvas row "Landing page v3"; stretch test video is
+  embedded in its section. Phone: stacked, vertical 9:16 videos, "Send this
+  to my Mac". v1 and v2 kept for comparison.
+- Owner preference: keep ALL design options side by side (never overwrite).
+
+## Beta landing / download page — BUILT (Oct 16, owner: "complete landing page/app download page")
+- site/ (static: index.html, styles.css, main.js, assets/). Preview: launch.json
+  "beta-site" → http://localhost:8790. Old July waitlist page stays in landing/.
+- SETTINGS: top of site/main.js → SITE { appName ("Companion" until she names
+  it), downloadUrl (.dmg on R2, empty = dimmed button + "opens with the
+  beta"), feedbackUrl (empty = "Form coming soon") }. Plant never says a name
+  ("your little desk plant") so her naming doesn't block the page.
+- Follows wireframe v3 + grid: hero (plant stage 5 breathing, typed bubble, "Say
+  hi back" = Kokoro af_heart voice line assets/audio/hello.m4a + wave anim,
+  then glides to the story; polite idle auto-glide after 6.5s, cancelled by
+  any scroll/tap/key, off for reduced motion) → 7 story chapters with trailer
+  shots (9am→9:30pm; videos lazy-load,
+  play in view, sound toggle: once on, each chapter speaks as it scrolls in)
+  → NEW GROWTH section (owner ask: show how the plant flourishes): 9:45pm
+  "Look how much we grew today", interactive: I stretched +2 / I drank water
+  +2 / I finished a timed task +1 → real stage animations 1→7, meter, 7-stage
+  strip, app chirps, confetti at full bloom, "Start a new day" → goodnight
+  → download (bloom wave, install-3-steps incl. Open Anyway, privacy, feedback;
+  phones get "Send this to my Mac" share). noindex (private link).
+- LOOK (owner, Oct 16): WHITE page with a fine grid mesh like the playground
+  ref play.jegteixeira.com (body bg: 1px lines rgb(32 29 47/.065) every 44px)
+  + a faint blurred window-frame shadow in the hero (daylight on the desk,
+  hidden on phones). No coloured/dark section backgrounds any more: cards are
+  white with soft shadows; only the time labels change colour through the day.
+  Desktop QA: offscreen Electron capture (sections at 1440x900) when the
+  preview pane is too narrow.
+- HERO v2 (owner, Oct 16): plant WALKS in from the left edge (CSS waddle on
+  the stage-5 breathing loop: rotate/bob steps, 3.1s ease, landing squish;
+  no walk video, ~9cr if ever wanted), bubble pops, plant speaks + types
+  "…Will you say hi back?". No hi within 2.5s after it finishes → CTA
+  JITTERS + "Hellooo? I'm waiting for your hi!" (then quiet jitter every 6s,
+  max 4). Big glowing "Say hi back" CTA. After hi: "Yaaay, hi!" reply, then
+  the STORY TOUR starts (no auto-scroll before the hi).
+- VOICE: owner picked sample D = Kokoro af_heart "bubbly" (pitch +2.5 semitones
+  via asetrate+atempo, speed 1.05) — the same sound is meant for the app later.
+  scripts/site/build-voice.sh [voice] builds intro/nudge/reply + tour-1..10.
+  Samples A–D in marketing/voice-samples/.
+- STORY TOUR (owner: "scroll automatically… as if the plant is narrating"):
+  runTour() scrolls section by section (chapters/growth card centred,
+  download from top), plant narrates each (tour-N.m4a + caption chip
+  bottom-left whose avatar grows 1→7 through the day), videos stay muted
+  while it narrates, growth section auto-grows to full bloom. Visitor
+  wheel/swipe/keys/in-page link → pauses; "Continue the story" resumes from
+  the section on screen. ~80s total. Skipped for reduced motion.
+- SAY HI FOR REAL (owner): "Say hi back" opens the mic and the plant listens
+  ("I'm listening! Say hi!"); a short burst of voice above the room-noise
+  floor = hi (loudness only, in the browser: nothing recorded or sent, no
+  speech service). Then "Yaaay, hi!" and the tour starts by itself. 9s of
+  silence → "can't hear you" line; no mic/denied → button becomes "Wave hi";
+  "No mic? Wave instead" link always there.
+- DOODLES v2 (owner refs: duotone desk illustration / ink sketch / line-art
+  grid; "fun but minimalistic"): hand-drawn SVG illustrations in
+  site/doodles.js (window.DOODLES, filled into [data-doodle] by main.js):
+  indigo line #3f33a6 + lavender/coral/butter fills, moving parts (steam,
+  buzzing phone, ticking clock, floating notes, dripping water, twinkles,
+  laptop blink). Hero: ~10 around the plant (sad laptop, calendar, coffee,
+  sticky checklist, lamp, phone, headphones…; inner ones hide <1240px, all
+  hide <900px). ONE per section in a top corner (papers, plane, clock,
+  water, envelope, phone, popper, can, headphones, moon) and the laptop is
+  HAPPY at the download (sad→happy arc). Wiggle on hover.
+- CHILL v2 (owner: cards looked merged): 3 distinct cards with label chips —
+  Chat (white, app-style window with "Your plant · online"), Jokes (butter
+  sticky note, tape, tilted; card FLIPS to a lavender punchline + "ha ha ha!",
+  giggle chirp, "Another one"), Chill (sky gradient, hammock + sparkle).
+  3 columns ≥1100px, 2 mid, stacked on phones (no tilt).
+- CHILL SECTION (owner: the chat use case was missing): after growth, "Or
+  just chill with me." 10:15pm: app-style chat that plays out (vent + "remind
+  me to call mom at 6" → task), joke card (10 jokes from the joke book, What?
+  → punchline), hammock card (hammock-7.webp). Tour step 9 narrates it
+  (tour lines now 1–11).
+- ONE SOUND SWITCH (owner): bottom-right dock "Sound on/off" governs plant
+  voice, chirps and story videos (per-video buttons removed). Off by default
+  (browsers block sound); the intro turns it on if the browser lets it play,
+  otherwise the switch gets an attention ring; "Say hi back" turns it on.
+- Flow QA: hidden-window Electron run logs every step (scratchpad herotest).
+- MEDIA (re-run when art/shots change): scripts/site/build-media.py <ffmpeg>
+  [icons|plants|videos] (720p crf26 videos ~0.7-1.2MB + posters, animated
+  WebP plants 300px: idles every 2nd frame @6fps ~700KB), scripts/site/
+  build-icons.mjs (Phosphor → assets/icons.svg sprite). Fonts self-hosted.
+- NOT DONE (needs her): final names, feedback form, upload DMG (release/
+  Companion-0.1.0-arm64.dmg is OLD, rebuild with npm run dist first) and
+  deploy (Cloudflare Pages + R2) — publishing needs her OK + her login.
+
+## Landing VERSION B (Oct 16, owner: "another version like Tolan") — site/b.html
+- Kept SIDE BY SIDE with version A (index.html, narrated story). B = Tolan
+  pattern, plain manual scroll: giant wordmark hero (NO doodles — owner) with
+  BIG plants PERCHED on it (coffee sip top-left, wave top-right, asleep under
+  its blanket at the end) + Watch the trailer / Download. TRAILER = small
+  card fixed bottom-right (silent preview loop trailer-preview.mp4, 9s,
+  340KB; ✕ hides it for the session; phones show it only after scrolling
+  past the hero buttons) → click / "Watch the trailer" EXPANDS into a modal
+  player with sound (Esc/backdrop/✕ close, closes itself at the end).
+  TRAILER SOUND v2 (owner: old merge "sounded very robotic"): the PLANT
+  NARRATES it in voice D — marketing/trailer/audio/narrate.sh → narr-1..8.wav
+  (one line per scene), beds = mix_shot.py re-run WITHOUT the old --vo lines
+  (bed-*.wav: room tone, foley, app chirps), build-trailer.py mixes beds +
+  narration (bed ducks under the voice) over the -silent.mp4 scenes, black
+  fades. 47s, 9MB. Use-case groups with the
+  plant's OWN animations (no person videos) + a mock of the real app bubble:
+  Looks after you (stretch, water), Keeps you on time (bell reminder, email),
+  Celebrates and grows (champagne + interactive growth), Hangs out (chat /
+  jokes / hammock cards from A), Says goodnight (sleep) → privacy grid (copy
+  from wireframe v1) → download + install + feedback. Files: b.html, b.css
+  (on top of styles.css), b.js (own SITE block — keep in sync with main.js).
+  Feature anims: build-media.py "features" (feat-stretch = stretching5 frames
+  1–56 only, feat-water/bell/coffee/cheers/sleep; -still/-end variants).
+
+## Settings "How I work" (Oct 16, owner: show how the plant works)
+- SettingsPanel top: TODAY card (colour plant, "Stage N of 7 · P of 12 points",
+  green→pink progress bar, 7 stage icons, next-step hint, week stats) +
+  collapsible HOW I WORK guide (open by default): grow rules, gentle nudges,
+  reminders, chat + memories, jokes, bedtime, moving me — sentences use her
+  real settings (break/water minutes, bedtime, joke frequency, calls).
+  App passes points = today's sprout points.
+
+## Privacy round (Oct 16, owner: "hide email, I want to be 100% sure")
+- EMAIL HIDDEN (cost: gmail.metadata = Google "restricted" scope → paid
+  security assessment): src/features.ts FEATURES.gmailAlerts=false +
+  calendar.cjs GMAIL_FEATURE=false (Google sign-in asks calendar.events
+  only; Gmail poller never starts). Settings: Gmail row hidden, section
+  "Google Calendar", reconnect ignores gmail. Flip both flags to bring back.
+  STILL TODO: email chapter/card in landing A + B, trailer scene 06b-email
+  + narr-5, "47 sec" labels.
+- CHAT WITH AI SWITCH: settings.chatOn (default on). Off → ChatPanel shows
+  "Chat is off" + Turn chat on; App.sendChat returns early; main.cjs
+  chat-send/brain-once also refuse (chatAllowed() reads the saved file =
+  second lock). Settings → Privacy row + corrected note (old note wrongly
+  said "never stored"): not used for training, deleted within 30 days
+  (Anthropic commercial API default; flagged = up to 2y).
+- ZERO DATA RETENTION prep: Anthropic ZDR = request via claude.com/contact-sales,
+  per ORGANIZATION, approval case by case. web_search_20260209 defaults to
+  dynamic filtering (runs in code execution = NOT ZDR-eligible, kept up to
+  30d) → main.cjs now sets allowed_callers:["direct"] (tested: search works).
+  Everything else we use (Messages, streaming, prompt caching, direct web
+  search) is ZDR-eligible. Don't add code execution / Files / Batch / web
+  fetch dynamic filtering. After approval: update privacy copy in app +
+  landing to "not stored after the reply".
+
+## CHATGPT SWITCH (Oct 16, owner: leave the COMPANY Claude account → her own OpenAI account)
+- Both AIs supported; the KEY decides: userData/brain.key starting "sk-ant-"
+  = Claude, anything else = ChatGPT. Proxy builds: beta-config.json
+  "provider": "openai" | "anthropic" (default anthropic — flip ONLY after
+  OPENAI_API_KEY is on the proxy + redeploy, or testers' chat breaks).
+- main.cjs: brainProvider()/getBrain() → {provider, client}; chatOpenAI =
+  Responses API stream, model OPENAI_CHAT_MODEL "gpt-6.1-sol" (balanced tier
+  $2/$10 per 1M; budget "gpt-6-luna" $0.10/$0.50), instructions = joined
+  brain.ts blocks, tools [{type:"web_search", user_location approx country +
+  timezone}], reasoning effort low, max_output_tokens 4096, store:false,
+  prompt_cache_key "companion-chat"; sources from url_citation annotations.
+  chatClaude = old loop. brain-once both. OpenAI lib "openai" 7.34 (runtime dep).
+- Proxy: /v1/responses → api.openai.com (Bearer OPENAI_API_KEY secret);
+  OPENAI_ALLOWED_MODELS, OPENAI_OUTPUT_CAP vars; forces store:false; only
+  web_search tool; blocks previous_response_id/conversation/background;
+  shares the daily counter with Claude. 31 tests pass (6 new, incl. real
+  OpenAI SDK stream). NOT DEPLOYED yet (needs her OK + her secret).
+- UI: aiName ("ChatGPT"/"Claude" from brain-status provider) in Settings key
+  row, Privacy row + note, chat-off screen; connect screen = OpenAI steps
+  (platform.openai.com/api-keys, "a ChatGPT Plus plan doesn't include one").
+  Out-of-credit message matches OpenAI "quota/billing" too.
+- PERSONALITY CHECK: scripts/chat-eval.mjs (20 chats: voice, length, no bot
+  phrases/hotline-for-sadness, crisis line, task/complete/remember/meeting
+  tags + exact due times, research format). Uses the saved key; MODEL=…
+  to compare; DRY=1 = no calls. Run it as soon as her OpenAI key is in,
+  then tune brain.ts wording (keep PERSONALITY byte-stable between runs).
+- After the switch: she deletes the company key (company console) and the
+  proxy's ANTHROPIC_API_KEY (npx wrangler secret delete ANTHROPIC_API_KEY).
+  ZDR request now goes to OpenAI (same idea, their sales team).
+
+## HANDOVER TO CODEX (Oct 16) — owner moving to her own ChatGPT/Codex
+- AGENTS.md (repo root) = instructions for Codex/any agent; points here.
+- Helper tools rescued from the Claude session scratchpad into the repo:
+  scripts/pipeline/ (sprite-in.sh, recut-existing.sh, conveyor.sh,
+  feather_edges.py, potsize.py, sbs.py, strip.sh), scripts/site/qa/
+  (capture-version-b.cjs, hero-flow.cjs, render-wireframes.cjs),
+  marketing/trailer/rebuild.sh (exact shot/bed/narration/trailer settings).
+- claude.ai pages saved: docs/wireframes/ (Design canvas boards, assets,
+  snapshots) and docs/tester-guide/ (live HTML + source).
+- Higgsfield was used via a claude.ai connector; Codex needs its own
+  connection (or she generates on the Higgsfield site; clips go in
+  assets/clips/ then scripts/pipeline/sprite-in.sh).
 
 ## Remaining for beta (after design pass)
 - Onboarding flow + trial countdown/paywall/founder code (Days 11-12 in plan)
