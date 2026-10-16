@@ -1,0 +1,101 @@
+{
+  "voice": "af_sky",
+  "speed": 0.78,
+  "duration": 60,
+  "tracks": {
+    "guided": [
+      {
+        "at": 0,
+        "text": "Settle in. Let your shoulders soften.",
+        "duration": 2.798
+      },
+      {
+        "at": 5,
+        "text": "Breathe in gently.",
+        "duration": 1.889
+      },
+      {
+        "at": 9,
+        "text": "And breathe out.",
+        "duration": 1.479
+      },
+      {
+        "at": 13,
+        "text": "Breathe in gently.",
+        "duration": 1.889
+      },
+      {
+        "at": 17,
+        "text": "And breathe out.",
+        "duration": 1.479
+      },
+      {
+        "at": 21,
+        "text": "Breathe in gently.",
+        "duration": 1.889
+      },
+      {
+        "at": 25,
+        "text": "And breathe out.",
+        "duration": 1.479
+      },
+      {
+        "at": 29,
+        "text": "Breathe in gently.",
+        "duration": 1.889
+      },
+      {
+        "at": 33,
+        "text": "And breathe out.",
+        "duration": 1.479
+      },
+      {
+        "at": 37,
+        "text": "Breathe in gently.",
+        "duration": 1.889
+      },
+      {
+        "at": 41,
+        "text": "And breathe out.",
+        "duration": 1.479
+      },
+      {
+        "at": 45,
+        "text": "Breathe in gently.",
+        "duration": 1.889
+      },
+      {
+        "at": 49,
+        "text": "And breathe out.",
+        "duration": 1.479
+      },
+      {
+        "at": 53,
+        "text": "Let your breath find its own rhythm. A little room, just for you.",
+        "duration": 4.385
+      }
+    ],
+    "ownPace": [
+      {
+        "at": 0,
+        "text": "Settle in. Breathe at your own pace.",
+        "duration": 2.667
+      },
+      {
+        "at": 17,
+        "text": "Let your shoulders soften. No need to change your breath.",
+        "duration": 3.927
+      },
+      {
+        "at": 37,
+        "text": "Nothing to get right. Just a quiet moment together.",
+        "duration": 3.762
+      },
+      {
+        "at": 53,
+        "text": "Keep your own gentle rhythm. This little moment was yours.",
+        "duration": 4.279
+      }
+    ]
+  }
+}

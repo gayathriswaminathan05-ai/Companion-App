@@ -1,0 +1,6 @@
+a2 1440px: layout, growth/reset, chat examples, joke, links, tour start/pause and audio mapping passed
+a2 390px: layout, growth/reset, chat examples, joke, links, tour start/pause and audio mapping passed
+a2 320px: layout, growth/reset, chat examples, joke, links, tour start/pause and audio mapping passed
+b2 1440px: layout, growth/reset, chat examples, joke, links passed
+b2 390px: layout, growth/reset, chat examples, joke, links passed
+b2 320px: layout, growth/reset, chat examples, joke, links passed

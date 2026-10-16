@@ -25,7 +25,7 @@ const CLOSE = 22;
 export const barClass =
   "flex items-center rounded-full border border-white bg-background/94 shadow-float dark:border-white/8";
 export const barButtonClass =
-  "inline-flex shrink-0 items-center justify-center rounded-full bg-white text-primary shadow-bar-btn outline-none transition-[background-color,color,transform] duration-150 hover:bg-primary hover:text-primary-foreground active:scale-[0.92] focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-card";
+  "inline-flex shrink-0 items-center justify-center rounded-full bg-white text-primary shadow-bar-btn outline-none transition-[background-color,color,transform] duration-150 hover:bg-primary hover:text-primary-foreground active:scale-[0.92] focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-card dark:text-[#cbc1ff] dark:hover:bg-primary dark:hover:text-white";
 
 export default function RadialMenu({
   items,

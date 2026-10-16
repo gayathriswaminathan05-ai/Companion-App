@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 const INPUT_MAX_H = 120; // grows upward until this, then scrolls
 
-const SUGGESTIONS = ["I need to vent", "Help me plan today", "Tell me some gossip"];
+const SUGGESTIONS = ["Help me start", "I need a breather", "Just chatting"];
 
 export default function ChatPanel({
   chatOn = true,
@@ -217,15 +217,16 @@ export default function ChatPanel({
             <EmptyTitle className="text-[15px] font-semibold">
               Hey{userName.trim() ? ` ${userName.trim()}` : ""}, what's on your mind?
             </EmptyTitle>
-            <EmptyDescription className="text-[13px]">Your day, some gossip, a question. Anything goes.</EmptyDescription>
+            <EmptyDescription className="text-[13px]">A small next step, a breather, or a little company.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent className="flex-row flex-wrap justify-center gap-1.5">
             {SUGGESTIONS.map((s) => (
-              <Button key={s} variant="outline" size="sm" className="rounded-full bg-card" onClick={() => onSend(s)}>
+              <Button key={s} variant="outline" size="sm" className="rounded-full bg-card" disabled={busy} onClick={() => { setText(s); taRef.current?.focus(); }}>
                 {s}
               </Button>
             ))}
           </EmptyContent>
+          <p className="text-center text-[11px] text-muted-foreground">Choose a starter, then send when you're ready.</p>
         </Empty>
       ) : (
         <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto">
@@ -247,6 +248,15 @@ export default function ChatPanel({
       )}
 
       <div className="shrink-0 px-3 pb-3">
+        {!empty && (
+          <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label="Chat starters">
+            {SUGGESTIONS.map((s) => (
+              <Button key={s} variant="outline" size="sm" className="h-7 rounded-full bg-card px-2 text-[11px]" disabled={busy} onClick={() => { setText(s); taRef.current?.focus(); }}>
+                {s}
+              </Button>
+            ))}
+          </div>
+        )}
         <InputGroup className="bg-card">
           <InputGroupTextarea
             ref={taRef}

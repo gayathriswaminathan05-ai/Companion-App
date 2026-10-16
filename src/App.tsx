@@ -4,6 +4,7 @@ import DebugMenu from "./DebugMenu";
 import RadialMenu from "./ui/RadialMenu";
 import TaskPanel from "./ui/TaskPanel";
 import ChatPanel from "./ui/ChatPanel";
+import BreathingPanel from "./ui/BreathingPanel";
 import ReminderBubble, { FiredReminder } from "./ui/ReminderBubble";
 import NudgeBubble from "./ui/NudgeBubble";
 import QuickNav from "./ui/QuickNav";
@@ -124,7 +125,7 @@ function formatBooking(start: string): string {
 export default function App() {
   const { state, set } = useCharacter();
   const [data, setData] = useState<AppData>(emptyData());
-  const [open, setOpen] = useState<"none" | "menu" | "tasks" | "chat" | "settings">("none");
+  const [open, setOpen] = useState<"none" | "menu" | "tasks" | "chat" | "settings" | "breathe">("none");
   const [clip, setClip] = useState<Clip>(EMPTY_CLIP);
   // Plant near the TOP of the screen → plant at the top of the window and all
   // UI opens below it ("flip"). relayout hides everything for the couple of
@@ -235,10 +236,10 @@ export default function App() {
   const draggingRef = useRef(dragging);
   draggingRef.current = dragging;
   useEffect(() => {
-    let ignoring = true;
     const apply = (ignore: boolean) => {
-      if (ignore === ignoring) return;
-      ignoring = ignore;
+      // Resize handles also change native click-through. A renderer-local
+      // cache can therefore disagree with the real window and strand buttons.
+      // Deduplicate in the main process, where every request is observed.
       window.companion?.setClickThrough(ignore);
     };
     const syncFromPoint = (x: number, y: number) => {
@@ -438,7 +439,7 @@ export default function App() {
 
         if (!capOk || !gapOk) return;
 
-        if (activeMsRef.current >= d.settings.breakMins * 60_000) {
+        if (d.settings.breakMins > 0 && activeMsRef.current >= d.settings.breakMins * 60_000) {
           triggerNudge("stretch");
           return;
         }
@@ -920,7 +921,7 @@ export default function App() {
 
   const growthStage = growthStageFor(data.sprout.points);
   const week = ensureWeek(data.week);
-  const panelOpen = open === "tasks" || open === "chat" || open === "settings";
+  const panelOpen = open === "tasks" || open === "chat" || open === "settings" || open === "breathe";
 
   // Panel size when fully on-screen. Near a screen edge, shrink width
   // to the visible band so chat/tasks aren't clipped (plant stays put).
@@ -1096,12 +1097,14 @@ export default function App() {
             alignItems: "center",
             gap: STACK_GAP,
             pointerEvents: "none",
+            zIndex: 10, // Controls must stay above the plant's drag/click surface.
           }}
         >
           <QuickNav
             items={[
               { icon: "chat", label: "chat", active: open === "chat", onClick: () => { setOpen("chat"); if (!chatBusy) set("coffee"); } },
               { icon: "tasks", label: "tasks", active: open === "tasks", onClick: () => { setOpen("tasks"); set("noting"); } },
+              { icon: "breathe", label: "breathe", active: open === "breathe", onClick: () => { if (open !== "breathe") { setOpen("breathe"); set("meditate"); } } },
               { icon: "settings", label: "settings", active: open === "settings", onClick: () => { setOpen("settings"); set("idle"); } },
               { icon: "tuck", label: "nap", onClick: () => { setOpen("none"); window.companion?.hide(); } },
             ]}
@@ -1124,6 +1127,16 @@ export default function App() {
                 patchSettings({ panelScale: v });
               }}
             />
+            {open === "breathe" && (
+              <BreathingPanel
+                voiceOn={!!data.settings.voiceOn}
+                onScheduleReminder={(due, recurring) => { addTask("Meditation break", due, recurring); set("meditate"); }}
+                interrupted={chatBusy || firedQueue.length > 0 || !!meeting || !!nudge || !!booking || !!mail || dragging}
+                onActiveChange={(active) => { if (active) { stopSpeaking(); set("meditate"); } }}
+                onComplete={() => { activeMsRef.current = 0; }}
+                onClose={() => { setOpen("none"); if (stateRef.current === "meditate") set("idle"); }}
+              />
+            )}
             {open === "tasks" && (
               <TaskPanel
                 todos={data.todos}
@@ -1266,6 +1279,7 @@ export default function App() {
                 set("noting"); // notepad out, spectacles on, pen ready
               },
             },
+            { icon: "breathe", label: "breathe", onClick: () => { setOpen("breathe"); set("meditate"); } },
             { icon: "settings", label: "settings", onClick: () => setOpen("settings") },
             {
               icon: "tuck",
@@ -1442,8 +1456,9 @@ export default function App() {
           }}
         >
           <Blob state={state} growthStage={growthStage} scribbling={scribbling} />
-        </div>
-        {/* Hit layer: receives drag/click only while click-through is off
+        {/* Scale the hit layer with the artwork. An unscaled 240px layer
+            overlaps panel footers when the owner chooses a smaller plant.
+            Receives drag/click only while click-through is off
             (i.e. cursor is over opaque plant pixels — see clickThrough sync). */}
         <div
           data-char-hit="1"
@@ -1495,6 +1510,7 @@ export default function App() {
             pointerEvents: "auto",
           }}
         />
+        </div>
       </div>
 
       {/* Always-on growth test strip (beside plant) — idle stages + level-up clips */}

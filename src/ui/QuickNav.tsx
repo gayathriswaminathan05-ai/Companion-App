@@ -27,8 +27,8 @@ export default function QuickNav({ items }: { items: QuickNavItem[] }) {
                 barButtonClass,
                 "size-7",
                 it.active
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-secondary hover:text-primary dark:hover:bg-secondary",
+                  ? "bg-primary text-primary-foreground dark:bg-primary dark:text-white"
+                  : "hover:bg-secondary hover:text-primary dark:hover:bg-secondary dark:hover:text-[#e4ddff]",
               )}
             >
               <MenuIcon id={it.icon} size={15} active={it.active} />

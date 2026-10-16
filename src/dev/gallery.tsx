@@ -6,6 +6,7 @@ import React, { useState } from "react";
 import ReactDOM from "react-dom/client";
 import "../index.css";
 import ChatPanel from "../ui/ChatPanel";
+import BreathingPanel from "../ui/BreathingPanel";
 import TaskPanel from "../ui/TaskPanel";
 import SettingsPanel from "../ui/SettingsPanel";
 import RadialMenu from "../ui/RadialMenu";
@@ -121,6 +122,9 @@ function Gallery() {
       }}
     >
       <ThemeSwitcher backdrop={backdrop} setBackdrop={setBackdrop} />
+      <Frame label="Breathe: one quiet minute">
+        <BreathingPanel onClose={noop} onActiveChange={noop} onComplete={noop} onScheduleReminder={(due, recurring) => setTodos(prev => [...prev, { id: crypto.randomUUID(), text: "Meditation break", due: due.toISOString(), recurring, done: false, createdAt: new Date().toISOString() }])} />
+      </Frame>
       <Frame label="Chat: conversation">
         <ChatPanel
           messages={MESSAGES}

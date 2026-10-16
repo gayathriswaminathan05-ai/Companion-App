@@ -7,6 +7,7 @@ release/
 # Secrets / per-machine config (never commit)
 electron/google-client.json
 electron/beta-config.json
+*.key
 
 # Bundled on-device models (downloaded, large)
 /models/

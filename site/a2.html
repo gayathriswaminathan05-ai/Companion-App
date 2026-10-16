@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Companion A.2.0 · a little care for your workday</title>
+<meta name="description" content="A little desk plant that helps you get things done and look after yourself. Small tasks, gentle care reminders and growth, with optional AI chat.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="preload" href="assets/fonts/figtree-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/plant/stage-5.webp" as="image">
+<link rel="preload" href="assets/plant/wave-5.webp" as="image">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="v2.css">
+</head>
+<body class="v2 a2">
+<a class="skip" href="#story">Skip to the story</a>
+
+<header class="top" id="top">
+  <a class="brand" href="#hello" aria-label="Back to the start">
+    <img src="assets/icons/stage-5.png" alt="" width="28" height="28">
+    <span data-app-name>Companion</span>
+  </a>
+  <a class="btn btn-ink btn-sm" href="#download">
+    <svg class="i" aria-hidden="true"><use href="assets/icons.svg#apple"/></svg>
+    <span class="hide-sm">Download for Mac</span><span class="show-sm">Get it</span>
+  </a>
+</header>
+
+<nav class="version-nav" aria-label="Compare landing page options"><span>Design options</span><a href="index.html">A original</a><a href="b.html">B original</a><a href="a2.html">A.2.0</a><a href="b2.html">B.2.0</a></nav>
+<main>
+  <!-- HERO: the plant walks in, introduces itself and waits for your hi -->
+  <section class="hero" id="hello" data-tone="morning">
+    <div class="doodles" aria-hidden="true">
+      <span class="dd" data-doodle="calendar" style="--x:10%;--y:19%;--s:116px;--r:-8deg;--d:0.4s"></span>
+      <span class="dd" data-doodle="laptop-sad" style="--x:7%;--y:50%;--s:150px;--r:-6deg;--d:1.3s"></span>
+      <span class="dd" data-doodle="coffee" style="--x:19%;--y:73%;--s:104px;--r:8deg;--d:0.8s"></span>
+      <span class="dd inner" data-doodle="pencil" style="--x:6%;--y:86%;--s:88px;--r:0deg;--d:2.0s"></span>
+      <span class="dd inner" data-doodle="sparkle" style="--x:22%;--y:34%;--s:30px;--r:0deg;--d:0.2s"></span>
+      <span class="dd" data-doodle="sticky" style="--x:86%;--y:18%;--s:108px;--r:6deg;--d:0.6s"></span>
+      <span class="dd inner" data-doodle="lamp" style="--x:76%;--y:40%;--s:112px;--r:0deg;--d:1.8s"></span>
+      <span class="dd" data-doodle="phone" style="--x:92%;--y:52%;--s:96px;--r:-8deg;--d:1.1s"></span>
+      <span class="dd" data-doodle="headphones" style="--x:82%;--y:79%;--s:104px;--r:4deg;--d:2.4s"></span>
+      <span class="dd inner" data-doodle="sparkle" style="--x:95%;--y:30%;--s:24px;--r:0deg;--d:1.4s"></span>
+    </div>
+
+    <p class="pill"><span class="dot" aria-hidden="true"></span>A.2.0 · Private beta for Mac</p>
+
+    <div class="bubble" id="heroBubble">
+      <h1 class="bubble-hi" id="bubbleHi">Your workday could use<br>a little care.</h1>
+      <p class="bubble-sub" id="bubbleSub">A little desk plant that helps you get things done and look after yourself. <mark>Small steps. A quiet breath. A little company.</mark></p>
+    </div>
+
+    <div class="walker" id="walker">
+      <div class="waddle" id="waddle">
+        <img id="heroPlant" src="assets/plant/stage-5.webp" data-idle="assets/plant/stage-5.webp" data-wave="assets/plant/wave-5.webp" data-still="assets/plant/stage-5-still.webp" alt="A small clay pot with a green succulent and a pink flower bud, smiling" width="255" height="300">
+      </div>
+      <span class="hero-shadow" aria-hidden="true"></span>
+    </div>
+
+    <div class="hero-actions">
+      <button class="btn btn-hi" id="sayHi" type="button">
+        <svg class="i hi-icon" aria-hidden="true"><use href="assets/icons.svg#play"/></svg>
+        <span id="sayHiText">Show me our day</span>
+        <span class="levels" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      </button>
+      <p class="hi-hint" id="hiHint">A guided story with captions. Sound is your choice.</p>
+      <p class="hi-links">
+        <a class="link-quiet" href="#story">Explore at my own pace</a>
+        <span aria-hidden="true">·</span>
+        <a class="link-quiet" href="#breathe">Meet your breathing buddy</a>
+        <span aria-hidden="true">·</span>
+        <a class="link-quiet" href="#download">Skip to the download</a>
+      </p>
+    </div>
+
+    <audio id="vIntro" src="assets/audio/intro.m4a" preload="auto"></audio>
+    <audio id="vNudge" src="assets/audio/nudge.m4a" preload="auto"></audio>
+    <audio id="vReply" src="assets/audio/reply.m4a" preload="auto"></audio>
+    <audio id="vListen" src="assets/audio/listen.m4a" preload="auto"></audio>
+    <audio id="vDeaf" src="assets/audio/deaf.m4a" preload="auto"></audio>
+  </section>
+
+<div class="v2-loop" aria-label="Our day together"><span><b>01</b> One small task</span><span><b>02</b> A little care</span><span><b>03</b> Room to grow</span></div>
+  <!-- STORY: morning → night, video one side, words the other -->
+  <div id="story">
+    <section class="chapter" data-tone="morning">
+      <span class="dd sec right" data-doodle="papers" style="--s:96px;--r:-6deg" aria-hidden="true"></span>
+      <div class="chapter-inner">
+        <figure class="clip">
+          <video muted loop playsinline preload="none" poster="assets/video/01-struggle.jpg" data-src="assets/video/01-struggle.mp4" aria-label="A developer at his desk in the morning, then rubbing his stiff neck, then resting his head on the desk."></video>
+        </figure>
+        <div class="words">
+          <p class="time"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#sun-horizon"/></svg>9:00 am</p>
+          <h2>So much to do. You need a moment, too.</h2>
+          <p>You sit down with good plans. Then one task becomes ten, your water goes untouched and a proper break slips away.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter flip" data-tone="noon">
+      <span class="dd sec left" data-doodle="plane" style="--s:120px;--r:0deg" aria-hidden="true"></span>
+      <div class="chapter-inner">
+        <figure class="clip">
+          <video muted loop playsinline preload="none" poster="assets/video/04-hello.jpg" data-src="assets/video/04-hello.mp4" aria-label="The plant pops up in the corner of his monitor and waves hello."></video>
+        </figure>
+        <div class="words">
+          <p class="time"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#sun"/></svg>2:00 pm</p>
+          <h2>Start with one small thing.</h2>
+          <p>Keep a small task list close by. Add what matters, set a time if you need one, and give yourself somewhere to start.</p>
+          <ul class="ticks">
+            <li><svg class="i" aria-hidden="true"><use href="assets/icons.svg#cursor"/></svg>Click your plant to open your tasks</li>
+            <li><svg class="i" aria-hidden="true"><use href="assets/icons.svg#chat"/></svg>Drag your plant wherever it feels at home</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" data-tone="afternoon">
+      <span class="dd sec right" data-doodle="clock" style="--s:92px;--r:8deg" aria-hidden="true"></span>
+      <div class="chapter-inner">
+        <figure class="clip">
+          <video muted loop playsinline preload="none" poster="assets/video/05-stretch-v2.jpg" data-src="assets/video/05-stretch-v2.mp4" aria-label="The plant on screen asks: stretch with me? He stretches his arms up while the plant does a little workout."></video>
+        </figure>
+        <div class="words">
+          <p class="time"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#sun"/></svg>3:00 pm</p>
+          <h2>“Stretch with me?”</h2>
+          <p>Every hour or so I ask you to move. You stretch, I stretch, and I grow a little.</p>
+          <ul class="ticks">
+            <li><svg class="i" aria-hidden="true"><use href="assets/icons.svg#gear"/></svg>You choose how often</li>
+            <li><svg class="i" aria-hidden="true"><use href="assets/icons.svg#shield"/></svg>Never more than 4 nudges a day</li>
+            <li><svg class="i" aria-hidden="true"><use href="assets/icons.svg#eye-off"/></svg>Quiet when meeting detection is on</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter flip" data-tone="sky">
+      <span class="dd sec left" data-doodle="water" style="--s:88px;--r:-6deg" aria-hidden="true"></span>
+      <div class="chapter-inner">
+        <figure class="clip">
+          <video muted loop playsinline preload="none" poster="assets/video/06a-water.jpg" data-src="assets/video/06a-water.mp4" aria-label="The plant waters itself with a little watering can, and he takes a big sip from his bottle."></video>
+        </figure>
+        <div class="words">
+          <p class="time"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#sun"/></svg>4:00 pm</p>
+          <h2>Water break!</h2>
+          <p>Deep in your work? A little watering-can cameo reminds you to reach for your bottle. You can always say “not now”.</p>
+        </div>
+      </div>
+    </section>
+
+
+
+<section class="v2-breathe" id="breathe">
+  <div class="breathe-art"><img src="assets/plant/meditate.webp" data-still="assets/plant/meditate-still.webp" alt="Your plant floating peacefully in its meditation pose" width="255" height="300" loading="lazy"></div>
+  <div class="breathe-copy"><p class="eyebrow">A minute just for you</p><h2>Take a breath.<br>Your plant will join you.</h2><p>Step out of the rush for a one-minute guided breathing break. Your plant settles into its meditation pose while a gentle voice guides you through each breath, with matching on-screen cues.</p><p>Follow at a comfortable pace, choose your own rhythm, or stop whenever you like. No AI chat, account or cloud connection needed for breathing breaks.</p><a class="btn btn-secondary" href="#download">Bring a little calm to my Mac</a><p class="v2-fine">Open your plant’s menu and choose Breathe. Everyday relaxation, without breath-holding or clinical advice.</p></div>
+</section>
+    <section class="chapter flip" data-tone="sunset">
+      <span class="dd sec left" data-doodle="phone" style="--s:88px;--r:8deg" aria-hidden="true"></span>
+      <div class="chapter-inner">
+        <figure class="clip">
+          <video muted loop playsinline preload="none" poster="assets/video/07-callmom.jpg" data-src="assets/video/07-callmom.mp4" aria-label="The plant rings a little bell: call mom at 6. He picks up his phone: Hi Ma!"></video>
+        </figure>
+        <div class="words">
+          <p class="time"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#sun-horizon"/></svg>6:00 pm</p>
+          <h2>Happy reminders.</h2>
+          <p>Type or just say “call mom at 6”. At 6, I ring my little bell. Meetings too, if you connect your Google Calendar.</p>
+          <ul class="ticks">
+            <li><svg class="i" aria-hidden="true"><use href="assets/icons.svg#mic"/></svg>Your voice is turned into text right on your Mac</li>
+            <li><svg class="i" aria-hidden="true"><use href="assets/icons.svg#calendar"/></svg>Fetched calendar events stay out of AI chat</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" data-tone="evening">
+      <span class="dd sec right" data-doodle="popper" style="--s:100px;--r:-4deg" aria-hidden="true"></span>
+      <div class="chapter-inner">
+        <figure class="clip">
+          <video muted loop playsinline preload="none" poster="assets/video/08-win.jpg" data-src="assets/video/08-win.mp4" aria-label="He ticks off submit report. The plant, now in full bloom, pops a bottle of champagne."></video>
+        </figure>
+        <div class="words">
+          <p class="time"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#moon"/></svg>9:30 pm</p>
+          <h2>Celebrate every win.</h2>
+          <p>Tick off the big task and I pop the champagne. Small wins deserve a party too.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- GROWTH: how the plant flourishes as you take care of yourself -->
+    <section class="growth" id="grow" data-tone="night">
+      <span class="dd sec right" data-doodle="can" style="--s:120px;--r:0deg" aria-hidden="true"></span>
+      <div class="growth-inner">
+        <div class="growth-head">
+          <p class="time"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#moon-stars"/></svg>9:45 pm</p>
+          <h2>It grows when you take care of you.</h2>
+          <p>I start every morning as tiny sprouts. Each stretch and sip of water helps me grow, and finishing a timed task adds a little extra. Look after yourself, and I bloom.</p>
+        </div>
+
+        <div class="grow-card">
+          <div class="grow-stage" id="growStage">
+            <canvas class="confetti" id="confetti" aria-hidden="true"></canvas>
+            <img id="growPlant" src="assets/plant/stage-1-still.webp" alt="" width="255" height="300">
+            <p class="grow-label" id="growLabel" aria-live="polite">Stage 1 · tiny sprouts</p>
+          </div>
+
+          <div class="grow-side">
+            <p class="grow-try">Try it. What did you do today?</p>
+            <div class="grow-buttons">
+              <button class="chip" type="button" data-points="2"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#stretch"/></svg>I stretched <span>+2</span></button>
+              <button class="chip" type="button" data-points="2"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#water"/></svg>I drank water <span>+2</span></button>
+              <button class="chip" type="button" data-points="1"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#task"/></svg>I finished a timed task <span>+1</span></button>
+            </div>
+
+            <div class="meter" role="progressbar" aria-label="How much I've grown today" aria-valuemin="0" aria-valuemax="12" aria-valuenow="0" id="growMeter">
+              <span id="growFill"></span>
+            </div>
+
+            <ol class="journey" id="journey" aria-label="My seven growth stages">
+              <li data-stage="1"><img src="assets/icons/stage-1.png" alt="" width="44" height="44"><span>tiny sprouts</span></li>
+              <li data-stage="2"><img src="assets/icons/stage-2.png" alt="" width="44" height="44"><span>little leaves</span></li>
+              <li data-stage="3"><img src="assets/icons/stage-3.png" alt="" width="44" height="44"><span>filling out</span></li>
+              <li data-stage="4"><img src="assets/icons/stage-4.png" alt="" width="44" height="44"><span>looking lush</span></li>
+              <li data-stage="5"><img src="assets/icons/stage-5.png" alt="" width="44" height="44"><span>flower bud</span></li>
+              <li data-stage="6"><img src="assets/icons/stage-6.png" alt="" width="44" height="44"><span>pink bloom</span></li>
+              <li data-stage="7"><img src="assets/icons/stage-7.png" alt="" width="44" height="44"><span>full bloom</span></li>
+            </ol>
+
+            <div class="grow-foot">
+              <p id="growNote">Tomorrow I start small again. No streaks to break, no guilt.</p>
+              <button class="link-light" type="button" id="growReset" hidden>
+                <svg class="i" aria-hidden="true"><use href="assets/icons.svg#restart"/></svg>Start a new day
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHILL: chat, jokes and the hammock (no video needed). Three separate
+         cards, each with its own label and colour, so they read as 3 things. -->
+    <section class="chill" id="chill" data-tone="night">
+      <span class="dd sec right" data-doodle="headphones" style="--s:104px;--r:6deg" aria-hidden="true"></span>
+      <div class="chill-inner">
+        <div class="chill-head">
+          <p class="time"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#moon"/></svg>10:15 pm</p>
+          <h2>A little company, when you want it.</h2>
+          <p>Ask for a small next step, a kind word or some friendly banter. Or enjoy your plant quietly, with chat switched off.</p>
+        </div>
+
+        <div class="chill-grid">
+          <!-- 1. Chat -->
+          <article class="chill-card chat-card">
+            <p class="tag"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#chat"/></svg>Optional AI chat</p>
+            <div class="chat-window">
+              <div class="chat-top">
+                <img src="assets/icons/stage-7.png" alt="" width="28" height="28">
+                <b>Your plant</b>
+                <span class="online">example</span>
+              </div>
+              <div class="chat" id="chat" aria-label="An example chat with the plant">
+                <p class="msg you">this task feels enormous</p>
+                <p class="msg plant">okay. we are NOT climbing the whole mountain at once. what’s one small part?</p>
+                <p class="msg you">I could write the first sentence</p>
+                <p class="msg plant">YES. one sentence. a perfectly respectable beginning.</p>
+                <p class="msg you">that feels doable</p>
+                <p class="msg plant">tiny steps still count. go get your sentence.</p>
+                <p class="typing-dots" aria-hidden="true"><i></i><i></i><i></i></p>
+              </div>
+            </div>
+            <div class="card-words">
+              <h3>A little help, or a little company</h3>
+              <p>Find a small next step, take a breather or share the day’s gossip. AI chat is optional.</p><div class="v2-chat-demo"><p class="v2-fine">Try an example reply. This preview does not use AI.</p><div class="v2-starters" role="group" aria-label="Example chat starters"><button type="button" data-chat-example="start" aria-pressed="true">Help me start</button><button type="button" data-chat-example="break" aria-pressed="false">I need a breather</button><button type="button" data-chat-example="banter" aria-pressed="false">Just chatting</button></div><p class="v2-example" aria-live="polite">okay. one tiny step first. what are you trying to get started on?</p></div>
+            </div>
+          </article>
+
+          <!-- 2. Jokes: a sticky note that flips to the punchline -->
+          <article class="chill-card joke-card">
+            <p class="tag"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#smiley"/></svg>Jokes</p>
+            <div class="joke-flip" id="jokeFlip">
+              <div class="joke-inner">
+                <div class="joke-face front">
+                  <p class="joke-q" id="jokeQ">What do you call a fake noodle?</p>
+                </div>
+                <div class="joke-face back" aria-live="polite">
+                  <p class="joke-a" id="jokeA">An impasta!</p>
+                  <p class="haha" aria-hidden="true">ha ha ha!</p>
+                </div>
+              </div>
+            </div>
+            <div class="joke-actions">
+              <button class="btn-what" id="jokeWhat" type="button">What?</button>
+              <button class="link-light" id="jokeNext" type="button" hidden>
+                <svg class="i" aria-hidden="true"><use href="assets/icons.svg#restart"/></svg>Another one
+              </button>
+            </div>
+            <div class="card-words">
+              <h3>A joke when you need one</h3>
+              <p>A silly little interruption when you want one. No AI chat needed.</p>
+            </div>
+          </article>
+
+          <!-- 3. Chill -->
+          <article class="chill-card hammock-card">
+            <p class="tag"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#couch"/></svg>Chill</p>
+            <div class="hammock-scene">
+              <span class="dd sun" data-doodle="sparkle" aria-hidden="true"></span>
+              <img class="hammock" src="assets/plant/hammock-7-still.webp" data-anim="assets/plant/hammock-7.webp" alt="The plant in full bloom relaxing in a striped hammock with sunglasses" width="255" height="300" loading="lazy">
+            </div>
+            <div class="card-words">
+              <h3>Quiet time? I'm in my hammock</h3>
+              <p>After a calm stretch, I kick back and swing. Click me and I'm right back.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter flip" data-tone="late">
+      <span class="dd sec left" data-doodle="moon" style="--s:96px;--r:0deg" aria-hidden="true"></span>
+      <div class="chapter-inner">
+        <figure class="clip">
+          <video muted loop playsinline preload="none" poster="assets/video/09-goodnight.jpg" data-src="assets/video/09-goodnight.mp4" aria-label="The plant yawns and tucks itself in under a starry blanket. He closes his laptop for the night."></video>
+        </figure>
+        <div class="words">
+          <p class="time"><svg class="i" aria-hidden="true"><use href="assets/icons.svg#moon-stars"/></svg>11:00 pm</p>
+          <h2>Goodnight.</h2>
+          <p>At bedtime I get sleepy and nudge you to stop. Tomorrow we start fresh.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+
+<section class="v2-privacy" id="privacy">
+  <p class="eyebrow">Your choice, in plain words</p><h2>A little company.<br>Chat is optional.</h2>
+  <p class="privacy-lead">Tasks, care reminders, jokes and growth work without AI chat. Turn chat off and nothing you type leaves your Mac.</p>
+  <div class="v2-privacy-grid">
+    <article><h3>When chat is on</h3><p>Your messages and conversation context go to the AI provider through our chat server. The current beta also includes saved memories and task context. Our server does not log conversations.</p></article>
+    <article><h3>When you use your voice</h3><p>Your voice is turned into text on your Mac. If you send that text in AI chat, it is shared just like a typed message. Calendar events fetched from Google are not sent to the AI.</p></article>
+    <article><h3>You stay in control</h3><p>No ads or analytics. Delete local app data in Settings. AI providers may retain data under their policies; deleting it from your Mac does not erase their records.</p></article>
+  </div>
+  <p class="v2-fine">Friendly everyday support. No mental-health assessments, diagnoses or treatment advice.</p>
+</section>
+  <!-- DOWNLOAD -->
+  <section class="download" id="download" data-tone="late">
+      <span class="dd sec left" data-doodle="laptop-happy" style="--s:150px;--r:-6deg" aria-hidden="true"></span>
+      <span class="dd sec right high" data-doodle="sparkle" style="--s:34px;--r:0deg" aria-hidden="true"></span>
+    <div class="download-inner">
+      <img class="bye-plant" src="assets/plant/wave-7.webp" data-still="assets/plant/stage-7-still.webp" alt="The plant in full bloom, waving" width="255" height="300" loading="lazy">
+      <h2>Make a little room for you.</h2>
+      <p class="download-sub">Your next task. Your next break. Your little companion. Free during the private beta.</p>
+
+      <div class="download-cta">
+        <a class="btn btn-primary btn-lg" id="downloadBtn" href="#install">
+          <svg class="i" aria-hidden="true"><use href="assets/icons.svg#apple"/></svg>
+          Download for Mac
+        </a>
+        <button class="btn btn-secondary btn-lg" id="shareBtn" type="button" hidden>
+          <svg class="i" aria-hidden="true"><use href="assets/icons.svg#share"/></svg>
+          Send this to my Mac
+        </button>
+      </div>
+      <p class="fine" id="downloadNote">Mac with an Apple chip (M1 or newer) · macOS 12 or later</p>
+
+      <div class="cards two">
+        <article class="card" id="install">
+          <h3><svg class="i" aria-hidden="true"><use href="assets/icons.svg#download"/></svg>Install in 3 steps</h3>
+          <ol class="steps">
+            <li>Open the download and drag <b data-app-name>Companion</b> into your <b>Applications</b> folder.</li>
+            <li>Open it. Your Mac will say it can't check the app yet (we're a tiny beta, not on the App Store). Click <b>Done</b>.</li>
+            <li>Go to <b>System Settings → Privacy &amp; Security</b>, scroll down and click <b>Open Anyway</b>. I'll pop up in the corner of your screen.</li>
+          </ol>
+        </article>
+
+
+
+        <article class="card" id="feedback">
+          <h3><svg class="i" aria-hidden="true"><use href="assets/icons.svg#chat"/></svg>Tell us what you think</h3>
+          <p>This is an early beta, and your notes shape what I become. It takes two minutes.</p>
+          <a class="btn btn-secondary" id="feedbackBtn" href="#feedback">Share feedback</a>
+        </article>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- The plant narrating the story tour (caption so it works with sound off too) -->
+<div class="narrator hide" id="narrator" role="status" aria-live="polite">
+  <img src="assets/icons/stage-1.png" alt="" width="44" height="44" id="narratorPlant">
+  <p id="narratorText"></p>
+</div>
+
+<!-- Bottom-right dock: story tour + one sound switch for the whole page -->
+<div class="dock">
+  <button class="dock-btn" id="tourBtn" type="button" hidden>
+    <svg class="i" aria-hidden="true"><use href="assets/icons.svg#pause"/></svg>
+    <span id="tourLabel">Pause the story</span>
+  </button>
+  <button class="dock-btn sound-toggle" id="soundToggle" type="button" aria-pressed="false">
+    <svg class="i" aria-hidden="true"><use href="assets/icons.svg#speaker-off"/></svg>
+    <span id="soundLabel">Sound off</span>
+  </button>
+</div>
+
+<footer class="foot" data-tone="late">
+  <p>Private beta. Please don't share this link just yet.</p>
+  <p>Made with care for long work days · <span data-app-name>Companion</span> 2026</p>
+</footer>
+
+<script src="doodles.js" defer></script>
+<script src="a2.js" defer></script>
+<script src="v2.js" defer></script>
+</body>
+</html>

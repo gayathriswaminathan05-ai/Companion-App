@@ -42,7 +42,7 @@ function readKey() {
   return process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || "";
 }
 const key = readKey();
-if (!key) {
+if (!key && !process.env.DRY) {
   console.error("No key found (paste one in the app, or set OPENAI_API_KEY).");
   process.exit(1);
 }

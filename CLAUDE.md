@@ -734,3 +734,401 @@ re-check that nothing else is reachable only for testing.
 - Packaging: notarized DMG, bundle Whisper model, real app icon (Day 13)
 - Apple Developer enrollment (BEFORE packaging — 24-48h lead)
 - Beta distribution: privacy page, feedback form, welcome note (Day 14)
+
+## CODEX HEALTH CHECK (Oct 16, 2026) — step 1
+- Read AGENTS.md and this entire memory before work. Owner wants steps 1–7
+  handled in order, with a check-in after each; this session covered step 1 only.
+- Started clean on ui-refresh-shadcn. Read-only GitHub branch lookup confirmed
+  local HEAD and GitHub both at 7820b000bc721046350944a4f2a6ab02287c22bd.
+- `npx vite build` passed (7.33s). Non-blocking warnings: large JS bundle and
+  time spent preparing the output directory. No application code changed.
+- `cd proxy && npm test`: all 31 tests passed, including simulated OpenAI
+  streaming, privacy and daily-limit checks. No paid AI requests made.
+- Restarted the existing development Electron app with the fresh build;
+  native UI confirmed the Companion window loaded dist/index.html.
+- Asked once whether the secret Showcase should stay visible to beta testers;
+  answer pending at this checkpoint. All testing tools remain unchanged.
+- Next: owner enters her OpenAI key in Settings → My brain key → Change key,
+  then confirms readiness for the live personality check. No deployment, push,
+  installer rebuild, paid AI calls or later steps performed. This memory entry
+  is the only local tracked change after the health check.
+
+## LANDING OPTIONS PREVIEW (Oct 16, 2026)
+- Owner asked to see both existing Claude-built landing options while step 2
+  waits for her key. Started a local-only preview at http://127.0.0.1:8790
+  using Python's HTTP server (bound to loopback).
+- Open requests queued in Codex for index.html (A, narrated story) and b.html
+  (B, Tolan-style wordmark + trailer). Both URLs returned HTTP 200.
+- No landing files changed or published. Email removal remains planned for
+  step 6; these previews still show the existing email content.
+
+## CHAT PRIVACY REVIEW (Oct 16, 2026) — owner asked before key/testing
+- Read-only source review, not a full security audit or live server/settings
+  verification. No paid requests, deployment or application changes.
+- Testers do not need personal AI keys: their build can use the server-held
+  owner's key. Local beta-config currently defaults to anthropic, cloudVoice
+  is false. Adding an OpenAI key to the owner's Mac does not migrate testers.
+- IMPORTANT correction to earlier shorthand: store:false disables stored
+  Responses retrieval; it does NOT establish Zero Data Retention. Official
+  OpenAI data-controls docs (https://developers.openai.com/api/docs/guides/your-data)
+  say API content is not used for training by default, abuse-monitoring content
+  can remain up to 30 days (longer for stated legal/safety exceptions), and
+  prompt caches have separate retention. ZDR needs approval and a check of
+  the actual account, model and feature eligibility. No approval verified.
+- IMPORTANT product-promise mismatch: src/brain.ts buildSystem sends the
+  user's name, plant progress, up to 8 open task texts, all tasks completed
+  today, saved facts and any summary with chat; buildMessages sends the last
+  16 messages. Thus tasks/memories are stored locally but not exclusively
+  processed locally while chat is on. Landing B's "live only on your Mac"
+  and "only chats" wording is incomplete; Settings' guaranteed deletion
+  "within 30 days" is too absolute. Recommend minimizing shared context and
+  clear opt-in disclosure before broader testing (chat currently defaults on).
+- Proxy code does not log/store chat content; stores device/day counters for
+  ~2 days, observability disabled in local wrangler.toml. Cloudflare still
+  processes relayed chat; this is not end-to-end encrypted against processors.
+- Local chat history/facts are plain JSON, without app-level encryption.
+  Chat-history deletion leaves facts; local deletion does not erase provider
+  logs. Fetched Google Calendar events are excluded from the chat prompt;
+  information a user types into chat is still sent normally.
+- Beta transcription and speaking voice run locally. Optional Google cloud
+  TTS exists and can send spoken text even with AI chat off if enabled; keep
+  it disabled under the present promise and review before enabling it.
+- Chat-off guards prevent new AI requests, not removal of previously sent
+  content or guaranteed cancellation of an already-running request.
+- Original steps 2–7 remain pending; owner is discussing privacy first.
+
+## PUBLIC CHAT COST DISCUSSION (Oct 16, 2026)
+- Owner asks how public rollout avoids a large AI bill. No model/plan changes
+  or paid API calls authorized by this discussion; no public rollout started.
+- Checked current official OpenAI model/pricing pages: standard short-context
+  gpt-6.1-sol $2 input/$10 output per million tokens; gpt-6-luna $0.10/$0.50.
+  Web search $10/1,000 calls plus search-content tokens. Cache reads/writes
+  have separate prices. Sources: developers.openai.com/api/docs/models/
+  gpt-6.1-sol, /gpt-6-luna and developers.openai.com/api/docs/pricing.
+- Illustrative calculation only (NOT measured app costs): 3,000 input + 300
+  total billed output tokens including reasoning per reply, ordinary input
+  pricing, 20 replies/day × 30 days. Sol $5.40/user/month; Luna $0.27.
+  100 users: $540/$27; 1,000: $5,400/$270. Excludes search, cache effects,
+  hosting, payments, taxes, and retries. Actual usage must be measured.
+- Recommended direction: keep local features free; small capped AI trial/free
+  allowance; paid capped chat; compare cheaper model's personality/actions
+  before selecting; separate research allowance; reliable server-enforced
+  per-user limits and global cost cutoff before public release. Count usage
+  without logging conversations. Recommendations are not approved pricing.
+- Found public-readiness issue: current proxy counter fails open on KV errors,
+  updates are non-atomic, device IDs are client-generated and app token is
+  shared. The beta's 60/day setting is not a reliable public cost ceiling.
+- Old plans conflict: this memory says $4.99, PRD §12 says $6.99/$49.99 yearly
+  with "unlimited" and 100/day fair use. Do not treat old margins or pricing
+  as validated for OpenAI or promise unlimited usage before measuring costs.
+
+## TOLAN RESEARCH (Oct 16, 2026) — context, not a product decision
+- Owner supplied a summary of Tolan's models, costs, tiers and routing. Checked
+  sources instead of treating all supplied numbers as established facts.
+- OpenAI Jan 7, 2026 case study (https://openai.com/index/tolan/) confirms
+  GPT-5.1, text-embedding-3-large, Turbopuffer and per-turn selected memory/
+  tone context. It describes tone adaptation, but does not establish the
+  claimed cost-routing system, 5x price ratio or one-third offload figure.
+- Tolan founder's Feb 25, 2025 post confirms late-2024 soft launch:
+  https://www.tolans.com/relay/introducing-tolan . Did not verify the claim
+  that costs forced a subscription pivot after exactly two weeks, or that
+  a heavy user's underlying model usage costs $200/month.
+- US App Store listing id6477549878 currently lists Lite $11.99 and Plus
+  $24.99 alongside old plans, WITHOUT billing periods. Reviews mention
+  $200/month unlimited; not independently confirmed as current official
+  pricing or matched to an underlying cost. Do not call these confirmed
+  monthly plan prices. Official FAQ says limited trial then subscription;
+  Membership screen is needed for exact current plans and allowances.
+- GeekWire Jul 7, 2025 attributes >100,000 paid users and >$1m/month revenue
+  to CEO Quinten Farmer. Historical reported revenue, not current audited
+  results or profit. Source: https://www.geekwire.com/2025/ai-companionship-app-tolan-raises-20m-to-help-more-people-grow-with-a-virtual-alien-friend/
+- Privacy distinction: https://www.tolans.com/faq explicitly says they log
+  conversations on their servers for memory. Do not adopt that architecture
+  under this project's local-memory promise. Local memory selection and
+  measured model comparisons are possible without a cloud memory database.
+- No app changes, paid tests, pricing commitments or deployments made.
+
+## PRODUCT FOCUS RESEARCH (Oct 16, 2026) — proposal, NOT approved direction
+- Owner asked whether chat, wellness or productivity should be the USP, and
+  whether affirmations, emotional check-ins and gossip should shape chat.
+- Recommendation to TEST: a gentle Mac workday companion for adult desk
+  workers. Proposed promise: "A little desk plant that helps you get things
+  done and look after yourself." Plant presence/personality is the emotional
+  hook; small tasks + breaks provide recurring usefulness; growth rewards
+  self-care; optional AI adds help starting, encouragement and playful company.
+  This is a product hypothesis, not proof of uniqueness, retention or demand.
+- Official competitor research: Finch already combines self-care and pet
+  growth (https://finchcare.com/about-finch); LookAway offers Mac break nudges
+  and interruption controls (https://lookaway.com/press-kit/); Focus Friend
+  gamifies focus (https://www.yourfocusfriend.com/); Structured offers daily
+  planning and AI (https://structured.app/). Do not claim these individual
+  features or "pet grows through self-care" are unique. Differentiate through
+  the specific desktop workday experience and execution, then validate.
+- Evidence: 2022 microbreak meta-analysis, 22 samples / 2,335 participants,
+  found small improvements in vigor/fatigue but no significant overall
+  performance improvement: https://pubmed.ncbi.nlm.nih.gov/36044424/ . Supports
+  a modest break/wellbeing rationale, not an app-specific productivity claim.
+- AI companionship evidence is mixed/limited: De Freitas et al., Journal of
+  Consumer Research (2025 advance publication), found momentary loneliness
+  reductions, including across a week; feeling heard mattered. Author copy:
+  https://www.hbs.edu/ris/Publication%20Files/AI%20Companions%20Reduce%20Loneliness%2011.7.2025_57451c02-8047-4e0d-abfc-55841f64166d.pdf
+  Fang et al. 4-week study, N=981, v2 Oct 2025 preprint found no significant
+  effects of assigned conditions; higher voluntary use was associated with
+  worse psychosocial outcomes, NOT proof that usage caused them:
+  https://arxiv.org/abs/2503.17473 . Do not market treatment of loneliness,
+  anxiety or depression or optimize for endless conversation time.
+- Recommend optional everyday energy/needs check-in, not a mental-health
+  assessment: no diagnosis, clinical scoring, inferred conditions or automatic
+  sensitive memory. Local choices can offer quiet company, a break or a small
+  next task without an AI call. Serious-distress responses need separate
+  review/testing; a disclaimer alone does not enforce nonclinical behavior.
+- Affirmations: prefer optional believable encouragement to sweeping positive
+  claims. Wood et al. 2009 found one positive self-statement could backfire
+  for low-self-esteem participants; this does not establish all affirmations
+  are harmful: https://pubmed.ncbi.nlm.nih.gov/19493324/ . Curated local lines
+  can provide this feature with no per-message model cost.
+- Concrete proposed personality correction (NOT applied): src/brain.ts says
+  "take their side instantly" and "keep secrets like a vault". Recommend
+  validating feelings without inventing other people's motives or endorsing
+  every judgment, and removing absolute secrecy language. Cheng et al.,
+  Science 2026, experiments N=2,405 found overly agreeable AI reduced desire
+  to repair conflicts while increasing confidence users were right:
+  https://pubmed.ncbi.nlm.nih.gov/41886588/ . Keep humor/banter, soften for distress.
+- Proposed presentation changes: lead landing demo with task -> care break ->
+  growth; show optional chat later. Preserve both existing A/B designs. Keep
+  task list lightweight, nudges controllable, no guilt or suffering pet, and
+  core usefulness with AI off. Privacy/context issues recorded above remain
+  prerequisites; no new analytics or cloud mood history proposed.
+- Proposed validation: 10–15 adult Mac desk workers for two weeks, voluntary
+  interviews and user-shared local information, no transcript collection or
+  hidden analytics. Assess repeat usefulness, annoyance, what they would miss
+  and willingness to pay; compare workday vs chat concept messages. Small
+  directional test, not statistical validation. No prices or plans decided.
+- Research and memory update only. No app/landing edits, new onboarding,
+  paid calls, publishing or deployment. Original live chat test awaits owner.
+
+## WORKDAY OPTIONS + BREATHING (Oct 16, 2026) — owner approved implementation
+- Owner approved new A.2.0/B.2.0 landing options AND chat tone/starters, then
+  requested guided breathing using the existing meditation animation.
+- New side-by-side pages: site/a2.html + a2.js, site/b2.html + b2.js, shared
+  v2.css/v2.js. Originals index.html/main.js and b.html/b.js remain unchanged.
+  A2 keeps the narrated workday story; B2 keeps the giant wordmark/cards.
+  Tasks, care breaks and growth lead; optional chat comes later. Both add
+  breathing and four-option comparison navigation. Removed email from NEW
+  options, corrected optional-chat/context privacy wording. B2 omits the old
+  trailer because it still contains email. Original-page/trailer cleanup is
+  still pending; no new narration generated. A2 tour has 11 steps, with
+  original audio reused only where the caption is unchanged.
+- Meditation WebPs in site/assets/plant derived locally from existing PNGs;
+  reduced-motion still on the pages. No AI generation or credits used.
+- src/brain.ts: warm/loud/funny, short practical support, optional believable
+  encouragement, no automatic side-taking or absolute secrecy promise, no
+  clinical assessment/treatment or dependency language. Original prompt kept
+  in docs/personality/2026-10-16-original.md. Action tags preserved. Existing
+  serious-distress behavior still needs separate live review; not validated.
+- ChatPanel starters: Help me start / I need a breather / Just chatting.
+  Clicking fills a draft and focuses the input; it never sends automatically.
+- Breathe menu entry + src/ui/BreathingPanel.tsx + src/breathing.ts: optional
+  60-second LOCAL session (settle, gentle 4s in/4s out, natural breathing),
+  no holds; own pace, pause/resume, stop, repeat. Pauses for reminders, hidden
+  window or suspension. Existing meditation pose plays while active. Text
+  guidance only, no spoken narration yet. One stage-4 pose reused at all
+  stages, not new per-stage art. No AI/network calls, stored mood information,
+  analytics, new settings or growth points. Reduced motion stops cue scaling.
+- Fixed stretch setting Never (0) incorrectly satisfying the due condition.
+  Suggested next wellness work, NOT implemented: snooze/pause-care controls,
+  fair rotation of water/stretch under shared cap, bedtime cap review and
+  optional quiet hours. Preserve gentle opt-in behavior.
+- Validation: vite build passed; proxy 31/31 passed; DRY personality setup
+  passed (20 cases; saved provider still Claude). No live paid AI evaluation.
+  scripts/test-breathing.mjs phase boundaries passed; gallery interaction QA
+  passed draft-only starters, chat-off, start/inhale/pause/own pace/full real
+  minute/restart. Both landing versions passed desktop1440/phone390/narrow320
+  layout and interactions. Reports/screenshots: docs/qa/2026-10-16/.
+- Applied local animate skill for breathing cue and reduced-motion behavior.
+  All beta testing aids retained. No commit/push/deploy/installer rebuild.
+- Testing tool research: free local Lighthouse and axe first; Attention
+  Insight predicts attention without participants (not actual comprehension);
+  Synthetic Users simulates feedback, cannot replace lived user experience.
+  Lyssna five-second/first-click tests and Maze moderated studies use real
+  participants. No accounts, uploads, analytics or paid tools activated.
+  Sources: developer.chrome.com/docs/lighthouse/overview,
+  deque.com/axe/devtools/extension/, attentioninsight.com/technology/,
+  legal.syntheticusers.com/ai/safety-bias-controls,
+  lyssna.com/features/five-second-testing-software/.
+
+## DUPLICATE APP / REOPENING REPORT (Oct 16, 2026)
+- Owner saw two apps: installed older release/mac-arm64/Companion.app and
+  current development Electron (loads repo dist/index.html). Closed older
+  copy. Native getApp can launch a stopped app, so avoid selecting Companion
+  just to inspect it; use existing Electron binding/process inspection.
+- Owner then reported repeated opening/closing. At inspection neither app
+  process was running. Previous development command ended SIGKILL, which is
+  also this project's intentional normal-quit path; not proof of a crash.
+- Launched current built app ONCE with npx electron ., verified one process
+  and visible latest plant. No test harness processes or restart loop running.
+  Earlier QA opened/closed Electron test windows and may explain the report;
+  cause not established. Asked whether whole plant or just menu flickered.
+  Keep the latest app open and avoid further QA launches while she tests.
+- Follow-up: same process stayed alive for nearly two minutes, no terminal
+  errors, native window still visible. No code changes made for this report;
+  repeated closing not reproduced after the single launch.
+
+## SPOKEN MEDITATION CORRECTION (Oct 16, 2026)
+- Owner clarified meditation was meant to be VOICE guided with the plant in
+  its meditation pose, not just on-screen cues. Implemented bundled spoken
+  one-minute guided and own-pace tracks, using the existing local Kokoro
+  af_heart voice at speed 0.92 with quiet gaps. No live AI or cloud voice.
+- public/audio/meditation-{guided,ownPace}-v1.m4a plus cue metadata; generated
+  with scripts/build-breathing-audio.mjs (local models only, remote fetching
+  explicitly blocked). Script refuses to overwrite an existing take. Entire
+  guide adds about 300KB. No credits, API calls or new service dependencies.
+- BreathingPanel now uses audio playback time as its clock, so captions and
+  breath cues remain synchronized. Pause/resume, Stop, close/switch panel,
+  visibility change, interruptions and suspension stop/pause audio; failed
+  playback shows a retry message. Voice-guide toggle allows quiet mode and
+  respects Settings voice-off with explanatory text. Own-pace mode changes
+  while paused. The guide is a fixed warm voice, not a live settings-voice
+  synthesis. Plant takes meditation pose on opening and keeps it through
+  pauses/completion until closed or interrupted. Active Breathe nav no longer
+  resets its pose. Existing stage-4 meditation art still reused at all stages.
+- New A2/B2 breathing copy now explicitly describes spoken guidance. Original
+  landing options still untouched. No background music added.
+- Build and timeline/script consistency checks passed; decoded both tracks
+  are 60.03s with non-silent voice at every cue and no overlaps. Full playback
+  interaction QA is recorded below after completion. No publishing/pushing.
+- Full muted Electron QA passed: real media playback, inhale synchronization,
+  pause freezes audio/time, own-pace resume, live mute, full minute completion,
+  restart and Stop. Report: docs/qa/2026-10-16/app-checks.txt. Updated app
+  launched once; native UI confirmed meditation pose and Voice guide checked.
+  Left Breathe panel ready on Start one minute for Gayathri to listen herself.
+- Owner reported no voice, clarified only meditation pose appeared. Inspected
+  actual app: Voice guide checked, Start enabled. Native click on Start one
+  minute successfully began playback, switched to Pause, and advanced to
+  43 seconds / Breathe out gently. Mac default output is built-in speakers.
+  Asked owner whether she can hear this actual run; do not assume an audible
+  success solely from the timer or earlier muted QA. No speculative code fix.
+- Gayathri confirmed: "Yes, I can hear it now" after the actual desktop
+  session. Spoken meditation is now verified audible by the owner. Entry is
+  Breathe -> Start one minute; opening the panel alone does not start speech.
+
+## SOFTER MEDITATION, MUSIC, REMINDERS, DARK NAV (Oct 16, 2026)
+- Owner requested a more soothing voice and meditative music, then meditation
+  reminders and clearer purple icons in dark navigation. These requests are
+  implemented together; trailer music remains a separate pending decision.
+- Added Soft voice (af_sky, speed 0.78, mild high/low-pass and quieter level),
+  keeping Original voice (af_heart v1) selectable side by side. New versioned
+  guided/own-pace v2 files; build-breathing-audio.mjs --soft uses only local
+  models and explicitly blocks remote fetching. No credits spent.
+- Added original synthesized ambient music, soft chord pads and sparse bell
+  tones with fade-in/out: scripts/build-meditation-music.cjs -> public/audio/
+  meditation-music-v1.m4a. No third-party recordings or music services. Music
+  defaults on at 25%, independent checkbox/volume; voice mute is separate.
+  Both tracks pause/stop together and stay synchronized. Retained v1 files.
+- Breathe -> Set a reminder opens MeditationReminderForm (local date/time,
+  optional daily repeat, rejects past dates). Saves a standard timed task
+  "Meditation break" through the existing local task/reminder engine. Edit or
+  remove in Tasks. Explicitly explains awake/running requirement; never
+  starts a meditation automatically. No new cloud/calendar integration.
+- Meditation Start/Pause/Stop buttons now stay in a fixed footer while the
+  content scrolls if needed, keeping playback controls reachable.
+- Dark RadialMenu and QuickNav inactive icons use pale lavender #cbc1ff;
+  active QuickNav explicitly uses purple background/white icon in dark mode.
+  Light-theme palette unchanged; Showcase remains deliberately discreet.
+- Timeline/script checks for both voice versions passed; build passed and
+  all 31 proxy tests passed. Full interaction/contrast QA recorded below.
+- Full muted desktop QA passed: past reminder dates rejected, daily reminder
+  created in sample Tasks, soft voice/music playback and sync, separate mute,
+  pause/resume, switching back to original voice, full minute and Stop.
+  Dark inactive icon contrast measured 9.14:1 in BOTH nav bars. Screenshots
+  and report in docs/qa/2026-10-16. No real reminders added to owner's data.
+  Restarted the app once for owner testing; new softer/music preference still
+  awaits her listening feedback. No push/deploy/public release.
+- Native verification after restart: pale lavender dark-menu icons visible;
+  Breathe shows Set a reminder, Soft voice selected, Music checked at 25%,
+  and Start one minute. Left that panel ready for her; no session auto-started.
+- Owner reported meditation still not starting/sounding. Confirmed only the
+  latest app process running. Found BrowserWindow omitted acceptFirstMouse;
+  installed Electron types document macOS defaults false (first click on an
+  inactive window only focuses it). Enabled acceptFirstMouse so desktop
+  controls accept that first click. This is a plausible contributor, not a
+  proven sole cause of her report. Ready label now explicitly says "Press
+  Start to hear your guide." Build/syntax/whitespace checks passed; verify
+  actual desktop playback and owner experience after this single restart.
+- After restart, native Start click switched to Pause and began the actual
+  Soft voice + Music session. Gayathri confirmed "Both the voice and music"
+  are audible. Keep app running; no further restart. First-click option is
+  corrected, but do not claim its default was conclusively the only cause.
+
+### Oct 16, 2026 — recurring meditation Start failure, click-through correction
+- Owner reported failure again after hearing both tracks previously; clarified
+  that the panel still says Start one minute. Previous audio-only/AX checks
+  were insufficient evidence that her pointer interaction works reliably.
+- Found a concrete state mismatch: App.tsx cached native click-through locally,
+  while PanelResizeHandles independently sets it true on release. A subsequent
+  same-state poll could skip restoring clicks over Start (or other controls).
+  Removed the renderer-local cache; deduplication now lives in the main IPC
+  handler that sees all requests, including resize changes and window replacement.
+- Added scripts/test-click-through.cjs exercising actual renderer request body
+  and main handler: resize-release recovery, duplicate polls, replacement window.
+  Passed, alongside breathing timeline/script tests, build, and main syntax check.
+- Added an explanation if an active reminder/activity disables meditation Start.
+- Restarted development app once. Audio files unchanged; no paid calls or
+  publishing. This fixes a demonstrated code flaw, but owner confirmation of
+  reliable Start via her own mouse is still pending; do not claim sole cause.
+
+### Oct 16, 2026 — correction to the preceding restart claim
+- Owner again reported failure. Process inspection showed the previous restart
+  was NOT successful: sandboxed launch session 92786 exited SIGABRT during
+  macOS application registration, before app startup. The still-running app
+  was PID 46718 from 17:20:55, not the corrected build. Native quit actions
+  had returned a UI-change error and had not stopped it. Do not interpret
+  an initial running command result or rebinding CUA as restart confirmation.
+- Stopped that exact older dev process with SIGTERM, then launched npx electron .
+  outside the command sandbox. Verified exactly one main app process, PID 49144,
+  started at 17:30:58 local time, and launch session 39969 remains running without
+  errors. Native state confirms the Companion window. No new code changes here.
+- This corrects the rollout of the click-through fix; owner mouse-click result
+  still pending. Do not claim the recurring meditation issue fully resolved yet.
+
+### Oct 16, 2026 — meditation Start root cause captured and fixed
+- Captured the owner's actual failed pointer input using opt-in local development
+  diagnostics (COMPANION_DEBUG_INPUT=1, scripts/debug-meditation-input.cjs).
+  Start was enabled, audio readyState=4, paused at 0. Its rect was x232.7/y591,
+  width118.9/height28. Owner clicked x281/y612, inside Start, but event target
+  was a DIV outside the meditation panel and the panel closed.
+- Root cause: the artwork was scaled to 0.7 (168px tall), but its sibling
+  data-char-hit layer stayed 240px tall. That invisible layer overlapped the
+  panel footer and, painted later, intercepted Start as a plant click. This
+  explains why AX/programmatic button activation worked while owner clicks
+  did not. Earlier click-through fixes did not address this overlap.
+- Moved the hit layer INSIDE the same scaled wrapper as Blob, and gave the
+  panel/nav stack z-index 10 so controls stay above the plant drag surface.
+  Visible artwork size, voice/music tracks and owner's settings unchanged.
+- Added scripts/site/qa/check-meditation-hit-area.cjs: isolated full production
+  app, fake local data, muted audio, external requests blocked. At scales
+  0.6, 0.7, 1, 1.2 checks Start center/edges hit the real button, then sends
+  pointer down/up and verifies Pause plus progressing voice and music.
+  All passed. Negative control at 0.7 restores the old hierarchy and stacking
+  and reproduces the intercepted click. Initial runner needed a window lifecycle
+  correction; successful complete rerun exits 0 with all four sizes passing.
+- Build, click-through regression, breathing/script checks, diff whitespace pass.
+  Stopped diagnostic PID50101 and launched npx electron . normally, diagnostic
+  output off. Confirm fresh process and owner experience before calling their
+  interaction verified. No publishing, paid calls, or personal-data changes.
+- Owner confirmation after the corrected build: "Yes, it's working now, I can
+  hear both the voice and music." Her own Start click now succeeds; the plant
+  hit-area overlap fix is verified by the owner, beyond the automated tests.
+  Leave this working app running; no further restart or audio changes.
+
+### Oct 16, 2026 — Git checkpoint requested by owner
+- Reviewed the accumulated work on ui-refresh-shadcn for a local checkpoint:
+  preserved A/B plus new A2/B2 pages, chat tone/starters, local guided meditation
+  and music, meditation reminders, dark-navigation readability, and the
+  owner-confirmed plant hit-area fix, with source assets and regression checks.
+- Added the missing *.key ignore rule to enforce AGENTS.md's existing secret
+  policy. Per-machine Google/beta config and models remain ignored. No personal
+  root files included; QA images come from sample galleries/local landing pages.
+- Existing build and targeted regression results remain valid; no runtime
+  changes or restart needed for this checkpoint. Prepare local commit first;
+  GitHub push awaits explicit confirmation under the owner's standing rule.

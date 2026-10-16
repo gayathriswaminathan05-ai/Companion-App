@@ -78,6 +78,9 @@ function createWindow() {
     x: px,
     y: py,
     frame: false,
+    // The plant floats beside other apps. The first click must operate its
+    // controls, not be swallowed just to focus the inactive Mac window.
+    acceptFirstMouse: true,
     transparent: true,
     resizable: false,
     // Lets the (mostly empty) window hang above the menu bar so the plant can
@@ -107,6 +110,9 @@ function createWindow() {
   // over the character and ask us to become clickable again.
   win.setIgnoreMouseEvents(true, { forward: true });
 
+  if (!app.isPackaged && process.env.COMPANION_DEBUG_INPUT === "1") {
+    require("../scripts/debug-meditation-input.cjs")(win, () => clickThroughValue);
+  }
   win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
 
   // Always surface on launch — transparent click-through windows are easy to
@@ -124,8 +130,13 @@ function createWindow() {
   win.on("moved", () => savePosition(win.getBounds()));
 }
 
+let clickThroughWindow = null;
+let clickThroughValue = null;
 ipcMain.on("set-click-through", (_e, ignore) => {
   if (!win) return;
+  if (clickThroughWindow === win && clickThroughValue === ignore) return;
+  clickThroughWindow = win;
+  clickThroughValue = ignore;
   // forward:true only while ignoring — lets the page see hover and re-enable clicks
   // on the character. When capturing, omit forward so the window behaves normally.
   if (ignore) win.setIgnoreMouseEvents(true, { forward: true });
