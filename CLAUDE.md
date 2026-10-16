@@ -1132,3 +1132,7 @@ re-check that nothing else is reachable only for testing.
 - Existing build and targeted regression results remain valid; no runtime
   changes or restart needed for this checkpoint. Prepare local commit first;
   GitHub push awaits explicit confirmation under the owner's standing rule.
+- Owner explicitly approved upload to ui-refresh-shadcn, not main. Pushed
+  a823b30 (guided meditation and refreshed landing page options) successfully
+  to origin/ui-refresh-shadcn. Main was not targeted. This follow-up memory
+  note is saved on the same branch as part of the approved GitHub update.
