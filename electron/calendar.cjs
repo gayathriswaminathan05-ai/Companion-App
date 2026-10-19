@@ -13,6 +13,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
+const { randomBytes, createHash } = require("crypto");
 const { createGmailWatcher } = require("./gmail.cjs");
 
 // Scopes we ask for on Connect.
@@ -567,7 +568,7 @@ async function createEvent(input) {
 const escapeHtml = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-function listenForCode(port) {
+function listenForCode(port, expectedState) {
   return new Promise((resolve, reject) => {
     if (authServer) {
       try {
@@ -575,12 +576,19 @@ function listenForCode(port) {
       } catch {}
       authServer = null;
     }
+    let timer;
     const server = http.createServer((req, res) => {
       try {
         const u = new URL(req.url || "/", `http://127.0.0.1:${port}`);
         if (u.pathname !== "/") {
           res.writeHead(404);
           res.end();
+          return;
+        }
+        // Ignore unrelated/forged callbacks; keep waiting for this sign-in.
+        if (!expectedState || u.searchParams.get("state") !== expectedState) {
+          res.writeHead(400, { "Content-Type": "text/plain" });
+          res.end("This sign-in response does not match. Return to Companion and try again.");
           return;
         }
         const err = u.searchParams.get("error");
@@ -593,6 +601,7 @@ function listenForCode(port) {
           </body></html>`,
         );
         server.close();
+        clearTimeout(timer);
         authServer = null;
         if (err) reject(new Error(err));
         else if (!code) reject(new Error("no code"));
@@ -602,9 +611,10 @@ function listenForCode(port) {
       }
     });
     authServer = server;
+    server.on("close", () => clearTimeout(timer));
     server.listen(port, "127.0.0.1");
     server.on("error", reject);
-    setTimeout(() => {
+    timer = setTimeout(() => {
       try {
         server.close();
       } catch {}
@@ -630,7 +640,13 @@ async function runOAuthConnect() {
   });
 
   const redirectUri = `http://127.0.0.1:${port}`;
-  const codePromise = listenForCode(port);
+  const state = randomBytes(32).toString("base64url");
+  const verifier = randomBytes(32).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  const codePromise = listenForCode(port, state);
+  // A fast denial can arrive before openExternal resolves. Observe rejection
+  // immediately, while the await below still reports it to the user.
+  codePromise.catch(() => {});
 
   const authUrl = new URL(AUTH);
   authUrl.searchParams.set("client_id", client.clientId);
@@ -639,9 +655,17 @@ async function runOAuthConnect() {
   authUrl.searchParams.set("scope", SCOPES.join(" "));
   authUrl.searchParams.set("access_type", "offline");
   authUrl.searchParams.set("prompt", "consent");
-  authUrl.searchParams.set("include_granted_scopes", "true");
+  authUrl.searchParams.set("state", state);
+  authUrl.searchParams.set("code_challenge", challenge);
+  authUrl.searchParams.set("code_challenge_method", "S256");
 
-  await shell.openExternal(authUrl.toString());
+  try {
+    await shell.openExternal(authUrl.toString());
+  } catch (error) {
+    authServer?.close();
+    authServer = null;
+    throw error;
+  }
   const code = await codePromise;
   if (gen !== tokenGeneration) throw new Error("Google connection was cancelled");
 
@@ -651,6 +675,7 @@ async function runOAuthConnect() {
     client_secret: client.clientSecret,
     redirect_uri: redirectUri,
     grant_type: "authorization_code",
+    code_verifier: verifier,
   });
   const res = await fetch(TOKEN, {
     method: "POST",

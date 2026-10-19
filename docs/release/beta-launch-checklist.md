@@ -8,12 +8,20 @@ This checklist is for a small, invited Mac beta, not a public launch. It records
 
 ## Release preparation update · 19 October 2026
 
-Candidate: **0.1.1-beta.1**, Apple-chip Macs, **macOS 14 (Sonoma) or later**.
+Candidate: **0.1.1-beta.2**, Apple-chip Macs, **macOS 14 (Sonoma) or later**.
 The dictation native library requires14.0, even though Electron itself advertises12.0.
 The earlier sections below preserve historical planning; chat/provider spending gates
 are deferred and must not be treated as current beta requirements.
 
-- Owner approved a publicly accessible GitHub beta download. No publication yet.
+- Owner approved a publicly accessible GitHub beta download and unsigned installation.
+  Source532777e and tagv0.1.1-beta.1 were uploaded to ui-refresh-shadcn, not main.
+  Installer upload was rejected by automatic approval review because the bundled
+  Google client configuration contains clientSecret. No draft or published release
+  exists. Need authenticated Console verification of Desktop client type before
+  retrying with that evidence or requesting explicit configuration distribution.
+- New candidate beta.2 adds random OAuth state validation and S256 PKCE; rejects
+  unrelated callbacks and handles fast denial. Offline loopback tests passed.
+  beta.1 is preserved as an unpublished candidate and must not be distributed.
 - Owner approved publishing without Apple Developer ID signing/notarization, with
   clear installation instructions, and uploading matching code to ui-refresh-shadcn.
   No Apple membership purchase, agreements or signing setup has been authorized.

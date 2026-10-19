@@ -4,7 +4,7 @@
 const electron = require('electron');
 const { app, BrowserWindow, session } = electron;
 const fs = require('fs'), path = require('path'), os = require('os'), assert = require('assert/strict');
-const resources = path.resolve(process.argv[2] || 'release/0.1.1-beta.1/mac-arm64/Companion.app/Contents/Resources');
+const resources = path.resolve(process.argv[2] || 'release/0.1.1-beta.2/mac-arm64/Companion.app/Contents/Resources');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'companion-packaged-beta-'));
 app.setPath('appData', temp);
 app.setPath('userData', path.join(temp, 'companion-app'));
@@ -23,7 +23,7 @@ electron.BrowserWindow = QuietWindow;
 const dataFile = path.join(app.getPath('userData'), 'companion-data.json');
 fs.writeFileSync(dataFile, JSON.stringify({settings:{welcomed:false,voiceOn:false,soundsOn:false,autoHideOnCalls:false,matchBackdrop:false,breakMins:0,waterNudge:false,bedtime:null,jokeEvery:'off'},todos:[]}));
 const wait = ms => new Promise(r => setTimeout(r, ms));
-const out = path.resolve('docs/qa/2026-10-19/release-0.1.1-beta.1');
+const out = path.resolve('docs/qa/2026-10-19/release-0.1.1-beta.2');
 fs.mkdirSync(out,{recursive:true});
 app.whenReady().then(() => { app.dock?.hide(); session.defaultSession.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*']},(_d,cb)=>{network++;cb({cancel:true});}); });
 require(path.join(resources,'app.asar','electron','main.cjs'));
@@ -67,7 +67,7 @@ app.whenReady().then(async () => {
   fs.writeFileSync(path.join(out,'packaged-breathe.png'),(await win.webContents.capturePage()).toPNG());
   await press('Stop');
   assert.equal(network,0,'no external requests');
-  const report={version:'0.1.1-beta.1',resources: path.relative(process.cwd(),resources),passed:['first-open skip without mic access','native text insertion and timed task save','task persists across reload','chat/key/dev-test controls absent','real bundled Kokoro synthesis','real bundled Whisper transcription','meditation audio and clock','zero intercepted external requests'],transcription,limitations:['Same Mac and Electron runtime, isolated data; not another clean Mac or real microphone','Google sign-in and downloaded-app Gatekeeper not exercised'],network};
+  const report={version:'0.1.1-beta.2',resources: path.relative(process.cwd(),resources),passed:['first-open skip without mic access','native text insertion and timed task save','task persists across reload','chat/key/dev-test controls absent','real bundled Kokoro synthesis','real bundled Whisper transcription','meditation audio and clock','zero intercepted external requests'],transcription,limitations:['Same Mac and Electron runtime, isolated data; not another clean Mac or real microphone','Google sign-in and downloaded-app Gatekeeper not exercised'],network};
   fs.writeFileSync(path.join(out,'packaged-report.json'),JSON.stringify(report,null,2)+'\n');console.log('PASS',JSON.stringify(report));
   app.quit();
  } catch(e) {console.error(e);process.exitCode=1;app.quit();}
