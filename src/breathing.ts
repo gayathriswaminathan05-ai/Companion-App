@@ -18,12 +18,12 @@ export const BREATHING_VOICE_CUES = {
     { at: 53, text: "Keep your own gentle rhythm. This little moment was yours." },
   ],
 };
-export function breathingStep(elapsedMs: number) {
+export function breathingStep(elapsedMs: number, durationMs = BREATHING_DURATION_MS) {
   const elapsed = Math.max(0, elapsedMs);
-  if (elapsed >= BREATHING_DURATION_MS) return { phase: "done", label: "A little room for you.", remaining: 0 };
-  const remaining = Math.ceil((BREATHING_DURATION_MS - elapsed) / 1000);
+  if (elapsed >= durationMs) return { phase: "done", label: "A little room for you.", remaining: 0 };
+  const remaining = Math.ceil((durationMs - elapsed) / 1000);
   if (elapsed < 5000) return { phase: "settle", label: "Settle in. Let your shoulders soften.", remaining };
-  if (elapsed >= 53000) return { phase: "finish", label: "Let your breath find its own rhythm.", remaining };
+  if (elapsed >= durationMs - 7000) return { phase: "finish", label: "Let your breath find its own rhythm.", remaining };
   const inhale = (elapsed - 5000) % 8000 < 4000;
   return { phase: inhale ? "in" : "out", label: inhale ? "Breathe in gently" : "Breathe out gently", remaining };
 }

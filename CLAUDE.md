@@ -1136,3 +1136,607 @@ re-check that nothing else is reachable only for testing.
   a823b30 (guided meditation and refreshed landing page options) successfully
   to origin/ui-refresh-shadcn. Main was not targeted. This follow-up memory
   note is saved on the same branch as part of the approved GitHub update.
+
+### Oct 16, 2026 evening — cleaner meditation, movement and everyday voice
+- Owner requested a cleaner meditation panel inspired by her supplied screen
+  recording: inspected a local contact sheet (do not commit the personal video).
+  Added decorative flowing lavender/coral waves, large mm:ss timer, 1/3/5-minute
+  choices, My own pace, voice/music toggles and volume. Waves pause with playback
+  and in My own pace per her clarification; no separate still-mode setting.
+  Retain OS reduced-motion support. Waves are decorative, not audio analysis.
+- Preserved original UI as BreathingPanelV1.tsx alongside the new panel in the
+  dev gallery. Original audio/voice options preserved. Reminder control moved
+  from meditation into Settings > How I care for you > Meditation reminder,
+  using the existing local task scheduler and optional daily repeat.
+- Longer guided and own-pace recordings reuse original local v2 voice segments:
+  scripts/extend-meditation-audio.cjs; generated 3/5-minute music locally with
+  build-meditation-music.cjs. No network/AI credits. Complete four-second phases,
+  single introduction and ending, master clock remains recorded audio.
+- Movement breaks replace the Stretch breaks settings label. Default Mix it up
+  alternates stretch and walk/move nudges on the existing cadence/cap. User can
+  choose Stretch or Walk or move. Inclusive copy; existing stretch animation
+  reused, no newly generated walking art. Walk added to beta debug nudge menu.
+- Owner clarified bubbly voice means the character overall, not meditation.
+  Existing saved voice was af_sky (Light). Prepared local before/after samples
+  in public/audio/voice-options using build-voice-comparison.mjs. Everyday
+  Bubbly friend uses af_bella at synthesis speed1.0; Warm original/Light remain.
+  No pitch-shifting and no paid/cloud calls. Owner has not yet selected/approved
+  that voice; meditation keeps af_sky v2. Current personal voice setting preserved.
+- Verification: TS/build pass; all31 proxy tests pass; full production pointer
+  regression at scales .6/.7/1/1.2 passes. New gallery checks cover all three
+  durations, playback/pause/resume/seek-to-ending, self-paced wave state,
+  Settings reminder creation and movement choices. QA images meditation-clean-
+  light.png and meditation-clean-dark.png. Tests initially needed selector and
+  state-flush fixes; final runs pass. Native app restarted once outside sandbox,
+  PID58955; observed owner starting the new panel and countdown reaching0:51.
+  Stopped UI automation when owner began interacting. No GitHub push this session.
+
+### Gmail, beta access and Spotify research (official sources, Oct16)
+- Gmail standard API use currently has no additional cost; quota overages are
+  planned to become chargeable later2026. Costly annual restricted-data security
+  assessment is triggered by access through third-party servers. Current Gmail
+  path uses metadata scope, local direct Google calls and local private speech;
+  local-only design may avoid that server-assessment trigger, but public scope
+  verification still needs Google review. Do not promise exemption or a fixed
+  audit price. Gmail remains disabled; owner asked about costs, not re-enabling.
+  https://developers.google.com/workspace/gmail/api/reference/quota
+  https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification
+- App itself/proxy has no email allowlist. Google Calendar access while OAuth
+  project is in Testing requires listed test users (up to100), grants/refresh
+  tokens expire after7days. We have not inspected current console publication
+  state this session; phrase conditionally. Gmail remains off.
+  https://support.google.com/cloud/answer/15549945?hl=en
+- Owner asked whether Spotify sync costs more. Research only; no integration
+  authorized/added. Current dev mode requires Premium owner and max5 allowlisted
+  users; extended quota applications require organization and at least250kMAU.
+  Spotify policy prohibits overlapping Spotify audio with other audio and
+  restricts commercial streaming. Therefore our voiced guided music feature is
+  not a suitable straightforward integration. Recommend bundled original music;
+  optional future ordinary link to open Spotify separately, no sync/control.
+  https://developer.spotify.com/documentation/web-api/concepts/quota-modes
+  https://developer.spotify.com/policy
+
+### Oct16 evening — minimal mesh-wave meditation panel and Gemini voice research
+- Owner supplied a Sleep Lab reference and requested a much more minimal panel.
+  Replaced oval waves with three layered fine-line lavender SVG ribbons, gently
+  moving only during guided playback; own pace, pause and OS reduced motion
+  stop movement. Simplified timer, duration choices, sound controls and footer.
+  Preserved previous panel as BreathingPanelV2.tsx and its oval waves as
+  MeditationWavesV1.tsx, alongside original V1 and new design in the gallery.
+- All local audio/playback behavior, Settings meditation reminders, 1/3/5 minute
+  sessions and plant hit-area fix retained. No cloud calls added.
+- TS and app/gallery builds passed; playback/pause/resume/end tests passed for
+  all durations; self-paced animation, reminder creation and movement choices
+  passed. Pointer regression passed at .6/.7/1/1.2. The gallery test previously
+  assumed local audio loaded within1.2sec and intermittently failed with unknown
+  duration; it now waits up to10sec for actual playback before asserting.
+  New screenshots: docs/qa/2026-10-16/meditation-mesh-{light,dark}.png, both
+  visually inspected. Old screenshots retained. Restarted exact prior PID58955
+  with the rebuilt development app, without launching the packaged installer.
+- Owner asked about Gemini3.8FlashTTS for overall plant voice. Researched official
+  Google speech docs, pricing and terms, without using credits or sending text
+  to speech generation. Can integrate, but not yet authorized cloud voice changes.
+  Free tier exists for auditions; production dynamic speech needs Google API
+  credentials and usage billing. Listed standard audio rate is$0.00225/10sec
+  through Dec31,2026 ($1.35/100min), doubles Jan1,2027, plus text input charges.
+  https://ai.google.dev/gemini-api/docs/pricing#gemini-3.8-flash-tts
+  Paid terms exclude model improvement but permit limited safety retention;
+  unpaid terms differ and have regional/account exceptions. Recommend generic
+  prerecorded greetings/nudges/meditation first, reusable locally without per-play
+  costs. This cannot give arbitrary live chat replies the same voice without
+  sending reply text to Google. Existing local voice remains, no keys requested
+  or personal/calendar/task text sent. No GitHub push this session.
+  https://ai.google.dev/gemini-api/terms
+  https://ai.google.dev/gemini-api/docs/speech-generation
+
+### Oct16 — colourful waves with controls at the bottom
+- Owner requested colourful waves and more space for them, with controls lower.
+  Waves now blend turquoise, lavender, pink, blue and peach across three ribbons.
+  Their flexible full-width area fills the upper body; countdown and duration
+  choices share a row below, with own pace/voice/music and action buttons at the
+  bottom. No audio or privacy behavior changed. Own pace still stops animation.
+- Preserved previous lavender design as BreathingPanelV3.tsx with
+  MeditationWavesV2.tsx, added to gallery alongside other versions.
+- TypeScript/app/gallery builds passed. Verified all three durations, actual
+  voice/music playback, pause/resume/end and self-paced behavior; pointer tests
+  passed at plant scales .6/.7/1/1.2. Gallery test now waits for audio clock>.25s
+  before pausing (an earlier pause before the first UI tick had no Resume label).
+  Inspected new meditation-colour-light.png and meditation-colour-dark.png under
+  docs/qa/2026-10-16; no clipped controls. Previous screenshots retained.
+- Restarted identified old development app PID61668 after validation. No paid
+  generation, external services, personal settings changes, commits or pushes.
+
+### Oct16 — faster meditation waves
+- Owner found the colourful wave motion too slow. Shortened the three ribbon
+  loops from12/15/18seconds to4/5/6seconds, exactly3x faster, retaining smooth
+  easing, colours and layout. Own pace/pause/reduced-motion behavior retained.
+- Preserved original slow speed via waveSpeed="slow" and a separate gallery
+  example, without adding another setting to the user's minimal panel.
+- TypeScript and production build passed. This changes only animation timing;
+  audio/session logic untouched. Restarted identified development PID62853
+  with the new build. No paid calls, publishing or GitHub push.
+
+### Oct16 — plant over other apps' full-screen Spaces
+- Owner reported that full-screen apps make the plant disappear, and wants it
+  to remain until dismissed. Changed macOS BrowserWindow type to panel, the
+  Electron-documented native type that can float over other apps' full-screen
+  Spaces. Kept floating/all-workspaces flags, Dock home, click-through and
+  existing explicit Nap/hide behavior; no force-show timer or focus stealing.
+  Existing user-selected call auto-hide setting remains respected.
+- Official reference: https://www.electronjs.org/docs/latest/api/base-window
+  (macOS panel window type). Syntax check passed; restarted the identified
+  development PID63582. No renderer build needed for this main-process change.
+- Native CUA test: created an empty temporary Finder window at
+  /tmp/companion-fullscreen-check, entered macOS full screen, opened plant's
+  menu/Tasks and successfully typed then cleared an unsaved "Window check"
+  draft. Closed Tasks; no task was added. Asked owner to confirm visual presence
+  over Finder; confirmation is still pending, so do not claim owner verification.
+  Finder full-screen test window remains open for that confirmation.
+- No network calls added, paid work, public changes or GitHub upload.
+- Owner confirmed the full-screen fix: "Yes, the plant is visible" over the
+  full-screen Finder test. This is now owner-verified. Tried to close the
+  temporary Finder window afterward, but CUA returned cgWindowNotFound on
+  both the existing binding and a fresh Finder lookup; no other window closed.
+
+### Oct17 — private beta release checklist
+- Owner requested a checklist of everything the app must pass before beta.
+  Created docs/release/beta-launch-checklist.md in plain language, with release
+  gates, prior evidence, pending decisions and checks for the exact installer.
+- Covers privacy/context sharing and deletion, real OpenAI/tone/distress checks,
+  cost limits and migration, tasks/reminders, wellness/meditation/growth, desktop
+  behavior, accessibility, clean installation/reliability, optional Calendar,
+  tester materials/feedback and final owner approval. Separates deferred public
+  launch, onboarding, art, cloud voice/Spotify and testing-tool removal.
+- Confirmed current source still sends task/fact/history context with chat;
+  proxy counters fail open; original pages/trailer email cleanup and real OpenAI
+  eval remain pending. Found tester-guide source still promises Gmail and Google
+  cloud speech, so updating it is an explicit release blocker. Landing macOS12
+  support is unverified; checklist requires checking actual bundled runtime support.
+- Owner-confirmed meditation audio and full-screen visibility are recorded as
+  prior development-app evidence, not installer sign-off. No tests rerun or
+  account/provider settings inspected; no spending, publishing or code changes.
+
+
+### Oct17 — privacy pass; chat remains a core feature
+- Owner requested fixing beta checklist items one at a time, privacy first and
+  outdated tester guide next, with a check-in after each. During this pass she
+  clarified: no chat-off option; the plant is an AI friend users can talk to.
+  This supersedes the older chat-off requirement. Updated AGENTS.md and added
+  a dated current-policy note to PRD.md; old historical decisions remain.
+- Removed the chat on/off switch. Chat now has a one-time “Before we chat”
+  explanation and “Start chatting” button. Acceptance alone sends nothing;
+  only an explicitly sent message starts an AI request. Existing users see
+  the notice once; legacy chatOn settings are retired. Missing/corrupt/unaccepted
+  settings fail closed, and the unused background AI endpoint is disabled.
+- Prompts now contain recent conversation (up to16 messages including the new
+  one), personality and local time, not private task lists, profile names,
+  growth, saved notes or old summaries. Calendar capability can be indicated,
+  but fetched calendar contents stay excluded. Removed automatic approximate
+  search location. User-entered chat details and research search terms still
+  leave the Mac; explained this explicitly. Saved notes no longer give the AI
+  automatic long-term recall; remembering is requested explicitly in the prompt.
+- Forced all speaking voice local, including legacy key/config fallback paths.
+  This does not remove prerecorded meditation audio or voice-choice options.
+- Chat cancellation added for history deletion, personal-key changes and full
+  reset. Both SDKs receive abort signals; renderer checks request IDs so late
+  responses cannot restore deleted chat or create tasks. Failed saves block
+  sending. History deletion clears summary as well, retains saved notes.
+  Individual note deletion, key deletion and Google disconnect report failures.
+- Delete all removes known local personal files (chat/tasks/settings, personal
+  AI/TTS keys, Google tokens/client, window state, device ID), stops polling,
+  cancels chat and disables start-at-login. Blocks stale renderer saves during
+  reload, reports partial failure honestly. OAuth/poll generation guards prevent
+  late connections/events after disconnect/reset. No owner data was deleted.
+  Local data writes now enforce owner-only file permissions, including old files.
+- Added site/privacy.html, linked from all four page options. Corrected their
+  chat/privacy wording for the core-feature decision, local voice and deletion.
+  Clear distinction: store:false disables saved Responses retrieval, not all
+  provider retention; no approved Zero Data Retention claim. Official reference:
+  https://developers.openai.com/api/docs/guides/your-data
+  Original email scenes/trailer cleanup remain pending, not silently completed.
+- Updated proxy README privacy caveats and beta checklist progress. Anchored
+  /release/ in .gitignore so docs/release is no longer accidentally ignored;
+  secrets/model/personal-file exclusions remain unchanged.
+- Validation: TypeScript and production build pass (existing bundle-size warning).
+  All31 proxy tests pass. scripts/test-privacy.mjs passes using VM storage/SDK
+  doubles, including both providers, missing/corrupt consent, prompt minimization,
+  cancellation, local-only voice and synthetic reset/failure cases.
+  All17 offline Google checks pass; corrected an old test that expected Gmail
+  polling despite the deliberately disabled Gmail feature. Two bundled-client
+  subcases are skipped by that existing test to avoid touching owner config.
+- New scripts/site/qa/check-privacy.cjs tests the actual renderer offline with
+  synthetic data: first-chat notice, no off switch, no draft upload, minimal
+  prompts, cancellation/late-action suppression, deletion across reload, saved
+  note deletion and honest failure UI. Passes. Captured and visually inspected
+  chat introduction, privacy Settings, and privacy page desktop/phone screenshots
+  in docs/qa/2026-10-17. Fixed truncated Settings descriptions found in that review.
+- Launched rebuilt development app (PID3586, exec session87600). CUA confirmed
+  Companion window loads project dist/index.html and plant is visible. Closed
+  unrelated empty Electron welcome window through its Quit menu; no packaged
+  Companion launched. No user chat sent, paid call, push, deployment or publishing.
+- CHECK-IN: privacy implementation/wording pass ready for owner review. Tester
+  guide deliberately untouched until the next step. Final installer, live server
+  configuration/observability, provider retention/account settings, stronger beta
+  access controls and reliable cost caps still require release checks; these
+  offline tests are not a complete security audit or production privacy sign-off.
+
+
+### Oct17 — remove Claude integration and app-owned keys
+- Owner explicitly requested complete removal of Claude integration, then deletion
+  of any Claude keys. Current app is OpenAI-only: removed the Anthropic SDK and
+  its unused dependencies, provider selection, Claude request implementation,
+  model settings and ANTHROPIC_API_KEY environment fallback. Old sk-ant keys
+  are rejected/ignored rather than accidentally sent to OpenAI. Old beta provider
+  fields cannot select another provider. Private beta-config set to openai
+  without displaying credentials. Historical CLAUDE.md name/history retained.
+- Worker source now has only the OpenAI chat route; /v1/messages returns404.
+  This code is NOT deployed yet. Reworked existing proxy tests to cover OpenAI
+  authentication, streaming, citations, headers, errors and limits; added explicit
+  retired-route rejection even when an obsolete secret is present. All31 pass
+  without skipped SDK tests or any paid requests. Cost-counter weaknesses noted
+  in the previous privacy pass remain a separate issue.
+- Updated app labels/comments, privacy page, server README/config and AGENTS.md.
+  Corrected provider references in both tester-guide files; their broader Gmail,
+  voice and onboarding cleanup remains pending the requested separate guide pass.
+  PRD keeps historical plans with an explicit current OpenAI-only override.
+  Personal OpenAI-key controls remain visible in the development app even when
+  it is configured for the beta server, so the owner can enter her own key.
+- Personality evaluator now OpenAI-only and matches app search request (no
+  automatic approximate location). Adjusted memory/completion fixtures to ask
+  explicitly and follow-up fixture to use recent chat, matching the privacy
+  changes. Only DRY=1 run:20 cases loaded, no live personality evaluation.
+- Deleted the actual sk-ant key from this app's userData/brain.key with owner's
+  authorization. Verified file absent, no legacy environment key present, and
+  no project .key/.env files found outside excluded dependencies/builds/models.
+  No unrelated project credentials touched and no secret values printed.
+- Cloudflare secret list showed only ANTHROPIC_API_KEY and APP_TOKEN (no OpenAI
+  secret). Automatic approval review initially blocked confirmation of permanent
+  deletion and required fresh action-time consent. Owner then explicitly confirmed
+  deleting ANTHROPIC_API_KEY from companion-proxy. Wrangler reported success;
+  a fresh secret list contains only APP_TOKEN. This authorized live secret change
+  is complete. It does NOT revoke the old credential in the company's Anthropic
+  account. No provider-account revocation attempted.
+- Consequence explained to owner: chat cannot answer until her OpenAI key is
+  added and tested; local tasks/reminders/meditation still work. Already distributed
+  old installers are not rebuilt or modified; do not distribute them as the new
+  OpenAI-only release. Removing the legacy endpoint from the live Worker requires
+  separate approval to deploy the tested source change.
+- Validation: TypeScript and app build pass (existing size warning). npm confirms
+  @anthropic-ai/sdk absent. Privacy VM tests pass, including legacy saved/env keys
+  and beta provider config never routing to the old service or leaking its key.
+  Actual renderer privacy checks pass offline, screenshot outputs refreshed.
+  Restarted old development app via its Quit menu, launched updated Electron
+  (exec session77394) and reloaded final Settings change. CUA confirms project
+  dist/index.html in Companion. No paid calls, GitHub push or Worker code deploy.
+
+
+### Oct17 — authorized OpenAI-only server deployment
+- Owner explicitly said to leave the company account alone and approved deploying
+  the server change that removes the old Claude connection. Company Anthropic
+  account and its credentials were not accessed or modified.
+- Rechecked branch ui-refresh-shadcn and Worker configuration/source. All31
+  offline proxy tests passed immediately before deployment, with no skips.
+- Ran wrangler deploy for companion-proxy successfully. Live URL:
+  https://companion-proxy.companion-proxy.workers.dev
+  Version:442c970b-2da0-490a-ab95-4ad44b5b0f00.
+- Verified live GET /health returns200 with ok:true; POST /v1/messages with an
+  empty synthetic body returns404 not_found, confirming the old Claude route
+  is removed. GET /v1/responses returns405 method_not_allowed, confirming the
+  OpenAI route is present without making any paid AI request.
+- Fresh Cloudflare secret listing contains only APP_TOKEN. The Claude secret
+  remains absent; OPENAI_API_KEY has not yet been added, so chat cannot answer
+  until owner supplies it and the real service is tested. No provider account
+  revocation, AI credits, GitHub push, installer build or landing publication.
+- Broader tester-guide cleanup remains the next separately checked-in item.
+
+### Oct17 — chat privacy and free local-model options (research only)
+- Owner asked whether users' chats can be protected and whether free open models
+  could avoid API charges. Explained that current safeguards reduce exposure but
+  are not a completed security audit: saved chat JSON has user-only file permissions,
+  not app-level encryption; stronger beta access, credential/storage protection and
+  final installer review remain pending. Cloud AI necessarily receives sent chat.
+- Official OpenAI data controls distinguish no training by default and store:false
+  from Zero Data Retention. Default abuse-monitoring retention can include chat for
+  up to30 days (exceptions apply); ZDR needs approval and compatible features.
+  Source: https://developers.openai.com/api/docs/guides/your-data
+- Researched Apache2.0 downloadable candidates Qwen3-4B and SmolLM3-3B, plus
+  Apple-silicon local execution through MLX LM. Free model files do not make hosted
+  inference free. Running on each user's Mac can avoid per-message inference bills,
+  with storage, memory, battery and support tradeoffs. Web search still sends queries
+  outside the Mac and cannot be described as fully offline.
+  Sources: https://huggingface.co/Qwen/Qwen3-4B
+  https://huggingface.co/HuggingFaceTB/SmolLM3-3B
+  https://github.com/ml-explore/mlx-lm
+- Proposed a separate local-model trial to measure personality, reminder actions,
+  response speed and resource use before choosing a production direction. This is
+  a proposal, not an accepted provider change. Current OpenAI-only implementation
+  remains unchanged. No model downloads, paid calls, deployment or GitHub push.
+
+### Oct17 — proposed reminders-first beta without chat
+- Owner proposed postponing chat until costs/privacy/model selection are settled,
+  and asked about costs for a wellness/reminders beta. This is the latest product
+  direction under discussion; do not insist on the earlier chat-as-core decision.
+  No app feature changes made in this advisory session.
+- Inspected existing code: tasks, offline natural-language reminder parsing,
+  water/stretch/walk nudges and local voice already do not need cloud chat.
+  Proposed retaining meditation, growth and authored personality lines, with a
+  simple optional local daily check-in as future work, not an existing feature.
+- Explained Electron runs the installed app on each tester's Mac; it is not a
+  hosting service. GitHub stores code and can distribute installers via Releases.
+  A reminders-only design needs no per-message AI charges or reminder server.
+  It still needs reliable reminder behavior around sleep/restart, local data
+  protection and accurate marketing/tester documentation.
+- Checked official distribution costs: Apple Developer Program is USD99/year
+  (regional price varies) for Developer ID signing/notarization; current installer
+  is unsigned. GitHub Releases assets must be under2GiB; no documented total
+  release bandwidth cap. Static landing page can use Cloudflare Pages free tier;
+  large installer should be hosted separately. Domain/support/build services and
+  any existing paid subscriptions are separate; no billing cancellation performed.
+  Sources: https://developer.apple.com/programs/enroll/
+  https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases
+  https://www.electronjs.org/docs/latest/
+  https://developers.cloudflare.com/pages/platform/limits/
+- Recommended a reversible reminders-first beta with chat preserved for later,
+  no AI keys required for testers, no cloud voice, and no unneeded account/calendar
+  integration in that proposed scope. No downloads, spending, deployment or push.
+
+### Oct17 — step1: reminders-first development beta, chat disabled
+- Owner explicitly approved no-chat beta while retaining Google Calendar alerts,
+  tasks/reminders, wellness and meditation, and requested a check-in after each
+  stage before privacy-page and tester-guide updates. Later clarified that voice
+  recording for tasks/reminders must remain. This supersedes chat-as-core policy;
+  updated AGENTS.md, PRD override and beta checklist accordingly.
+- Added shared electron/features.json aiChat:false for renderer/main. Hid Chat
+  from both menus, chat how-to, key controls and chat voice switch. Main blocks
+  chat-send and key connection regardless of prior consent, saved key or config;
+  does not load beta proxy config in this build. Background AI/cloud voice remain
+  disabled. Packaging explicitly excludes beta-config.json. Deferred chat source
+  and existing user data retained; legacy notes/history deletion remains available
+  only where needed. Existing testing tools including Showcase preserved.
+- Tasks retains its microphone, local Whisper transcription, editable draft and
+  offline date/time parsing. Packaged Whisper now forbids remote model fallback;
+  uses bundled model files. No AI service or paid call needed for dictation.
+- Calendar remains optional, connected and polled as before. New authorization
+  requests use calendar.events.readonly in this beta; older grants are not silently
+  revoked. Settings no longer prompts read-only users to reconnect for booking or
+  advertises chat booking. Local personal reminders do not create Google events.
+- Updated necessary in-app welcome/how-to/privacy copy for the disabled-chat UI.
+  Public privacy page and complete tester guide are next separately reviewed steps;
+  do not claim they now match this release. No new installer built yet.
+- Tests: TypeScript/build pass (existing bundle-size warning); all31 proxy checks
+  pass offline; all17 Google tests pass (existing2 bundled-client subcases skipped
+  to avoid touching owner configuration). Privacy VM suite keeps future-chat tests
+  and adds shipped-beta rejection with old key/config/consent; passes.
+- Renderer suite now routes by release flag, preserving previous chat UI suite in
+  check-chat-privacy.cjs. New check-beta-without-chat.cjs uses isolated synthetic
+  storage, blocked external requests and fake microphone audio/transcription output.
+  Verifies microphone recording pipeline -> editable draft -> tomorrow6pm reminder,
+  no automatic save, no chat/key controls or AI calls, Showcase retained, read-only
+  Calendar connection accepted, meeting alert shown without persistent event data,
+  and legacy data deletion. This does not establish real microphone recognition
+  accuracy; owner should test a spoken reminder in the development app.
+- Screenshots in docs/qa/2026-10-17/beta-without-chat-{tasks,voice-reminder,calendar,
+  privacy}.png; inspected tasks and calendar captures. Synthetic test tasks only.
+- Quit/restart via CUA was refused as stale target state. Identified exact old
+  project Electron PID4811, terminated only that process, relaunched npx electron .
+  (exec session73696). CUA verified correct project dist/index.html and visible
+  plant. No duplicate packaged installer opened, user records untouched.
+- Explained hosting: installed app runs on each Mac; propose installer downloads
+  separately via GitHub Releases and landing page via Cloudflare Pages. Nothing
+  uploaded, deployed, pushed, purchased or published this session.
+- Owner asked how failures will be handled. Proposed restart/recovery plus a
+  user-reviewed report containing only app/technical diagnostics, excluding task,
+  audio and Calendar content; no automatic analytics/upload. Added pending release
+  checklist item. Reporting/support flow not yet implemented; feedback contact
+  remains owner decision. CHECK-IN: step1 ready for desktop review, then privacy
+  page and tester guide, one at a time as requested.
+
+### Oct17 — meditation/hula growth-stage animation request and break ideas
+- Owner requested meditation animations at all7 growth stages, explicitly SOLID
+  WHITE backgrounds; hula-hoop idle animation in addition to hammock; suggestions
+  for other fun idle poses; and proposed meal plus coffee/tea breaks using existing
+  reminders. Earlier privacy-page/tester-guide steps remain pending, not cancelled.
+- Inventory: hammock already all7 stages; meditate and hula only stage4. Viewed
+  original mascot-poses/meditate.png and hula.png (white-background references).
+  Can preserve/reuse stage4 originals and add stages1/2/3/5/6/7 for each pose.
+  Blob currently needs per-stage selection wiring for meditate/hula when assets
+  are ready; idle rotation already filters to poses available at current stage.
+- Read-only Higgsfield model/balance/cost checks:210.24 credits, pro; no active
+  free-trial unlimited allowance. Existing pipeline quote remains1.5cr for a
+  high1k GPT Image2.5 pose still plus7.5cr for5s standard silent Kling3.0 loop.
+  Six missing meditation versions=54cr; six hula=54cr; both=108cr before retakes.
+  Balance also reports1 Genjutsu free run and5 Influencer Builder runs; these are
+  not the quoted Kling/image pipeline and were not used or silently substituted.
+- Prepared docs/art/meditation-hula-plan-2026-10-17.json with stage references,
+  pose/motion prompts, destination paths, exact settings/quotes and QA requirements:
+  pure white source BG, correct foliage/flowers, short limbs, locked camera, safe
+  margins, looping motion, local transparent cutouts, matching stage/scale in app.
+  All existing versions retained. No images/videos submitted, uploaded or charged.
+- Asked owner via async approval for9cr meditation sample (recommended),54cr full
+  meditation set, or108cr both missing sets. Answer pending at time of entry.
+  Explicitly cited AGENTS.md rule to ask before jobs above~5cr; no paid retries
+  beyond approved budget. Do not treat the preparation or balance check as approval.
+- Meal/beverage reminders proposal: optional named shortcuts with owner-selected
+  date/time and daily repeat, using existing local Tasks scheduler and review/edit/
+  delete/snooze, no default nagging or AI calls. Existing coffee art covers all
+  stages; picnic/groove currently only stage4. No reminder UI change yet.
+- Suggested additional idle ideas: reading/page turn, soap bubbles, headphone
+  head-bob, picnic/snack. These are suggestions, not approved paid generations.
+
+### Oct17 — owner confirms white source background + her Lumio removal
+- Owner clarified solid white is intentional for clean removal and instructed us
+  to use her Lumio (https://gayathriswaminathan-lumio.hf.space/), also on GitHub.
+  This reply did NOT choose or approve a generation-credit budget. No paid jobs.
+- Confirmed scripts/lumio_cutout.py and sprite-in.sh already use her local
+  ~/Desktop/Background remover engine (same existing workflow used previously).
+  Hosted URL could not be opened by web reader; local installation is available.
+- Ran a real local smoke check on existing mascot-poses/meditate.png using Lumio
+  with HF_HUB_OFFLINE=1 and TRANSFORMERS_OFFLINE=1. Produced1024x1024 transparent
+  PNG /tmp/companion-lumio-meditation-check.png; corner alpha0, process exit0.
+  Viewed resulting cutout. No file uploads, model downloads, credits, or changes
+  to Lumio/source art. Runtime emitted existing LibreSSL/duplicate AV warnings,
+  but check completed. Single-frame success is not full new-video edge/flicker QA.
+- Updated art plan with explicit white generation -> own local Lumio removal ->
+  transparent in-app animation workflow. Budget approval remains pending.
+
+### Oct17 — stage1 meditation sample, corrected hands and lower-cost workflow
+- Owner approved9 Higgsfield credits for one stage1 meditation sample on solid
+  white, followed by her Lumio cutout. Spent1.5cr still +7.5cr silent5s Kling video;
+  verified remaining balance201.24. Still job2b210e31-1175-4372-a683-12cfbf1e25ca;
+  video jobc7635521-0eb3-4376-ab63-9313c3ad39be. Original files retained at
+  mascot-poses/stage-poses/meditation-hula-v1/meditate-stage1.png and
+  assets/clips/meditate1-v1.mp4. No app integration.
+- Owner rejected fingers and pointed to existing meditation animation. First
+  sample used stage1 foliage reference without the existing meditation image as
+  an actual hand reference. Correct future workflow uses BOTH original meditation
+  hands/body and exact growth-stage foliage. Preserve open palms, relaxed fingers,
+  crossed legs, closed eyes and short arms from mascot-poses/meditate.png.
+- Owner approved1.5 additional credits for a corrected STILL ONLY, then proposed
+  built-in image generation instead. Used built-in imagegen with meditate.png
+  plus bundleB/white-stage1.png. No additional Higgsfield credits spent. Corrected
+  still displayed for owner review; saved as
+  mascot-poses/stage-poses/meditation-hula-v1/meditate-stage1-v2-builtin.png;
+  exact prompt saved beside it as meditate-stage1-v2-prompt.txt. Small green
+  stage1 foliage, exposed soil, original open-palmed pose, solid white background.
+- Completed original rejected video's local Lumio processing offline:61 PNG
+  frames, final GPU run131s, output preserved under
+  mascot-poses/stage-poses/meditation-hula-v1/rejected-v1-cutout/. Retained rawvideo
+  and rejected still separately. Cutout processing is not approval of the hands;
+  do not install rejected sample in app. Viewed middle cutout frame.
+- Updated docs/art/meditation-hula-plan-2026-10-17.json with status, costs and
+  corrected-reference workflow. No second video submitted or approved. Owner
+  should review corrected still before separately approving animation credits.
+- Explained tool capabilities: built-in still-image generation and code animation;
+  local video editing/loops/frame assembly; no built-in video-generation tool in
+  this chat. New generated character motion uses connected Higgsfield. Preferred
+  workflow: built-in still -> owner review -> approved Higgsfield animation ->
+  own Lumio background removal. No app changes, publishing or Git push this pass.
+
+### Oct17 — corrected meditation still approved
+- Owner attached and approved the corrected built-in stage1 meditation still: "the still is okay". Recorded approval in the art plan. Preserve this exact open-palmed pose, small leaf cluster and solid white source background.
+- Still approval is not an additional video-credit approval. Next proposed step is one silent5s Kling standard breathing loop, then own Lumio cutout; separate7.5-credit animation approval pending. No new generation, spending or app integration this turn.
+
+### Oct17 — corrected video completed; owner flags restricted motion; reusable skill
+- Owner explicitly approved7.5 credits for one corrected stage1 animation, same
+  hands/growth stage, solid white, then Lumio. Uploaded approved built-in still
+  directly from Mac; confirmed media cd916868-89d4-4e51-8e78-6e00e55e53fd.
+  Fresh exact preflight7.5cr. Submitted once: job
+  cb1e4942-7518-421e-bc9e-8e4ba4125862, Kling3.0 std5s silent1:1, approved still
+  as start/end. Completed; raw saved assets/clips/meditate1-v2.mp4. Full submitted
+  request saved docs/art/meditate-stage1-v2-video-request.json.
+- Ran owner's local Lumio offline with graphics access:61 frames,163.2s, successful.
+  Frames in mascot-poses/stage-poses/meditation-hula-v1/meditate-stage1-v2-cutout;
+  transparent VP9 encoded assets/clips/meditate1-v2-cutout.webm. Alpha0..255 checked,
+  sampled cutout composited on dark/light backgrounds; source/hands and edge sheets
+  saved docs/qa/2026-10-17/meditate-stage1-v2. Sampled anatomy/foliage retained.
+- OWNER CORRECTION: existing meditation also has gently moving hands and leaves,
+  and floating movement. Owner said to prompt carefully in one go and protect
+  credits, suggested adding a skill. Acknowledged the v2 prompt explicitly froze
+  hands and excluded floating; this was our mistake, not an unexplained model
+  failure. Still approval must not be interpreted as freezing movement.
+- Inspected timed frame sheet of original assets/clips/meditate.mp4: vertical
+  floating cycle and changing arm/leaf positions. Saved original-motion.png in
+  QA folder. Correct brief must preserve hand anatomy while allowing forearm/hand
+  drift, gentle leaf sway and whole-character floating, closed eyes/crossed legs.
+- Created and validated docs/art/skills/companion-character-animation/SKILL.md
+  using skill-creator instructions; installed discoverable symlink at
+  ~/.codex/skills/companion-character-animation. AGENTS now points to it. Skill
+  covers actual motion/appearance references, complete prompt contradiction check,
+  exact cost/approval, one submission, no silent paid retries, own Lumio, QA of
+  both motion and appearance, preservation of versions. No promise that generative
+  models always succeed on first attempt. quick_validate passed.
+- Marked v2 as motion correction pending, not accepted final animation. No app
+  integration, replacement of stage4 art, additional paid submissions, Git push or
+  publication. Higgsfield spend this turn7.5cr; cumulative sample spend16.5cr
+  (initial9 plus corrected7.5). Built-in corrected still used0 Higgsfield credits.
+  Any further paid generation requires a newly approved budget. Earlier approval
+  of1.5cr corrected paid still was superseded by built-in workflow, never spent.
+
+### Oct17 — free local stage1 meditation motion correction
+- Owner asked to fix motion without more credits, matching original gentle float,
+  hand and leaf movement. Used companion-character-animation skill. No Higgsfield
+  calls, uploads, generation credits or new model downloads this turn.
+- Used original assets/clips/meditate.mp4 as actual motion measurement source:
+  feature tracking with forward/back checks and robust transforms on body, each
+  hand, foliage. Original body rises/falls about46.8px at960px canvas. Fitted two
+  periodic harmonics to remove jitter and close loop. Kept stage1 appearance from
+  approved built-in still, cut out with owner's local Lumio offline.
+- Added scripts/pipeline/meditation-local-motion.py. Local 2D correction moves
+  whole character vertically, each hand rigidly relative to body with blending
+  confined to arm attachment, and separately sways small stage1 foliage. Hand
+  design is preserved; leaves remain stage1. Translations scaled to target size.
+  Premultiplied-alpha resampling avoids coloured edge halos. No source overwrite.
+- Base: mascot-poses/stage-poses/meditation-hula-v1/meditate-stage1-v3-local-base.png.
+  Output: same directory/meditate-stage1-v3-local/,120 RGBA frames,720px,24fps,5s.
+  motion-report.json records original tracks and applied movement. Transparent
+  VP9: assets/clips/meditate1-v3-local-cutout.webm. Dark-background viewing copy:
+  docs/qa/2026-10-17/meditate-stage1-v3-local/preview.mp4; requested Codex preview
+  panel (tool returned queued). Also supplied inline video in final response.
+- Checked sampled motion on dark/light backgrounds, close-up fingers/arm joins,
+  canvas margins and loop transition. Float range34.67px at720px. Minimum margin
+  61px. Premultiplied pixel seam change0.00137 vs median adjacent0.00186 (no seam
+  spike). Rendered/encoded successfully. Sheets and checks.json beside preview.
+- Explained this is local 2D motion correction, not a new 3D generated performance.
+  Ready for owner visual review; not installed into app yet. All earlier versions
+  retained. Spend0 credits. No Git push, deployment, or unrelated app changes.
+- Added reuse guidance to the animation skill for this specific still/reference;
+  do not reuse its attachment coordinates blindly for other growth stages.
+
+### Oct18 — meditation stages integrated; task input repair in progress; Ollama discussion
+- Owner approved stage1 local motion and authorized remaining meditation stages without per-stage approval. Built-in image generation produced stages2,3,5,6,7 using approved stage1 hands/body and each existing stage foliage reference. Used local Lumio cutouts and measured original meditation motion, no additional Higgsfield credits. Original stage4 retained.
+- New stills/cutouts/layouts/120-frame loops: mascot-poses/stage-poses/meditation-hula-v1/meditate-stageN-v1-* for2,3,5,6,7; approved stage1 remains v3-local. Generalized scripts/pipeline/meditation-local-motion.py for stage layouts. Added import-local-meditation.py, preserving existing assets. Public meditate1,2,3,5,6,7 and sprite manifest integrated; Blob selects exact growth-stage meditation and applies potScale. process-clip preserves fps/pingpong metadata.
+- Visually reviewed art and motion contact sheet at docs/qa/2026-10-17/meditation-all-stages/motion-contact.png. On Oct18 fresh vite build passed (existing large-bundle warning). Isolated Electron check-meditation-stages.cjs passed all7 stages: correct pose, decoded frame, advancing animation; screenshots docs/qa/2026-10-17/meditation-in-app/stage-N.png. Desktop app still needs latest relaunch/owner check.
+- Owner reports Tasks accepts neither typing nor microphone. Added trusted panel-click native focus bridge (focus-controls), pending microphone-start cancellation/release handling, keyboard hold support and visible microphone errors in TaskPanel. Earlier typecheck/syntax checks passed; physical input and final regression checks still pending. Mac was locked during previous physical test, owner unlock requested. Do NOT claim this issue resolved yet.
+- Owner asked whether Ollama could supply free chat. Researched official Ollama FAQ, API intro, macOS and pricing docs. Local models run on each user Mac without per-message cloud charges and can keep prompts local; cloud models are separate, usage-limited/paid. Recommend optional local-only prototype with cloud disabled, model/license/hardware validation and no silent cloud fallback. No Ollama install, model download or chat re-enable performed; current no-chat beta flag remains in force pending explicit decision.
+- No git push, deployment, paid generation or publication this session.
+
+- Oct18 owner requirement for any future local chat: users must only download our app and start using it, with no separate Ollama installation or technical setup. Explained normal Ollama connection needs installed runtime, but an embedded local engine/model can provide a single-app experience. Candidate llama.cpp supports Apple silicon; model redistribution licence, package size, memory, speed and battery must be tested before committing. No implementation or chat re-enable this turn.
+
+- Oct18 owner asked to explore a phone version before doing more: wants to try a floating companion. Researched official Android overlay permission/window docs and Apple WidgetKit/ActivityKit. Android can support a draggable overlay with explicit user permission and system restrictions; iPhone cannot offer an arbitrary persistent mascot above other apps via supported public APIs, so widgets/in-app plant and time-limited Live Activities are alternatives. Awaiting phone platform before any prototype; no mobile implementation, downloads or publication.
+
+- Oct18 iPhone follow-up: researched Apple Picture in Picture and Live Activities. Closest floating experiment is genuine guided meditation video in system PiP, with rectangular system-controlled player/controls, not transparent freely interactive always-present mascot. App Store acceptance cannot be promised for repurposing PiP as a persistent pet; background services must serve intended purposes. Dynamic Island/Lock Screen Live Activity suits active meditation/focus sessions, not all-day continuous character animation. No prototype created yet.
+
+- Oct18 conversation lookup: owner asked where the previous project chat went. Codex's archive list contains "Read project context files" (01a143dc-b01c-7611-9cd0-6a24e79b8412), with this repository as its working folder. Read its latest turns and confirmed the last discussion was the iPhone floating-companion possibility. Chat is archived and readable; the available record does not explain why it was archived. No restoration or sidebar changes requested or performed.
+- Oct18 conversation restored: owner explicitly requested restoration. Successfully unarchived "Read project context files" (01a143dc-b01c-7611-9cd0-6a24e79b8412) and requested opening it in Codex. No app code changes.
+
+- Oct18 correction after owner pointed to existing phone pets: verified Pixel Pals App Store listing (id6443919232) and SpritePals developer site (spritepals.app). Both offer pet presence using widgets/Live Activities/Dynamic Island; SpritePals explicitly advertises animated companions. Earlier recommendation privileging meditation PiP and implying phone pets cannot animate was too broad. A plant in Dynamic Island plus widgets is a real prototype direction, subject to actual device/iOS animation/lifecycle testing. Freely roaming transparent overlay across arbitrary iPhone apps remains distinct and unsupported by a general public overlay API. Ask owner for the specific pet app if she means a different presentation.
+
+### Oct19 — launch requested
+- Built latest local app successfully (existing bundle-size warning only); confirmed no existing Companion/Electron app process before starting npx electron .
+- Verified native Companion window displays the local dist/index.html with stage1 growth controls and idle state. Latest meditation assets and pending input fixes are in this build; this launch alone does not verify the microphone/typing issue. No code changes, publishing or Git push.
+
+### Oct19 — remove duplicate plant at 6-to-7 growth ending
+- Owner saw a duplicate end frame after full bloom. Inspected source frame sheet: individual frames are intact. Reproduced in isolated renderer: grow-to-idle handoff draws last growth sprite over stage7 idle for480ms; differing foliage and scale show double flowers/arms. Baseline sampled30 double-image moments.
+- Blob now switches directly from grow6to7 to preloaded stage7 idle, without the transparent overlay. Other growth handoffs retained. Added missing grow6to7 size calibration0.9174 in src/generated/growHandoff.ts (end pot184px, idle190px, accounting for stage7 1.09 scale). Original clips and frames unchanged, no generation/spend.
+- Added scripts/site/qa/check-growth-handoff.cjs with synthetic storage, blocked external requests, captures and duplicate-layer assertion. Before/after screenshots and frame traces in docs/qa/2026-10-19/grow6to7; after has0 duplicate-image samples and ends at stage7 idle. Inspected before/after screenshot; typecheck and vite build passed (existing size warning). Relaunched desktop app for owner replay from6→7 test button. No push or publication.
+
+### Oct19 — reminder and joke testing touchpoint
+- Owner requested a test touchpoint for all reminders and jokes. Added development-only Settings → Test reminders & jokes, near top of Settings. New src/ui/ReminderTestPanel.tsx lists13 previews: stretch, walk, water, bedtime, timed/missed/daily tasks, meditation, meal, tea/coffee, Calendar5min/startingnow, joke. Meal/coffee/meditation reuse timed task reminder behavior; no new automatic break scheduler claimed.
+- Previews use actual ReminderBubble/NudgeBubble, current-stage poses, existing chirps and on-device speech with current voice/sound settings. Clearly labelled test previews; Done/Snooze/Did it/dismiss return to selector, joke What? reveals punchline. No task/schedule changes, growth points, nudge caps, bedtime dates or joke-history writes. Calendar uses synthetic meeting, no Google calls. Existing debug nudge/joke buttons now route through safe previews too. Real alerts preempt tests and are not discarded.
+- Growth test strip temporarily collapses while testing so it cannot obscure controls; saved visibility preference retained. AGENTS records new dev-only testing aid for removal at public launch. Other testing tools preserved.
+- Typecheck and build passed (existing bundle warning). Isolated Electron check-reminder-tests.cjs passed all13 poses/interactions, unchanged saved-data assertion after each, actual Calendar event priority and return to tests. Packaged-app mode verified no Settings test button. Light/dark panel and reminder/joke screenshots under docs/qa/2026-10-19/reminder-tests. Synthetic test muted audio; owner can hear previews using her normal voice settings in relaunched app. No network service, paid credits, deployment or Git push.
+
+### Oct19 — matching reminder poses, joke replies and first-open microphone setup
+- Owner requested meditation/coffee/meal reminder poses, typed and microphone joke answers, and permission when downloading. Added conservative offline reminderPose title matching: meditation→meditate, tea/coffee→coffee, meal→picnic; errands such as Buy coffee and ordinary tasks keep bell. Actual due queue and previews share selection. Rest rotation no longer interrupts a visible actual reminder; Snooze clears its pose, next queue item selects its own. Meditation/coffee have exact-stage assets; picnic still has only the existing original stage4 appearance. No new art or spend.
+- Added shared JokeBubble for actual jokes and previews: type a guess or hold microphone, review dictated text, press Answer to reveal authored punchline; What? skips answering. Guesses exist only while bubble is open, never saved. This is offline interaction, not AI answer grading. Mic start stops plant speech; uses existing on-device transcription and visible errors.
+- Added WelcomeMicBubble for first open (settings.welcomed false), since downloading alone cannot request macOS permission. Explains hold-to-record and on-device transcription, offers Enable microphone and Not now. Enable invokes existing native permission request without recording; denial shows System Settings guidance and Continue with typing. Choice persists and does not nag existing users. Existing microphone entitlement/usage description retained. Updated relevant first-open and joke instructions in both tester-guide HTML files; full older privacy/chat/email guide cleanup remains pending, not claimed complete.
+- Extended isolated Electron QA with synthetic storage, blocked external requests and fake microphone/transcription. All13 previews, typed/dictated guess review-submit, unchanged saved data and Calendar priority passed at stages1,7,4. Actual four-item overdue reminder queue passed including meditation remaining visible beyond10sec and Snooze progression. First-open allow/deny/skip and remembered choice passed. Conservative classifier passed14 positive/negative cases. Typecheck and final vite build passed (existing bundle warning). Screenshots under docs/qa/2026-10-19/reminder-poses-joke-input. These tests do not verify physical microphone or macOS first-install permission dialog; original Tasks typing/microphone owner verification remains outstanding.
+- Gracefully closed previous development app and launched latest build; native Companion window verified. No installer rebuild, push, deployment, new network calls or paid credits.
+
+### Oct19 — beta download preparation; signing choice pending
+- Owner requested deploying the app for beta downloads and continuing improvements afterward. Re-read AGENTS and full memory, inspected repository/release state. Branch remains ui-refresh-shadcn; latest existing commit04d2733, accumulated work still uncommitted. GitHub CLI read-only check confirmed gayathriswaminathan05-ai/Companion-App is PUBLIC with no existing releases. Owner explicitly chose “Publish the beta download on GitHub”. No release/tag/commit/push/upload created yet.
+- Asked whether owner accepts an unsigned private/early beta or wants Apple signing first. Owner asked what signing is, then its cost/time; this is NOT approval to release unsigned or purchase Apple membership. Explained Developer ID identifies developer/integrity; notarization is Apple's malware scan, separate from App Store distribution. Official Oct19 sources: developer.apple.com/programs/enroll/ ($99/year, local price at enrollment); help/account/membership/program-enrollment/ (contact support if no confirmation24h after purchase, not a total verification guarantee); documentation/security/customizing-the-notarization-workflow (typically under1h after upload, may take longer); support.apple.com/en-us/102445 (Open Anyway, managed-Mac restrictions). Allow a few days was explicitly our planning estimate, not Apple SLA. Await final unsigned/signing choice; no payment, enrollment, terms acceptance or account changes.
+- Prepared version0.1.1-beta.1, preserving0.1.0 and preflight candidate. package.json/lock version updated, build output release/0.1.1-beta.1. No app ID/data-folder change; manual app replacement preserves stable companion-app storage. Added package exclusions for keys/tokens/data/env files. beta-config remains excluded; Google desktop OAuth app registration remains bundled for approved Calendar, validated only clientId/clientSecret, no user tokens; never commit that file.
+- Found local Kokoro allowed model-download fallback despite bundled/offline beta intent. Changed electron/voice.cjs to allowRemoteModels=false; bundled model path used even if incomplete, so fails locally instead of fetching. Real speech model test passed from empty temp data. Existing cloud speech/AI guards remain off.
+- IMPORTANT actual minimum OS: Electron's Info.plist/framework says12.0, but packaged Whisper ONNX1.24.3 native binaries require14.0; Kokoro ONNX1.21 requires13.3. Inspected Mach-O deployment targets (sharp/libvips11.0). Final installer Info.plist now14.0 and guide/release notes say Apple-chip M1+ and macOS14 Sonoma+. First preflight claiming12 was preserved locally as release/0.1.1-beta.1-preflight-macos12 and must NOT be distributed. Rebuilt final installer with corrected requirement.
+- Rewrote site/privacy.html and both docs/tester-guide HTML files for no-chat beta: local tasks/transcription/speech, optional read-only Calendar, no Gmail, first-open mic choice, jokes, breathing1/3/5min, local deletion/backup caveats, optional screen/call access, manual updates, known beta limitations and support by replying to inviter (no new public contact invented). Removed external Google Fonts from guide; standalone release privacy copy uses system font. Preserved prior wording at docs/release/archive-2026-10-19. Updated beta checklist with current release-preparation override; old planning remains historical. Original landing options/trailer still contain historical features, are not included in beta handoff, and are not published.
+- Prepared docs/release/0.1.1-beta.1-notes.md and downloadable Companion-Beta-Guide.html / Companion-Privacy.html / SHA256SUMS.txt alongside DMG. ~607MB decimal (579MiB). Final DMG SHA25626af58a5aa81c6a9d722494649493d686c609c8c1f9674ad4ab0df5a2f4a912c. Package is ad-hoc sealed for integrity, NOT Apple Developer ID signed/notarized. Final codesign --verify --deep --strict and hdiutil verify pass. Do not describe ad-hoc seal as Apple signing.
+- Validation: typecheck; privacy VM including reset/failure/disabled-chat guards; click-through; breathing timelines;31/31 proxy tests;17 Google tests pass (existing two bundled-client subcases skipped). Optimized renderer beta flow passed fake mic→reviewed reminder, Calendar and local legacy deletion. New check-beta-package.cjs validates11861 archive entries,6088 sprite paths, all model/audio files, disabled chat, no proxy/key/personal files, no Anthropic dependency and minimumOS14.0. Scanned app-owned code/config for credential patterns without printing credentials. Final ASAR hash47e316f9fcae47899ae42da32eeefa55b672d0cadf0537a5874edb5e88ddcceb.
+- New check-packaged-beta.cjs runs actual packaged main/preload/renderer/native models using matching Electron runtime with isolated temp appData, hidden muted window, no real mic or Google. Passed first-open Not now/persistence, native inserted typed reminder6pm, reload persistence, chat/key/dev-test absence, real Kokoro PCM synthesis, real Whisper transcription from bundled recording ("settle in, let your shoulders soften. Breathe in gently."), meditation media playback, zero intercepted network calls. Production normal quit intentionally SIGKILLs; harness printed PASS then exit1 due known quit path, not a test assertion failure. No owner data touched. Final candidate's283 resource files including complete ASAR/native libraries/models match tested preflight byte-for-byte; only minimum-OS bundle metadata changed. final-equivalence.json records this.
+- New check-beta-docs.cjs passed1100/390px guide/privacy layout with no overflow/broken images; screenshots visually reviewed. Initial runner closed its last window and autoquit between sizes; fixed lifecycle and reran successfully. Package audit initially expected quantized Whisper filenames; corrected to actual fp32 files. Reports/screenshots under docs/qa/2026-10-19/release-0.1.1-beta.1. A mounted preflight DMG matched audited app; unmounted after verification. Final DMG CRC verification passed.
+- Remaining before/at release: owner's informed signing choice; source checkpoint on ui-refresh-shadcn matching the actual installer before tagging (do not tag old04d2733 as if it contains current changes); upload release assets and verify remote digest/link. Still no independent clean tester Mac, real mic permission/capture, actual Google test-account sign-in or long-session/sleep-wake signoff. Release notes explicitly disclose those early-beta limits; do not claim full checklist passed. Source/guide/installer prepared locally only. No paid AI generation or deployment of chat server/landing page.
+
+### Oct19 — owner approves unsigned GitHub beta and matching branch upload
+- Owner explicitly approved publishing the beta without Apple signing for now, with clear installation instructions, and uploading matching code to ui-refresh-shadcn, not main. This resolves the pending signing decision; no Apple purchase/enrollment authorized.
+- Pre-publication read-only Git check: main ad58bf82a03096d4e861ba49c0f16ed30a306c13; ui-refresh-shadcn04d2733cff7cbf09565fcb18ed6e254f59ba6167; no v0.1.1-beta.1 tag/release. Rechecked exact installer archive audit; unchanged/no private files. Release notes now include the full System Settings → Privacy & Security → Open Anyway path directly.
+- Preparing reviewed source/assets/docs checkpoint for beta0.1.1-beta.1, excluding keys, per-machine config, models, personal files and local intermediate art outputs. Prior art remains on disk. Final upload verification will be recorded separately after success.

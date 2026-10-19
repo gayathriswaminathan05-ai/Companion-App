@@ -27,3 +27,11 @@ for (const [mode, cues] of Object.entries(BREATHING_VOICE_CUES)) {
 }
 }
 console.log('Bundled spoken scripts match the timeline and every cue fits without overlap.');
+for (const minutes of [3,5]) {
+  const duration = minutes * 60_000;
+  assert.equal(breathingStep(duration - 7001, duration).phase, 'out');
+  assert.equal(breathingStep(duration - 7000, duration).phase, 'finish');
+  assert.equal(breathingStep(duration, duration).phase, 'done');
+  assert.equal(breathingStep(0, duration).remaining, minutes * 60);
+}
+console.log('Three- and five-minute sessions preserve complete breathing cycles and the ending.');

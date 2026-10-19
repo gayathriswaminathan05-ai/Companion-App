@@ -36,6 +36,8 @@ export default function MicButton({
   onTranscript,
   onSpeaking,
   onRecordingChange,
+  onError,
+  onStart,
   bare = false,
   variant = "default",
 }: {
@@ -43,10 +45,14 @@ export default function MicButton({
   onTranscript: (t: string) => void;
   onSpeaking?: (speaking: boolean) => void;
   onRecordingChange?: (recording: boolean) => void;
+  onError?: (message: string) => void;
+  onStart?: () => void;
   bare?: boolean; // borderless style for use inside an input field
   variant?: "default" | "chat"; // chat = Figma circular lavender mic
 }) {
-  const [phase, setPhase] = useState<"idle" | "rec" | "busy">("idle");
+  const [phase, setPhase] = useState<"idle" | "starting" | "rec" | "busy">("idle");
+  const heldRef = useRef(false);
+  const startingRef = useRef(false);
   const recRef = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const baseRef = useRef("");
@@ -69,8 +75,11 @@ export default function MicButton({
   // Unmounting (e.g. panel closed or message sent) cancels everything:
   // any in-flight transcription is discarded, never re-filling the field.
   useEffect(() => {
+    cancelledRef.current = false;
     return () => {
       cancelledRef.current = true;
+      heldRef.current = false;
+      if (autoStopRef.current) clearTimeout(autoStopRef.current);
       try {
         recRef.current?.stop();
       } catch {}
@@ -97,6 +106,9 @@ export default function MicButton({
             const text = (await window.companion.transcribe(
               audio.buffer as ArrayBuffer,
             )) as string | null;
+            if (text === null && !cancelledRef.current) {
+              onError?.("I couldn't turn that recording into text. Please try again.");
+            }
             const hyp = text ? cleanText(text) : "";
             const untouched =
               lastEmittedRef.current === "" || currentRef.current === lastEmittedRef.current;
@@ -107,7 +119,9 @@ export default function MicButton({
             }
           }
         }
-      } catch {}
+      } catch {
+        if (!cancelledRef.current) onError?.("I couldn't turn that recording into text. Please try again.");
+      }
     } while (pendingRef.current && !cancelledRef.current);
     busyRef.current = false;
     if (stoppedRef.current) setPhase("idle");
@@ -146,13 +160,24 @@ export default function MicButton({
   };
 
   const start = async () => {
-    if (phase !== "idle") return;
+    if (phase !== "idle" || startingRef.current) return;
+    heldRef.current = true;
+    startingRef.current = true;
+    onStart?.();
+    setPhase("starting");
+    onError?.("");
     try {
       const ok = (await window.companion.ensureMic?.()) as boolean;
-      if (ok === false) return;
+      if (ok === false) {
+        onError?.("Allow microphone access in Mac System Settings → Privacy & Security → Microphone, then hold the mic again.");
+        setPhase("idle");
+        return;
+      }
+      if (!heldRef.current || cancelledRef.current) { setPhase("idle"); return; }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (cancelledRef.current) {
+      if (cancelledRef.current || !heldRef.current) {
         stream.getTracks().forEach((t) => t.stop());
+        if (!cancelledRef.current) setPhase("idle");
         return;
       }
       startVad(stream);
@@ -180,15 +205,39 @@ export default function MicButton({
       rec.start(1400);
       setPhase("rec");
       autoStopRef.current = window.setTimeout(() => stop(), MAX_SECONDS * 1000);
-    } catch {
+    } catch (error) {
+      const denied = error instanceof DOMException && error.name === "NotAllowedError";
+      onError?.(denied
+        ? "Microphone access is blocked. Allow it in Mac System Settings, then hold the mic again."
+        : "I couldn't open the microphone. Check your Mac's sound input, then try again.");
       setPhase("idle");
+    } finally {
+      startingRef.current = false;
     }
   };
 
   const stop = () => {
+    if (heldRef.current && startingRef.current) {
+      onError?.("Hold the microphone while you speak, then release to finish.");
+    }
+    heldRef.current = false;
     if (autoStopRef.current) clearTimeout(autoStopRef.current);
     if (recRef.current && recRef.current.state !== "inactive") recRef.current.stop();
   };
+
+  useEffect(() => {
+    const release = () => {
+      heldRef.current = false;
+      if (autoStopRef.current) clearTimeout(autoStopRef.current);
+      if (recRef.current?.state === "recording") recRef.current.stop();
+    };
+    window.addEventListener("mouseup", release);
+    window.addEventListener("blur", release);
+    return () => {
+      window.removeEventListener("mouseup", release);
+      window.removeEventListener("blur", release);
+    };
+  }, []);
 
   // `bare` / `variant` kept for call-site compatibility; every mic shares one
   // look (shadcn ghost icon button; red pulse while recording).
@@ -205,8 +254,15 @@ export default function MicButton({
       }}
       onMouseUp={stop}
       onMouseLeave={() => {
-        if (phase === "rec") stop();
+        stop();
       }}
+      onKeyDown={(e) => {
+        if ((e.key === " " || e.key === "Enter") && !e.repeat) {
+          e.preventDefault();
+          void start();
+        }
+      }}
+      onKeyUp={(e) => { if (e.key === " " || e.key === "Enter") stop(); }}
       title={recording ? "listening, let go to finish" : "hold to talk"}
       aria-label="hold to talk"
       aria-pressed={recording}
@@ -216,7 +272,7 @@ export default function MicButton({
         recording && "animate-pulse bg-[#ffe1e1] text-[#e5484d] hover:bg-[#ffe1e1]",
       )}
     >
-      {phase === "busy" ? <Spinner className="size-3.5" /> : <MicrophoneIcon weight={recording ? "fill" : "regular"} />}
+      {phase === "busy" || phase === "starting" ? <Spinner className="size-3.5" /> : <MicrophoneIcon weight={recording ? "fill" : "regular"} />}
     </button>
   );
 }

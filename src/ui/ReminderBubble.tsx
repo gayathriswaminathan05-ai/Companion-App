@@ -17,13 +17,16 @@ export default function ReminderBubble({
   fired,
   onDone,
   onSnooze,
+  preview = false,
 }: {
   fired: FiredReminder;
   onDone: () => void;
   onSnooze: () => void;
+  preview?: boolean;
 }) {
   return (
     <SpeechBubble role="alert">
+      {preview && <p className="mb-2 text-xs font-medium text-muted-foreground">Test preview · nothing is saved</p>}
       <div className={cn("mb-1 flex items-center gap-1.5 text-xs font-medium", fired.missed ? "text-warning" : "text-primary")}>
         {fired.missed ? <ClockIcon className="size-3.5" /> : <BellRingingIcon className="size-3.5" weight="fill" />}
         {fired.missed ? `While you were away, ${fired.timeLabel}` : `It's time, ${fired.timeLabel}`}

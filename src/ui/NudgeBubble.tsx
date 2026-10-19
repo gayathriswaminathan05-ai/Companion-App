@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button";
 export default function NudgeBubble({
   text,
   actions,
+  preview = false,
 }: {
   text: string;
   actions: { label: string; primary?: boolean; onClick: () => void }[];
+  preview?: boolean;
 }) {
   return (
     <SpeechBubble role="status">
+      {preview && <p className="mb-2 text-xs font-medium text-muted-foreground">Test preview · nothing is saved</p>}
       <p className="leading-relaxed">{text}</p>
       <div className="mt-3 flex gap-1.5">
         {actions.map((a) => (

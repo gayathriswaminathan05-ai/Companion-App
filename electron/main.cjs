@@ -14,6 +14,7 @@ const {
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const FEATURES = require("./features.json");
 
 // Keep ONE data folder no matter how the app is named or launched (dev runs
 // and the installed "Companion.app" both read ~/Library/Application Support/
@@ -78,6 +79,9 @@ function createWindow() {
     x: px,
     y: py,
     frame: false,
+    // A macOS panel can join another app's full-screen Space while keeping
+    // our Dock home. A normal window with all-workspaces alone cannot.
+    ...(process.platform === "darwin" ? { type: "panel" } : {}),
     // The plant floats beside other apps. The first click must operate its
     // controls, not be swallowed just to focus the inactive Mac window.
     acceptFirstMouse: true,
@@ -98,8 +102,8 @@ function createWindow() {
     },
   });
   // Float above normal windows, follow the user across desktops/spaces.
-  // skipTransformProcessType keeps the Dock icon visible (macOS otherwise
-  // hides it when a window can appear over fullscreen apps).
+  // The native panel handles full-screen Spaces without transforming the
+  // whole app into a Dock-less accessory process. Keep the Dock as its home.
   win.setAlwaysOnTop(true, "floating");
   win.setVisibleOnAllWorkspaces(true, {
     visibleOnFullScreen: true,
@@ -132,6 +136,17 @@ function createWindow() {
 
 let clickThroughWindow = null;
 let clickThroughValue = null;
+// A non-activating macOS panel can float above full-screen apps without owning
+// keyboard focus. Activate only after an explicit click inside our controls.
+ipcMain.on("focus-controls", (event) => {
+  if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
+  win.setIgnoreMouseEvents(false);
+  clickThroughWindow = win;
+  clickThroughValue = false;
+  app.focus({ steal: true });
+  win.focus();
+  win.webContents.focus();
+});
 ipcMain.on("set-click-through", (_e, ignore) => {
   if (!win) return;
   if (clickThroughWindow === win && clickThroughValue === ignore) return;
@@ -204,6 +219,7 @@ function getAsr() {
         // userData (never inside the app).
         env.localModelPath = path.join(process.resourcesPath, "models");
         env.allowLocalModels = true;
+        env.allowRemoteModels = false; // Beta voice uses bundled files, never a network fallback.
         env.cacheDir = path.join(app.getPath("userData"), "models");
       }
       // base.en: noticeably more accurate than tiny.en (especially with
@@ -317,24 +333,21 @@ ipcMain.handle("transcribe", async (_e, audioBuffer) => {
   }
 });
 
-// --- Chat brain: ChatGPT (OpenAI) or Claude (Anthropic). Key lives ONLY in a
-// local file on this machine. Which AI answers is decided by the key itself:
-// Claude keys start "sk-ant-", anything else is an OpenAI key. ---
+// --- Chat brain: OpenAI only. Personal key stays on this Mac. ---
 const keyFile = () => path.join(app.getPath("userData"), "brain.key");
-
+const usableOpenAIKey = key => typeof key === "string" && key.trim() && !key.trim().startsWith("sk-ant-");
 function loadBrainKey() {
   try {
-    const k = fs.readFileSync(keyFile(), "utf8").trim();
-    return k || null;
-  } catch {
-    return process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || null;
-  }
+    const key = fs.readFileSync(keyFile(), "utf8").trim();
+    if (usableOpenAIKey(key)) return key;
+  } catch {}
+  const key = process.env.OPENAI_API_KEY?.trim();
+  return usableOpenAIKey(key) ? key : null;
 }
 
 // Beta / public builds: no key in the app. Chats go through our private proxy
 // (proxy/worker.js) which holds the key server-side and applies per-device
-// daily limits. electron/beta-config.json = { "proxyUrl", "appToken",
-// "provider": "openai" | "anthropic" (default anthropic) } is
+// daily limits. electron/beta-config.json = { "proxyUrl", "appToken" } is
 // gitignored and bundled at build time. A key saved on this Mac (founder /
 // dev) still wins, so local testing never touches the proxy allowance.
 function loadBetaConfig() {
@@ -344,7 +357,7 @@ function loadBetaConfig() {
   } catch {}
   return null;
 }
-const betaConfig = loadBetaConfig();
+const betaConfig = FEATURES.aiChat ? loadBetaConfig() : null;
 
 // Anonymous random id so the proxy can count per-device chats. Not linked to
 // any account, name or email.
@@ -361,40 +374,24 @@ function deviceId() {
   return id;
 }
 
-function brainProvider() {
-  const key = loadBrainKey();
-  if (key) return key.startsWith("sk-ant-") ? "anthropic" : "openai";
-  if (betaConfig) return betaConfig.provider === "openai" ? "openai" : "anthropic";
-  return null;
-}
-
-const brainClients = {}; // provider → SDK client
-function resetBrains() {
-  for (const k of Object.keys(brainClients)) delete brainClients[k];
-}
-
+let brainClient = null;
+function resetBrains() { brainClient = null; }
 function getBrain() {
-  const provider = brainProvider();
-  if (!provider) return null;
-  if (!brainClients[provider]) {
-    const key = loadBrainKey();
-    const SDK = provider === "openai" ? require("openai").default : require("@anthropic-ai/sdk");
-    if (key) {
-      brainClients[provider] = new SDK({ apiKey: key });
-    } else {
-      const base = betaConfig.proxyUrl.replace(/\/+$/, "");
-      brainClients[provider] = new SDK({
-        apiKey: "unused", // the real key lives only on the proxy
-        // OpenAI's SDK adds "/responses" to its base, Anthropic's adds "/v1/messages".
-        baseURL: provider === "openai" ? `${base}/v1` : base,
-        defaultHeaders: {
-          "x-companion-device": deviceId(),
-          "x-companion-app": betaConfig.appToken,
-        },
-      });
-    }
+  if (!FEATURES.aiChat) return null;
+  const key = loadBrainKey();
+  if (!key && !betaConfig) return null;
+  if (!brainClient) {
+    const OpenAI = require("openai").default;
+    brainClient = key ? new OpenAI({ apiKey: key }) : new OpenAI({
+      apiKey: "unused", // the real key lives only on the proxy
+      baseURL: `${betaConfig.proxyUrl.replace(/\/+$/, "")}/v1`,
+      defaultHeaders: {
+        "x-companion-device": deviceId(),
+        "x-companion-app": betaConfig.appToken,
+      },
+    });
   }
-  return { provider, client: brainClients[provider] };
+  return { client: brainClient };
 }
 
 // --- Cloud voice: Google Text-to-Speech (Chirp 3 HD), accent per country ---
@@ -437,6 +434,8 @@ function wavToPcm(buf) {
 }
 
 async function cloudSynthesize({ text, languageCode, voiceName, speed }) {
+  // Current beta privacy promise: speaking text stays on the Mac.
+  if (!CLOUD_VOICE_ENABLED) return null;
   const speakingRate = Math.min(1.3, Math.max(0.8, Number(speed) || 1));
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
@@ -479,10 +478,10 @@ async function cloudSynthesize({ text, languageCode, voiceName, speed }) {
   }
 }
 
+const CLOUD_VOICE_ENABLED = false; // Requires a separate, approved privacy change.
 const cloudVoice = {
-  // Beta ships with the on-device voice: testers only get the Google voice
-  // once beta-config.json says "cloudVoice": true (proxy has GOOGLE_TTS_KEY).
-  available: () => !!(loadTtsKey() || (betaConfig && betaConfig.cloudVoice === true)),
+  // Old keys/config cannot silently enable cloud speech in this beta.
+  available: () => CLOUD_VOICE_ENABLED && !!(loadTtsKey() || (betaConfig && betaConfig.cloudVoice === true)),
   synthesize: cloudSynthesize,
 };
 
@@ -500,107 +499,61 @@ ipcMain.on("open-link", (_e, url) => {
 });
 
 ipcMain.handle("brain-status", () => ({
-  connected: !!loadBrainKey() || !!betaConfig,
-  viaProxy: !loadBrainKey() && !!betaConfig,
-  provider: brainProvider(),
+  connected: FEATURES.aiChat && (!!loadBrainKey() || !!betaConfig),
+  viaProxy: FEATURES.aiChat && !loadBrainKey() && !!betaConfig,
+  provider: "openai",
 }));
 
 ipcMain.handle("brain-connect", (_e, key) => {
+  if (!FEATURES.aiChat) return { ok: false, error: "Chat is not included in this beta." };
+  if (!usableOpenAIKey(key)) return { ok: false, error: "Please use an OpenAI API key. Other providers are no longer supported." };
+  cancelChats();
   try {
     fs.writeFileSync(keyFile(), String(key).trim(), { mode: 0o600 });
-    resetBrains(); // rebuild with the new key (it may be a different AI)
+    resetBrains(); // rebuild with the new OpenAI key
     return { ok: true };
   } catch (err) {
     return { ok: false, error: String(err.message || err) };
   }
 });
 
-// AI chat on/off (Settings → Privacy → "Chat with AI"). Read from the saved
-// settings, so even if the screen asked, nothing goes to the AI while it's off.
+// Require the one-time privacy introduction before any user-initiated AI request.
+let resetInProgress = false;
+let chatBlocked = false;
+const activeChats = new Set();
+function cancelChats() {
+  for (const controller of activeChats) controller.abort();
+  activeChats.clear();
+}
+ipcMain.handle("chat-cancel", () => { cancelChats(); return true; });
+
 function chatAllowed() {
+  if (!FEATURES.aiChat) return false;
   try {
     const d = JSON.parse(fs.readFileSync(dataFile(), "utf8"));
-    return !(d && d.settings && d.settings.chatOn === false);
+    return !resetInProgress && !chatBlocked && d?.settings?.chatConsentVersion === 1;
   } catch {
-    return true;
+    return false;
   }
 }
 
-// Chat models — swap one line to change brains.
-// Claude: Sonnet (owner chose it for cost). ChatGPT: gpt-6.1-sol is the same
-// tier ($2 / $10 per million tokens in / out, Oct 2026); "gpt-6-luna" is the
-// budget pick ($0.10 / $0.50) if replies still feel like the plant.
-const CHAT_MODEL = "claude-sonnet-5";
 const OPENAI_CHAT_MODEL = "gpt-6.1-sol";
-
-// brain.ts builds the system prompt as Claude-style blocks; ChatGPT takes one string.
 function systemText(system) {
-  return Array.isArray(system) ? system.map((b) => (b && b.text) || "").join("\n\n") : String(system || "");
-}
-
-// Rough place for web search ("movies near me"): country + time zone only.
-function searchLocation() {
-  const loc = { type: "approximate" };
-  const locale = app.getSystemLocale ? app.getSystemLocale() : app.getLocale();
-  const region = String(locale || "").split(/[-_]/)[1];
-  if (/^[A-Z]{2}$/.test(region || "")) loc.country = region;
-  try {
-    loc.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {}
-  return loc;
-}
-
-// Claude: streaming chat with web search; continues across pause_turn automatically.
-async function chatClaude(client, system, messages, onText) {
-  let msgs = [...messages];
-  let full = "";
-  const sources = [];
-  for (let hop = 0; hop < 4; hop++) {
-    const stream = client.messages.stream({
-      model: CHAT_MODEL,
-      max_tokens: 2048,
-      system,
-      messages: msgs,
-      // "direct" = plain web search. The default for this tool version runs the
-      // search inside Anthropic's code sandbox (kept up to 30 days, not covered
-      // by zero data retention), so we turn that off.
-      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8, allowed_callers: ["direct"] }],
-    });
-    stream.on("text", (t) => {
-      full += t;
-      onText(t);
-    });
-    const final = await stream.finalMessage();
-    for (const b of final.content) {
-      if (b.type === "text" && Array.isArray(b.citations)) {
-        for (const c of b.citations) {
-          if (c.url && !sources.some((s) => s.url === c.url)) {
-            sources.push({ url: c.url, title: c.title || c.url });
-          }
-        }
-      }
-    }
-    if (final.stop_reason === "pause_turn") {
-      msgs = [...msgs, { role: "assistant", content: final.content }];
-      continue;
-    }
-    break;
-  }
-  return { text: full, sources };
+  return Array.isArray(system) ? system.map(b => b?.text || "").join("\n\n") : String(system || "");
 }
 
 // ChatGPT: one streaming request; OpenAI runs the web searches itself.
-async function chatOpenAI(client, system, messages, onText) {
+async function chatOpenAI(client, system, messages, onText, signal) {
   const stream = client.responses.stream({
     model: OPENAI_CHAT_MODEL,
     instructions: systemText(system),
     input: messages.map((m) => ({ role: m.role, content: m.content })),
-    tools: [{ type: "web_search", user_location: searchLocation() }],
+    tools: [{ type: "web_search" }],
     reasoning: { effort: "low" }, // quick, chatty replies (thinking counts toward max_output_tokens)
     max_output_tokens: 4096,
     store: false, // privacy: OpenAI doesn't keep the reply around for later lookup
     prompt_cache_key: "companion-chat", // same personality every time → cheaper cached input
-  });
+  }, { signal });
   let full = "";
   let lastItem = null;
   stream.on("response.output_text.delta", (ev) => {
@@ -630,58 +583,34 @@ async function chatOpenAI(client, system, messages, onText) {
 }
 
 ipcMain.handle("chat-send", async (e, { id, system, messages }) => {
-  if (!chatAllowed()) return { ok: false, error: "chat-off" };
+  if (!FEATURES.aiChat) return { ok: false, error: "chat-disabled-in-beta" };
+  if (!chatAllowed()) return { ok: false, error: "privacy-not-accepted" };
   const brain = getBrain();
   if (!brain) return { ok: false, error: "no-key" };
+  const controller = new AbortController();
+  activeChats.add(controller);
   const send = (channel, payload) => {
-    try {
-      e.sender.send(channel, payload);
-    } catch {}
+    if (controller.signal.aborted || !chatAllowed()) return;
+    try { e.sender.send(channel, payload); } catch {}
   };
   try {
-    const chat = brain.provider === "openai" ? chatOpenAI : chatClaude;
-    const { text, sources } = await chat(brain.client, system, messages, (delta) => send("chat-chunk", { id, delta }));
+    const { text, sources } = await chatOpenAI(brain.client, system, messages,
+      delta => send("chat-chunk", { id, delta }), controller.signal);
+    if (controller.signal.aborted || !chatAllowed()) return { ok: false, error: "cancelled" };
     send("chat-done", { id, text, sources });
     return { ok: true };
   } catch (err) {
+    if (controller.signal.aborted) return { ok: false, error: "cancelled" };
     const msg = String((err && err.message) || err);
     send("chat-error", { id, error: msg });
     return { ok: false, error: msg };
+  } finally {
+    activeChats.delete(controller);
   }
 });
 
-// One-shot small requests (jokes, summaries) — no streaming, no tools.
-ipcMain.handle("brain-once", async (_e, { system, prompt, maxTokens }) => {
-  if (!chatAllowed()) return { ok: false, error: "chat-off" };
-  const brain = getBrain();
-  if (!brain) return { ok: false, error: "no-key" };
-  try {
-    if (brain.provider === "openai") {
-      const res = await brain.client.responses.create({
-        model: OPENAI_CHAT_MODEL,
-        instructions: systemText(system),
-        input: prompt,
-        reasoning: { effort: "low" },
-        max_output_tokens: Math.max(1024, maxTokens || 300),
-        store: false,
-      });
-      return { ok: true, text: res.output_text || "" };
-    }
-    const res = await brain.client.messages.create({
-      model: CHAT_MODEL,
-      max_tokens: maxTokens || 300,
-      system,
-      messages: [{ role: "user", content: prompt }],
-    });
-    const text = res.content
-      .filter((b) => b.type === "text")
-      .map((b) => b.text)
-      .join("");
-    return { ok: true, text };
-  } catch (err) {
-    return { ok: false, error: String((err && err.message) || err) };
-  }
-});
+// No background AI requests in this beta: only an explicitly sent chat.
+ipcMain.handle("brain-once", async () => ({ ok: false, error: "background-ai-disabled" }));
 
 // --- Call detection: auto-tuck during Zoom / Google Meet calls -------------
 const { exec } = require("child_process");
@@ -751,25 +680,39 @@ ipcMain.handle("set-login-item", (_e, on) => {
 });
 
 ipcMain.handle("brain-disconnect", () => {
+  cancelChats();
   try {
     fs.unlinkSync(keyFile());
-  } catch {}
+  } catch (err) { if (err.code !== "ENOENT") return false; }
   resetBrains();
   return true;
 });
 
 ipcMain.handle("data-reset", () => {
+  resetInProgress = true;
+  cancelChats();
   try {
-    fs.unlinkSync(dataFile());
-  } catch {}
-  try {
-    const { clearTokens, clearClient, stopPolling } = require("./calendar.cjs");
-    clearTokens();
-    clearClient();
-    stopPolling();
-  } catch {}
-  if (win) win.reload();
-  return true;
+    const calendar = require("./calendar.cjs");
+    calendar.stopPolling();
+    calendar.clearTokens();
+    calendar.clearClient();
+    // Only our known personal files, never bundled config or model assets.
+    for (const name of ["companion-data.json", "brain.key", "google-tts.key",
+      "google-calendar.token.json", "google-calendar-client.json", "window-state.json", "device-id"]) {
+      try { fs.unlinkSync(path.join(app.getPath("userData"), name)); }
+      catch (err) { if (err.code !== "ENOENT") throw err; }
+    }
+    resetBrains();
+    app.setLoginItemSettings({ openAtLogin: false });
+    if (win) {
+      win.webContents.once("did-finish-load", () => { resetInProgress = false; });
+      win.reload();
+    } else resetInProgress = false;
+    return { ok: true };
+  } catch {
+    // Keep writes blocked so stale UI data cannot undo a partial deletion.
+    return { ok: false, error: "Some local data could not be removed. Please try again." };
+  }
 });
 
 // Persistent data (todos, sprout progress, settings) in one JSON file.
@@ -829,6 +772,11 @@ ipcMain.handle("data-load", () => {
 });
 
 ipcMain.handle("data-save", (_e, data) => {
+  if (resetInProgress) return false;
+  if (data?.settings?.chatConsentVersion !== 1) {
+    chatBlocked = true;
+    cancelChats();
+  }
   try {
     // Privacy: never persist calendar event payloads (titles/times/ids).
     // Only settings.calendarReminders / calendarLeadMins are allowed.
@@ -841,9 +789,13 @@ ipcMain.handle("data-save", (_e, data) => {
         delete data.settings.lastMeeting;
       }
     }
-    fs.writeFileSync(dataFile(), JSON.stringify(data, null, 2));
+    fs.writeFileSync(dataFile(), JSON.stringify(data, null, 2), { mode: 0o600 });
+    fs.chmodSync(dataFile(), 0o600); // Also protect files created by older builds.
+    chatBlocked = data?.settings?.chatConsentVersion !== 1;
     return true;
   } catch {
+    chatBlocked = true;
+    cancelChats();
     return false;
   }
 });

@@ -1,7 +1,6 @@
 "use strict";
 // Blob's speaking voice: Kokoro-82M text-to-speech running 100% on this Mac.
-// After a one-time model download (~90MB) nothing ever touches the network,
-// and no text or audio leaves the device.
+// Model files ship with the app. No text, audio or model request leaves it.
 //
 //   renderer (src/voice.ts) --ipc "voice-synthesize"--> main (this file)
 //   main --> separate Electron utility process runs Kokoro --> Float32 PCM
@@ -81,14 +80,14 @@ function applyEnv(env) {
     env.cacheDir = config.cacheDir;
   }
   env.useFSCache = true;
-  // A future installer can ship the model read-only; use it when present.
-  if (hasBundledModel()) {
+  // A missing/incomplete bundled model must fail locally, never fetch online.
+  if (config.bundledModelsDir) {
     env.localModelPath = config.bundledModelsDir;
     env.allowLocalModels = true;
   } else {
     env.allowLocalModels = false; // skip the pointless node_modules/models probe
   }
-  env.allowRemoteModels = true; // one-time download fallback
+  env.allowRemoteModels = false;
 }
 
 async function loadOnce() {

@@ -6,6 +6,9 @@ import React, { useState } from "react";
 import ReactDOM from "react-dom/client";
 import "../index.css";
 import ChatPanel from "../ui/ChatPanel";
+import BreathingPanelV1 from "../ui/BreathingPanelV1";
+import BreathingPanelV2 from "../ui/BreathingPanelV2";
+import BreathingPanelV3 from "../ui/BreathingPanelV3";
 import BreathingPanel from "../ui/BreathingPanel";
 import TaskPanel from "../ui/TaskPanel";
 import SettingsPanel from "../ui/SettingsPanel";
@@ -122,8 +125,12 @@ function Gallery() {
       }}
     >
       <ThemeSwitcher backdrop={backdrop} setBackdrop={setBackdrop} />
+      <Frame label="Breathe: soft ribbons"><BreathingPanelV2 onClose={noop} onActiveChange={noop} onComplete={noop} /></Frame>
+      <Frame label="Breathe: lavender mesh"><BreathingPanelV3 onClose={noop} onActiveChange={noop} onComplete={noop} /></Frame>
+      <Frame label="Breathe: colour waves (original slow motion)"><BreathingPanel waveSpeed="slow" onClose={noop} onActiveChange={noop} onComplete={noop} /></Frame>
+      <Frame label="Breathe: clean waves"><BreathingPanel onClose={noop} onActiveChange={noop} onComplete={noop} /></Frame>
       <Frame label="Breathe: one quiet minute">
-        <BreathingPanel onClose={noop} onActiveChange={noop} onComplete={noop} onScheduleReminder={(due, recurring) => setTodos(prev => [...prev, { id: crypto.randomUUID(), text: "Meditation break", due: due.toISOString(), recurring, done: false, createdAt: new Date().toISOString() }])} />
+        <BreathingPanelV1 onClose={noop} onActiveChange={noop} onComplete={noop} onScheduleReminder={(due, recurring) => setTodos(prev => [...prev, { id: crypto.randomUUID(), text: "Meditation break", due: due.toISOString(), recurring, done: false, createdAt: new Date().toISOString() }])} />
       </Frame>
       <Frame label="Chat: conversation">
         <ChatPanel
@@ -163,10 +170,10 @@ function Gallery() {
           onBlobState={noop}
         />
       </Frame>
-      <Frame label="Chat: switched off">
+      <Frame label="Chat: privacy introduction">
         <ChatPanel
-          chatOn={false}
-          onEnableChat={noop}
+          privacyAccepted={false}
+          onAcceptPrivacy={noop}
           messages={MESSAGES}
           streamText={null}
           busy={false}
@@ -226,6 +233,7 @@ function Gallery() {
       </Frame>
       <Frame label="Settings (full length)" h={1120}>
         <SettingsPanel
+          onScheduleMeditation={(due, recurring) => setTodos(t => [{id: String(Math.random()), text: "Meditation break", done: false, createdAt: new Date().toISOString(), due: due.toISOString(), recurring}, ...t])}
           settings={settings}
           facts={facts}
           week={{ key: "w", wellness: 7, taskBonus: 3, stagePeak: 5 }}

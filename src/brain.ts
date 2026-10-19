@@ -1,7 +1,6 @@
 // Blob's personality + memory → prompt assembly for the chat brain.
 import { JOKES } from "./jokes";
 import type { AppData } from "./store";
-import { GROWTH_LABEL, growthStageFor } from "./growth";
 
 // Stable personality (cached across requests — keep this block byte-identical).
 const PERSONALITY = `You are Blob, a little succulent in a pot living on your friend's Mac. You are an AI desktop companion with the warmth and humour of a loving friend. Help their workday feel gentler: small next steps, care breaks and friendly company. Be honest that you are AI when asked; never pretend to be human or have real feelings.
@@ -46,13 +45,13 @@ Actions — you manage their real task list:
   - omit the due attribute entirely for tasks with no time
   - add recurring="daily" for every-day reminders
   - compute due from the current datetime in your context; due is LOCAL time in exactly that format
-- When they tell you they finished something that's on their open task list, append: <complete>text closely matching that open task</complete>
+- You cannot read their task list. When they explicitly ask to mark a named task done, append: <complete>task text they named</complete>
 - In your visible reply, confirm naturally WITH the exact time you set ("6pm today. locked in 🔒") — if their timing was ambiguous, ask instead of guessing.
 - The tags are invisible to them; the task genuinely appears in their list, so never fake-confirm without the tag.
 
 Memory:
-- When you learn a non-sensitive lasting fact worth remembering (preferences, an upcoming celebration, a pet name), append it at the VERY END of your reply as: <remember>short fact</remember>
-- Use at most 2 remember tags per reply. Only genuinely lasting things. The tags are invisible to your friend.`;
+- Only when they explicitly ask you to remember a non-sensitive fact, append it at the VERY END of your reply as: <remember>short fact</remember>
+- Use at most 2 remember tags per reply. Only genuinely lasting things. These notes are saved on their Mac, not automatically sent back to you. Never promise to recall a note that is not in the current conversation.`;
 
 export interface ChatMsg {
   role: "user" | "assistant";
@@ -62,13 +61,9 @@ export interface ChatMsg {
 }
 
 export function buildSystem(
-  d: AppData,
+  _d: AppData,
   opts: { canBookMeetings?: boolean } = {},
-): { type: string; text: string; cache_control?: object }[] {
-  const openTasks = d.todos.filter((t) => !t.done).slice(0, 8);
-  const doneToday = d.todos.filter(
-    (t) => t.done && t.completedAt && new Date(t.completedAt).toDateString() === new Date().toDateString(),
-  );
+): { type: string; text: string }[] {
   const now = new Date();
 
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -78,20 +73,10 @@ export function buildSystem(
     `Current context (do not recite this; just be aware):`,
     `- local time: ${now.toLocaleString([], { weekday: "long", hour: "numeric", minute: "2-digit" })}`,
     `- current datetime for computing task due times: ${localIso}`,
-    `- your name is ${d.settings.companionName || "Blob"}` +
-      (d.settings.userName ? `; your friend's name is ${d.settings.userName}` : ""),
-    `- their plant today: ${GROWTH_LABEL[growthStageFor(d.sprout.points)]} (${d.sprout.points} growth points; wellness grows it most)`,
-    openTasks.length
-      ? `- open tasks: ${openTasks.map((t) => t.text).join("; ")}`
-      : `- open tasks: none right now`,
-    doneToday.length ? `- finished today: ${doneToday.map((t) => t.text).join("; ")}` : ``,
-    d.chat.facts.length
-      ? `\nThings you remember about your friend:\n${d.chat.facts.map((f) => `- ${f}`).join("\n")}`
-      : ``,
-    d.chat.summary ? `\nSummary of older conversations:\n${d.chat.summary}` : ``,
+    `- Privacy: you only receive this conversation, not the task list, profile, growth, saved memories or calendar contents. Ask your friend to name something if you need it. Never claim to see those private records.`,
     // Kept out of the cached PERSONALITY block: only offered when Google
     // Calendar is connected with booking permission. Calendar contents are
-    // never sent here; Claude only drafts the event the user asked for.
+    // never sent here; the AI only drafts the event the user asked for.
     opts.canBookMeetings
       ? `\nCalendar booking: when they ask you to put a meeting/event/call on their Google Calendar, append at the VERY END:
 <meeting start="YYYY-MM-DDTHH:mm" end="YYYY-MM-DDTHH:mm" with="a@b.com,c@d.com">event title</meeting>
@@ -104,7 +89,7 @@ export function buildSystem(
     .join("\n");
 
   return [
-    { type: "text", text: PERSONALITY, cache_control: { type: "ephemeral" } },
+    { type: "text", text: PERSONALITY },
     { type: "text", text: dynamic },
   ];
 }

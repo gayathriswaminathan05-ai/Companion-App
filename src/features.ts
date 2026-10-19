@@ -1,3 +1,5 @@
+import releaseFeatures from "../electron/features.json";
+
 /**
  * Features we ship (owner decisions). Flip a flag to bring something back.
  *
@@ -7,5 +9,7 @@
  * in Google sign-in (electron/calendar.cjs GMAIL_FEATURE), no mail bubbles.
  */
 export const FEATURES = {
+  // Shared with Electron: this beta has no AI chat, even with an old saved key.
+  aiChat: releaseFeatures.aiChat,
   gmailAlerts: false,
 } as const;

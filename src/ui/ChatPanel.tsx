@@ -16,7 +16,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "
 import { cn } from "@/lib/utils";
 
 // Chat: Blob speaks in plain text, the user's words sit in quiet grey bubbles
-// on the right (Pi / Claude pattern), day dividers between sessions, and one
+// on the right (conversation layout), day dividers between sessions, and one
 // composer with hold-to-talk mic + send.
 
 const INPUT_MAX_H = 120; // grows upward until this, then scrolls
@@ -24,9 +24,9 @@ const INPUT_MAX_H = 120; // grows upward until this, then scrolls
 const SUGGESTIONS = ["Help me start", "I need a breather", "Just chatting"];
 
 export default function ChatPanel({
-  chatOn = true,
+  privacyAccepted = true,
   aiName = "ChatGPT",
-  onEnableChat,
+  onAcceptPrivacy,
   messages,
   streamText,
   busy,
@@ -40,11 +40,11 @@ export default function ChatPanel({
   onClose,
   onBlobState,
 }: {
-  /** Off = AI chat switched off in Settings. Nothing can be sent; the panel says so. */
-  chatOn?: boolean;
-  /** "ChatGPT" or "Claude": who reads the messages, for the privacy line. */
+  /** One-time sharing notice before the first message can be sent. */
+  privacyAccepted?: boolean;
+  /** "ChatGPT": who reads the messages, for the privacy line. */
   aiName?: string;
-  onEnableChat?: () => void;
+  onAcceptPrivacy?: () => void;
   messages: ChatMsg[];
   streamText: string | null;
   busy: boolean;
@@ -95,28 +95,26 @@ export default function ChatPanel({
 
   const name = companionName.trim() || "Blob";
 
-  if (!chatOn) {
+  if (!privacyAccepted) {
     return (
       <Panel>
         <PanelHeader title={name} onClose={onClose} />
-        <Empty className="gap-3 p-4">
-          <EmptyHeader className="gap-1">
+        <Empty className="min-h-0 overflow-y-auto justify-start gap-2 p-4">
+          <EmptyHeader className="shrink-0 gap-1">
             <div className="mb-1 flex size-9 items-center justify-center rounded-full bg-secondary text-primary">
               <LockSimpleIcon className="size-4.5" weight="bold" />
             </div>
-            <EmptyTitle className="text-[15px] font-semibold">Chat is off</EmptyTitle>
+            <EmptyTitle className="text-[15px] font-semibold">Before we chat</EmptyTitle>
             <EmptyDescription className="text-[13px]">
-              Nothing you type here is sent anywhere. I still do your reminders, stretches, water breaks and jokes.
+              A little company, with no surprises about your privacy.
             </EmptyDescription>
           </EmptyHeader>
-          {onEnableChat && (
-            <EmptyContent>
-              <Button size="sm" onClick={onEnableChat}>
-                Turn chat on
-              </Button>
+          {onAcceptPrivacy && (
+            <EmptyContent className="shrink-0">
               <p className="text-xs text-muted-foreground">
-                When it's on, your messages go to an AI ({aiName}) so I can reply.
+                Sending a message shares recent chat (up to 16 messages, including your new message) with {aiName}, through our server in the beta. Local time helps set reminders. Tasks, saved memories and fetched calendar events are not added. Web searches may use words from your chat. The provider may retain data under its policies.
               </p>
+              <Button size="sm" onClick={onAcceptPrivacy}>Start chatting</Button>
             </EmptyContent>
           )}
         </Empty>

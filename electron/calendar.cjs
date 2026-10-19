@@ -4,7 +4,7 @@
 //  - Disk holds ONLY OAuth tokens (+ the granted scope string) and the Google
 //    client id/secret. Nothing else.
 //  - Event titles/times are fetched into RAM, used once to fire a reminder,
-//    then discarded. Never written to companion-data.json. Never sent to Claude.
+//    then discarded. Never written to companion-data.json. Never sent to the AI.
 //  - Creating an event sends the title/time the user asked for to Google
 //    Calendar only (that's the point). We don't keep a copy.
 //  - Gmail: metadata scope only (headers/labels, never bodies). See gmail.cjs.
@@ -22,7 +22,9 @@ const SCOPE_GMAIL_METADATA = "https://www.googleapis.com/auth/gmail.metadata"; /
 // "restricted" (paid yearly security assessment to go public). Keep in sync
 // with src/features.ts FEATURES.gmailAlerts.
 const GMAIL_FEATURE = false;
-const SCOPES = GMAIL_FEATURE ? [SCOPE_CAL_EVENTS, SCOPE_GMAIL_METADATA] : [SCOPE_CAL_EVENTS];
+const calendarScope = require("./features.json").aiChat
+  ? SCOPE_CAL_EVENTS : "https://www.googleapis.com/auth/calendar.events.readonly";
+const SCOPES = GMAIL_FEATURE ? [calendarScope, SCOPE_GMAIL_METADATA] : [calendarScope];
 // Older / broader scopes we may find in a saved grant.
 const SCOPE_CAL_READONLY = "https://www.googleapis.com/auth/calendar.readonly"; // first-version connect
 const SCOPE_CAL_EVENTS_READONLY = "https://www.googleapis.com/auth/calendar.events.readonly";
@@ -138,10 +140,11 @@ function saveTokens(tokens) {
 
 function clearTokens() {
   tokenGeneration++;
+  notifiedIds.clear();
   try {
     fs.unlinkSync(tokenFile());
-  } catch {}
-  notifiedIds.clear();
+  } catch (err) { if (err.code !== "ENOENT") return false; }
+  return true;
 }
 
 function clearClient() {
@@ -313,7 +316,9 @@ async function pollMeetings(dataFile) {
     if (!on || !win) return;
     // They may have unticked Calendar on Google's consent screen.
     if (!scopeFlags(loadTokens()).canReadEvents) return;
+    const gen = tokenGeneration;
     const events = await fetchUpcomingEvents();
+    if (gen !== tokenGeneration) return;
     const now = Date.now();
     // Fire when meeting is within [lead, lead-1] minutes… or already inside the
     // lead window and we haven't notified yet (app was asleep).
@@ -610,6 +615,7 @@ function listenForCode(port) {
 }
 
 async function runOAuthConnect() {
+  const gen = tokenGeneration;
   const client = loadClient();
   if (!client) throw new Error("missing Google client id/secret");
 
@@ -637,6 +643,7 @@ async function runOAuthConnect() {
 
   await shell.openExternal(authUrl.toString());
   const code = await codePromise;
+  if (gen !== tokenGeneration) throw new Error("Google connection was cancelled");
 
   const body = new URLSearchParams({
     code,
@@ -655,6 +662,7 @@ async function runOAuthConnect() {
     throw new Error("token exchange failed: " + t.slice(0, 200));
   }
   const json = await res.json();
+  if (gen !== tokenGeneration) throw new Error("Google connection was cancelled");
   const previous = loadTokens();
   if (!json.refresh_token && !previous?.refresh_token) {
     throw new Error("Google did not return a refresh token — try disconnecting the app in your Google account and connect again");
@@ -712,9 +720,8 @@ function registerCalendarIpc(opts) {
   });
 
   ipcMain.handle("calendar-disconnect", () => {
-    clearTokens();
     stopPolling();
-    return { ok: true };
+    return { ok: clearTokens() };
   });
 
   // { title, start, end?, description?, attendees?: string[], timeZone? }

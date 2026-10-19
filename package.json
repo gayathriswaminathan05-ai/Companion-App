@@ -1,6 +1,6 @@
 {
   "name": "companion-app",
-  "version": "0.1.0",
+  "version": "0.1.1-beta.1",
   "description": "A desktop companion that keeps you company",
   "main": "electron/main.cjs",
   "scripts": {
@@ -36,7 +36,6 @@
     "vite": "^8.1.4"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.111.0",
     "@huggingface/transformers": "^4.2.0",
     "kokoro-js": "^1.2.1",
     "openai": "^7.34.0"
@@ -45,14 +44,15 @@
   "build": {
     "appId": "app.companion.blob",
     "productName": "Companion",
-    "copyright": "© 2026 Gayathri Swaminathan",
+    "copyright": "\u00a9 2026 Gayathri Swaminathan",
     "directories": {
-      "output": "release",
+      "output": "release/0.1.1-beta.1",
       "buildResources": "build"
     },
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "!electron/beta-config.json",
       "!electron/test-*.cjs",
       "package.json",
       "!**/node_modules/@huggingface/transformers/.cache/**",
@@ -61,7 +61,11 @@
       "!**/node_modules/onnxruntime-node/bin/napi-v*/darwin/x64/**",
       "!**/*.map",
       "!**/node_modules/kokoro-js/node_modules/onnxruntime-web/**",
-      "!**/node_modules/kokoro-js/node_modules/@huggingface/transformers/dist/*.wasm"
+      "!**/node_modules/kokoro-js/node_modules/@huggingface/transformers/dist/*.wasm",
+      "!electron/**/*.key",
+      "!electron/*token*.json",
+      "!electron/*data*.json",
+      "!electron/.env*"
     ],
     "extraResources": [
       {
@@ -98,7 +102,8 @@
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Companion listens only while you hold the mic button, and turns your voice into text right here on this Mac.",
         "NSAppleEventsUsageDescription": "Companion checks whether a Google Meet tab is open so it can hide during your calls."
-      }
+      },
+      "minimumSystemVersion": "14.0"
     },
     "dmg": {
       "title": "Companion"

@@ -1,0 +1,6 @@
+{
+  "checked": 283,
+  "allResourcesMatch": true,
+  "minimumMacOS": "14.0",
+  "note": "Final ASAR, native libraries, audio, sprites and models byte-identical to tested candidate. Minimum OS metadata changed."
+}

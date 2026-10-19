@@ -17,7 +17,7 @@ export default function DebugMenu({
   growthStage,
 }: {
   onState: (s: CharacterState) => void;
-  onTestNudge: (k: "stretch" | "water" | "bedtime") => void;
+  onTestNudge: (k: "stretch" | "walk" | "water" | "bedtime") => void;
   onTestJoke: () => void;
   soundsOn: boolean;
   onToggleSounds: () => void;
@@ -80,7 +80,7 @@ export default function DebugMenu({
       </div>
       <div style={{ fontSize: 11, fontWeight: 600, color: "#8a7a5e", margin: "8px 0 6px" }}>nudges (test)</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-        {(["stretch", "water", "bedtime"] as const).map((k) => (
+        {(["stretch", "walk", "water", "bedtime"] as const).map((k) => (
           <button
             key={k}
             style={btn}

@@ -5,7 +5,7 @@
 //  - We ask for exactly two headers (From, Subject). The sender's display name
 //    and the subject live in RAM just long enough to send ONE bubble to the
 //    renderer, then go out of scope. Never written to disk, never sent to
-//    Claude or any other service.
+//    any AI service.
 //  - The only thing we remember is a RAM Set of opaque Gmail message ids (so
 //    we don't alert twice). It's capped and wiped on stop / disconnect.
 // Started/stopped by calendar.cjs (shared Google connection + token refresh).

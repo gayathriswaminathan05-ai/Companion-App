@@ -48,6 +48,7 @@ export default function TaskPanel({
 }) {
   const [text, setText] = useState("");
   const [micKey, setMicKey] = useState(0);
+  const [micError, setMicError] = useState("");
   const parsed = useMemo(() => parseReminder(text), [text]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
@@ -158,6 +159,7 @@ export default function TaskPanel({
                 onActivity();
               }}
               onSpeaking={onMicPhase}
+              onError={setMicError}
             />
             <InputGroupButton
               variant="default"
@@ -171,6 +173,7 @@ export default function TaskPanel({
             </InputGroupButton>
           </InputGroupAddon>
         </InputGroup>
+        {micError && <p role="alert" className="px-1 pt-2 text-xs text-destructive">{micError}</p>}
         {parsed && (
           <div className="flex min-w-0 items-center gap-2 px-1 pt-2 animate-in fade-in-0 slide-in-from-top-1">
             <Badge variant="outline" className="min-w-0 border-primary/20 bg-bubble text-bubble-foreground">

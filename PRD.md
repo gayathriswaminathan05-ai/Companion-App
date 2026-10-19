@@ -7,6 +7,11 @@
 
 ---
 
+> **Current beta scope (owner, Oct17):** AI chat is deferred while cost, privacy
+> and model choice are resolved. Ship local tasks/reminders including dictation,
+> optional Google Calendar alerts, wellness, meditation, jokes and growth. Keep
+> chat implementation for later; older chat-as-core requirements below are historical.
+
 ## 1. Overview
 
 A cute animated character that lives on the user's desktop all day. It manages their
@@ -281,6 +286,18 @@ appearance light/dark, language, subscription section (Day 11).
 ---
 
 ## 6b. Privacy Policy (binding design constraints)
+
+**Oct17, 2026 owner update:** OpenAI is now the only chat provider; old Claude
+integration references below are historical and must not be implemented. Chat is a core AI-friend feature, with no user-facing
+on/off switch. Show a one-time sharing introduction before the first chat; only
+explicitly sent messages trigger AI requests. Current implementation sends up to
+16 conversation messages and local time, not task lists, profiles, growth, saved
+notes or fetched calendar details. All speech stays on-device in this beta.
+The older cloud-voice, guaranteed deletion and uninstall wording below is
+historical and superseded by `site/privacy.html` and the Oct17 entry in CLAUDE.md.
+Local deletion does not delete provider records or Mac backups. No approved Zero
+Data Retention claim; provider/account and installer checks remain release gates.
+
 
 Non-negotiable rules — every feature must comply or it doesn't ship:
 

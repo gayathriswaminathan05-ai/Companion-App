@@ -82,7 +82,7 @@ function spriteScale(anim: SpriteAnimDef): number {
   // idle scale × pot-rim match, so the pot never jumps size on a pose change
   // (sleep retakes framed the plant smaller to leave room for the blanket).
   // Capped so the lying pose still fits the 384px window.
-  const poseN = anim.frames[0]?.match(/\/(?:coffee|waving|sleeping)(\d)\//)?.[1];
+  const poseN = anim.frames[0]?.match(/\/(?:coffee|waving|sleeping|meditate)(\d)\//)?.[1];
   if (poseN && anim.potScale) {
     const stageIdle = SPRITES[`growth${poseN}`] as SpriteAnimDef | undefined;
     if (stageIdle?.srcW && stageIdle?.srcH) {
@@ -574,7 +574,10 @@ export default function Blob({
       if (spr?.frames?.length) {
         const underMul = GROW_HANDOFF_SCALE[prev] ?? 1;
         sizeMulRef.current = underMul;
-        growBridgeRef.current = {
+        // The stage-7 end and idle have different leaf/flower outlines.
+        // Crossfading transparent sprites shows both silhouettes at once.
+        // Switch directly to the preloaded idle at the matched pot size.
+        growBridgeRef.current = prev === "grow6to7" ? null : {
           src: spr.frames[spr.frames.length - 1],
           scale: spriteScale(spr),
           underMul,
@@ -854,7 +857,11 @@ export default function Blob({
           ? stageVariant("waving", growthStage)
           : state === "hammock"
             ? stageVariant("hammock", growthStage)
-            : undefined;
+            : state === "meditate"
+              // Only use an exact-stage meditation variant. A new stage-1 clip
+              // must not replace the existing mature art at stages 2–7.
+              ? SPRITES[`meditate${growthStage}`]
+              : undefined;
   const sprite =
     idleSprite ||
     celebratingSprite ||

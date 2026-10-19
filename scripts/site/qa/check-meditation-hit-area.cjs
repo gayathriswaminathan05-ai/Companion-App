@@ -42,7 +42,7 @@ app.whenReady().then(async()=>{
    await js(`document.querySelector('button[aria-label="breathe"]').click()`);
    await wait(150);
    const check=await js(`(() => {
-    const b=[...document.querySelectorAll('button')].find(b=>b.textContent==='Start one minute');
+    const b=[...document.querySelectorAll('button')].find(b=>b.textContent==='Start');
     const r=b.getBoundingClientRect(), hit=document.querySelector('[data-char-hit]').getBoundingClientRect();
     const points=[[.5,.5],[.1,.1],[.9,.9]].map(([x,y])=>[r.x+r.width*x,r.y+r.height*y]);
     return {hitHeight:hit.height,points:points.map(([x,y])=>({x,y,button:document.elementFromPoint(x,y)?.closest('button')===b}))};
@@ -55,7 +55,7 @@ app.whenReady().then(async()=>{
      const h=document.querySelector('[data-char-hit]'),scaled=h.parentElement,outer=scaled.parentElement;
      const panel=document.querySelector('[data-meditation]').closest('[data-slot="panel"]').parentElement.parentElement;
      panel.style.zIndex='auto'; outer.append(h);
-     const b=[...document.querySelectorAll('button')].find(b=>b.textContent==='Start one minute'),r=b.getBoundingClientRect();
+     const b=[...document.querySelectorAll('button')].find(b=>b.textContent==='Start'),r=b.getBoundingClientRect();
      const blocked=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===h;
      scaled.append(h);panel.style.zIndex='10';return blocked;
     })()`);

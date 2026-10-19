@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("companion", {
   isPackaged: ipcRenderer.sendSync("is-packaged") === true,
   setClickThrough: (ignore) => ipcRenderer.send("set-click-through", ignore),
+  focusControls: () => ipcRenderer.send("focus-controls"),
   cursorClientPos: () => ipcRenderer.invoke("cursor-client-pos"),
   dragStart: () => ipcRenderer.send("drag-start"),
   dragEnd: () => ipcRenderer.send("drag-end"),
@@ -27,6 +28,7 @@ contextBridge.exposeInMainWorld("companion", {
   dataReset: () => ipcRenderer.invoke("data-reset"),
   brainStatus: () => ipcRenderer.invoke("brain-status"),
   brainConnect: (key) => ipcRenderer.invoke("brain-connect", key),
+  chatCancel: () => ipcRenderer.invoke("chat-cancel"),
   chatSend: (payload) => ipcRenderer.invoke("chat-send", payload),
   brainOnce: (payload) => ipcRenderer.invoke("brain-once", payload),
   onChatEvent: (channel, handler) => {

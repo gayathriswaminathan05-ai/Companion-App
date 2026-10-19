@@ -100,6 +100,10 @@ for (const s of states) {
     if (meta.srcW) manifest[s].srcW = meta.srcW;
     if (meta.srcH) manifest[s].srcH = meta.srcH;
     if (meta.potScale) manifest[s].potScale = meta.potScale;
+    // Locally animated loops carry their own timing. Preserve it when a later
+    // unrelated clip regenerates the complete manifest.
+    if (Number.isFinite(meta.fps) && meta.fps > 0) manifest[s].fps = meta.fps;
+    if (typeof meta.pingpong === "boolean") manifest[s].pingpong = meta.pingpong;
   }
 }
 // Grow transitions: potScale = DEST idle pot / clip END pot.

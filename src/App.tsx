@@ -1,15 +1,19 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Blob from "./character/Blob";
 import DebugMenu from "./DebugMenu";
-import RadialMenu from "./ui/RadialMenu";
+import RadialMenu, { type RadialItem } from "./ui/RadialMenu";
 import TaskPanel from "./ui/TaskPanel";
 import ChatPanel from "./ui/ChatPanel";
 import BreathingPanel from "./ui/BreathingPanel";
 import ReminderBubble, { FiredReminder } from "./ui/ReminderBubble";
 import NudgeBubble from "./ui/NudgeBubble";
-import QuickNav from "./ui/QuickNav";
+import QuickNav, { type QuickNavItem } from "./ui/QuickNav";
 import Showcase from "./ui/Showcase";
 import GrowthTestBar from "./ui/GrowthTestBar";
+import ReminderTestPanel, { type ReminderTestKind } from "./ui/ReminderTestPanel";
+import JokeBubble from "./ui/JokeBubble";
+import WelcomeMicBubble from "./ui/WelcomeMicBubble";
+import { reminderPose } from "./reminderPose";
 import SettingsPanel from "./ui/SettingsPanel";
 import PanelResizeHandles from "./ui/PanelResizeHandles";
 import { GrowthIcon } from "@/components/panel";
@@ -48,6 +52,7 @@ declare global {
     companion: {
       isPackaged?: boolean;
       setClickThrough: (ignore: boolean) => void;
+      focusControls?: () => void;
       cursorClientPos: () => Promise<{ x: number; y: number } | null>;
       dragStart: () => void;
       dragEnd: () => void;
@@ -68,6 +73,7 @@ declare global {
       transcribe: (audioBuffer: ArrayBuffer) => Promise<unknown>;
       brainStatus: () => Promise<unknown>;
       brainConnect: (key: string) => Promise<unknown>;
+      chatCancel?: () => Promise<unknown>;
       chatSend: (payload: unknown) => Promise<unknown>;
       brainOnce: (payload: unknown) => Promise<unknown>;
       onChatEvent: (channel: string, handler: (data: unknown) => void) => () => void;
@@ -125,7 +131,10 @@ function formatBooking(start: string): string {
 export default function App() {
   const { state, set } = useCharacter();
   const [data, setData] = useState<AppData>(emptyData());
-  const [open, setOpen] = useState<"none" | "menu" | "tasks" | "chat" | "settings" | "breathe">("none");
+  const [open, setOpen] = useState<"none" | "menu" | "tasks" | "chat" | "settings" | "breathe" | "tests" | "test-preview">("none");
+  const [testPreview, setTestPreview] = useState<{
+    kind: ReminderTestKind; text: string; punchline?: string; revealed?: boolean; reminder?: FiredReminder;
+  } | null>(null);
   const [clip, setClip] = useState<Clip>(EMPTY_CLIP);
   // Plant near the TOP of the screen → plant at the top of the window and all
   // UI opens below it ("flip"). relayout hides everything for the couple of
@@ -136,6 +145,8 @@ export default function App() {
   const layoutRef = useRef({ plantH: 240, need: 400 });
   const placedOnce = useRef(false);
   const [firedQueue, setFiredQueue] = useState<FiredReminder[]>([]);
+  const firedQueueRef = useRef(firedQueue);
+  firedQueueRef.current = firedQueue;
   const [toast, setToast] = useState<{ text: string; stage?: GrowthStage } | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
   const [showcase, setShowcase] = useState(false);
@@ -251,6 +262,11 @@ export default function App() {
       apply(!hit);
     };
     const onMove = (e: PointerEvent) => syncFromPoint(e.clientX, e.clientY);
+    const focusControls = (e: PointerEvent) => {
+      if (e.isTrusted && e.target instanceof Element && e.target.closest("[data-hit]")) {
+        window.companion?.focusControls?.();
+      }
+    };
     const release = () => {
       if (!draggingRef.current) apply(true);
     };
@@ -270,12 +286,14 @@ export default function App() {
       })();
     }, 50);
     window.addEventListener("pointermove", onMove, { passive: true });
+    document.addEventListener("pointerdown", focusControls, true);
     document.documentElement.addEventListener("mouseleave", release);
     window.addEventListener("blur", release);
     apply(true);
     return () => {
       window.clearInterval(poll);
       window.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerdown", focusControls, true);
       document.documentElement.removeEventListener("mouseleave", release);
       window.removeEventListener("blur", release);
       apply(true);
@@ -337,7 +355,7 @@ export default function App() {
   }, [open]);
 
   // --- Wellness engine: notices long stretches of work, bedtime, water ---
-  type NudgeKind = "stretch" | "water" | "bedtime";
+  type NudgeKind = "stretch" | "walk" | "water" | "bedtime";
   const [nudge, setNudge] = useState<NudgeKind | null>(null);
   const nudgeRef = useRef<NudgeKind | null>(null);
   useEffect(() => {
@@ -355,7 +373,7 @@ export default function App() {
     const id = window.setInterval(() => {
       const s = stateRef.current;
       const resting = REST_POSES.includes(s);
-      if (openRef.current !== "none" || nudgeRef.current) {
+      if (openRef.current !== "none" || nudgeRef.current || firedQueueRef.current.length) {
         nextRestAt.current = Date.now() + 12 * 60_000;
         return;
       }
@@ -377,6 +395,7 @@ export default function App() {
   }, [set]);
   const activeMsRef = useRef(0);
   const waterMsRef = useRef(0);
+  const movementCount = useRef(0);
 
   const markProactive = () => {
     update((d) => {
@@ -440,7 +459,8 @@ export default function App() {
         if (!capOk || !gapOk) return;
 
         if (d.settings.breakMins > 0 && activeMsRef.current >= d.settings.breakMins * 60_000) {
-          triggerNudge("stretch");
+          const style = d.settings.movementStyle || "mixed";
+          triggerNudge(style === "walk" || (style === "mixed" && movementCount.current++ % 2 === 1) ? "walk" : "stretch");
           return;
         }
         if (d.settings.waterNudge && waterMsRef.current >= (d.settings.waterMins || 120) * 60_000) {
@@ -455,6 +475,7 @@ export default function App() {
 
   const NUDGE_TEXT: Record<NudgeKind, string> = {
     stretch: "you've been at it a while. stretch with me?",
+    walk: "tiny adventure? take a short walk, or move in whatever way feels good for you.",
     water: "little water break?",
     bedtime: "I'm sleepy… don't stay up too late, okay?",
   };
@@ -479,7 +500,7 @@ export default function App() {
   };
   const voiceOpts = (priv = false) => {
     const st = dataRef.current.settings;
-    return { voice: st.voiceName || "af_heart", cloud: priv ? null : cloudVoiceFor(st) };
+    return { voice: st.voiceName || "af_heart", speed: st.voiceName === "af_bella" ? 1.0 : undefined, cloud: priv ? null : cloudVoiceFor(st) };
   };
   const canSpeak = () => !!dataRef.current.settings.voiceOn && document.visibilityState !== "hidden";
   const say = (text: string, opts: { private?: boolean } = {}) => {
@@ -494,20 +515,26 @@ export default function App() {
   // --- Chat brain -----------------------------------------------------------
   const [brainConnected, setBrainConnected] = useState(false);
   const [brainViaProxy, setBrainViaProxy] = useState(false);
-  // Which AI answers chat (set by the saved key or the beta build). Shown in Settings / Chat.
-  const [brainProvider, setBrainProvider] = useState<"openai" | "anthropic" | null>(null);
-  const aiName = brainProvider === "anthropic" ? "Claude" : "ChatGPT";
+  const aiName = "ChatGPT";
   const refreshBrainStatus = () =>
     (
-      window.companion.brainStatus() as Promise<{ connected: boolean; viaProxy?: boolean; provider?: "openai" | "anthropic" | null }>
+      window.companion.brainStatus() as Promise<{ connected: boolean; viaProxy?: boolean }>
     ).then((s) => {
       setBrainConnected(!!s?.connected);
       setBrainViaProxy(!!s?.viaProxy);
-      setBrainProvider(s?.provider ?? null);
     });
   const [streamText, setStreamText] = useState<string | null>(null);
   const [chatBusy, setChatBusy] = useState(false);
   const streamRef = useRef("");
+  const activeChatId = useRef<string | null>(null);
+  const cancelCurrentChat = async () => {
+    activeChatId.current = null;
+    streamRef.current = "";
+    setStreamText(null);
+    setChatBusy(false);
+    stopSpeaking();
+    await window.companion.chatCancel?.();
+  };
 
   // While chat is open, stay on coffee sip — timed poses (celebrate/write)
   // auto-return to idle; nudge back so the yellow blob never shows.
@@ -518,14 +545,18 @@ export default function App() {
   }, [open, chatBusy, state, set]);
 
   useEffect(() => {
+    if (!FEATURES.aiChat) return;
     void refreshBrainStatus();
     const offChunk = window.companion.onChatEvent("chat-chunk", (d) => {
-      const { delta } = d as { delta: string };
+      const { id, delta } = d as { id: string; delta: string };
+      if (id !== activeChatId.current || dataRef.current.settings.chatConsentVersion !== 1) return;
       streamRef.current += delta;
       setStreamText(streamRef.current);
     });
     const offDone = window.companion.onChatEvent("chat-done", (d) => {
-      const { text, sources } = d as { text: string; sources?: { title: string; url: string }[] };
+      const { id, text, sources } = d as { id: string; text: string; sources?: { title: string; url: string }[] };
+      if (id !== activeChatId.current || dataRef.current.settings.chatConsentVersion !== 1) return;
+      activeChatId.current = null;
       const { clean, facts, tasks, completes, meetings } = extractOutputs(text);
       if (meetings.length) setBooking(meetings[0]);
       let completedAny = false;
@@ -593,7 +624,9 @@ export default function App() {
       }
     });
     const offErr = window.companion.onChatEvent("chat-error", (d) => {
-      const { error } = d as { error: string };
+      const { id, error } = d as { id: string; error: string };
+      if (id !== activeChatId.current || dataRef.current.settings.chatConsentVersion !== 1) return;
+      activeChatId.current = null;
       update((x) => {
         const friendly = error.includes("daily_limit")
           ? "we've chatted SO much today, my brain needs a nap 😴 I'll be fully back tomorrow morning!"
@@ -623,43 +656,48 @@ export default function App() {
   }, []);
 
   const sendChat = (text: string) => {
-    // AI chat switched off: nothing typed ever leaves this Mac.
-    if (!dataRef.current.settings.chatOn) return;
+    if (!FEATURES.aiChat || dataRef.current.settings.chatConsentVersion !== 1 || activeChatId.current) return;
     stopSpeaking();
-    const userMsg = { role: "user" as const, text, at: new Date().toISOString() };
+    const id = crypto.randomUUID();
+    activeChatId.current = id;
     const draft = structuredClone(dataRef.current);
-    draft.chat.messages.push(userMsg);
-    update((x) => {
-      x.chat.messages.push(userMsg);
-      return x;
-    });
+    draft.chat.messages.push({ role: "user", text, at: new Date().toISOString() });
+    dataRef.current = draft;
+    setData(draft);
     setChatBusy(true);
     streamRef.current = "";
     setStreamText("");
     set("coffee");
     void (async () => {
-      let canBookMeetings = false;
       try {
-        canBookMeetings = !!(await window.companion.calendarStatus?.())?.canCreateEvents;
+        const saved = await window.companion.dataSave(draft);
+        if (saved === false) throw new Error("save-failed");
+        let canBookMeetings = false;
+        try { canBookMeetings = !!(await window.companion.calendarStatus?.())?.canCreateEvents; } catch {}
+        // History/key deletion may have happened while saving or checking Calendar.
+        if (activeChatId.current !== id || dataRef.current.settings.chatConsentVersion !== 1) return;
+        const result = await window.companion.chatSend({
+          id, system: buildSystem(draft, { canBookMeetings }), messages: buildMessages(draft),
+        }) as { ok?: boolean };
+        if (result?.ok === false && activeChatId.current === id) throw new Error("chat-unavailable");
       } catch {
-        /* calendar not set up */
+        if (activeChatId.current !== id) return;
+        activeChatId.current = null;
+        setChatBusy(false);
+        setStreamText(null);
+        showToast("Couldn't send. Please try again.");
       }
-      void window.companion.chatSend({
-        id: crypto.randomUUID(),
-        system: buildSystem(draft, { canBookMeetings }),
-        messages: buildMessages(draft),
-      });
     })();
   };
 
   const connectBrain = async (key: string) => {
-    const res = (await window.companion.brainConnect(key)) as { ok: boolean };
+    const res = (await window.companion.brainConnect(key)) as { ok: boolean; error?: string };
     if (res?.ok) {
       setBrainConnected(true);
       void refreshBrainStatus();
       showToast("Brain connected");
     } else {
-      showToast("Hmm, couldn't save the key");
+      showToast(res?.error || "Hmm, couldn't save the key");
     }
   };
 
@@ -670,7 +708,7 @@ export default function App() {
     jokeRef.current = joke;
   }, [joke]);
 
-  // Google Calendar meeting ping — RAM only; never saved / never sent to Claude.
+  // Google Calendar meeting ping — RAM only; never saved / never sent to the AI.
   const [meeting, setMeeting] = useState<{ title: string; minutesUntil: number } | null>(null);
   useEffect(() => {
     if (!window.companion?.onCalendarMeeting) return;
@@ -714,7 +752,7 @@ export default function App() {
   };
 
   // New Gmail (Primary inbox): sender + subject live in RAM only, never saved
-  // or sent to Claude.
+  // or sent to the AI.
   const [mail, setMail] = useState<{ from: string; subject: string; count?: number } | null>(null);
   useEffect(() => {
     void window.companion.gmailSetEnabled?.(FEATURES.gmailAlerts && !!data.settings.gmailAlerts);
@@ -804,8 +842,7 @@ export default function App() {
         try {
           new Notification("Your companion 🌱", { body: `⏰ ${t.text}` });
         } catch {}
-        // Task alarm = the same per-stage handbell ring as meetings (owner, Oct 15).
-        set("meeting");
+        // The visible queue item selects its pose below, not the last due task.
       }
     };
     const id = window.setInterval(check, 8000);
@@ -896,6 +933,7 @@ export default function App() {
         chirp("celebrate");
       }
     } else {
+      set("idle");
       update((d) => {
         const x = d.todos.find((y) => y.id === id);
         if (x) {
@@ -908,10 +946,11 @@ export default function App() {
   };
 
   const patchSettings = (patch: Partial<AppData["settings"]>) => {
-    update((d) => {
-      d.settings = { ...d.settings, ...patch };
-      return d;
-    });
+    const next = structuredClone(dataRef.current);
+    next.settings = { ...next.settings, ...patch };
+    dataRef.current = next;
+    setData(next);
+    void window.companion.dataSave(next);
   };
 
   const showToast = (msg: string, stage?: GrowthStage) => {
@@ -921,7 +960,7 @@ export default function App() {
 
   const growthStage = growthStageFor(data.sprout.points);
   const week = ensureWeek(data.week);
-  const panelOpen = open === "tasks" || open === "chat" || open === "settings" || open === "breathe";
+  const panelOpen = open === "tasks" || open === "chat" || open === "settings" || open === "breathe" || open === "tests";
 
   // Panel size when fully on-screen. Near a screen edge, shrink width
   // to the visible band so chat/tasks aren't clipped (plant stays put).
@@ -988,6 +1027,7 @@ export default function App() {
   const firedNow = firedQueue[0];
   useEffect(() => {
     if (!firedNow) return;
+    set(reminderPose(firedNow.text));
     say(firedNow.missed ? `while you were away: ${firedNow.text}` : `hey! it's time: ${firedNow.text}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firedNow?.id]);
@@ -1022,17 +1062,71 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mail]);
   useEffect(() => {
-    if (welcome) say("hi! I'm your little desk plant. click me for chat, tasks and settings. I grow when you take care of yourself.");
+    if (welcome) say("hi! I'm your little desk plant. Tap me for tasks, breathing and settings. You can enable the microphone to dictate tasks and answer my jokes.");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [welcome]);
   useEffect(() => {
     if (open !== "chat") stopSpeaking();
   }, [open]);
 
+  // Development previews share the real bubble/pose/voice, but never call the
+  // scheduling or completion handlers that write tasks, nudge caps or points.
+  const playReminderTest = (kind: ReminderTestKind) => {
+    if (window.companion.isPackaged !== false) return;
+    if (firedQueue.length || meeting || nudge || joke || booking || mail || welcome) {
+      showToast("Dismiss the current alert, then try the preview.");
+      return;
+    }
+    setDebugOpen(false);
+    setShowcase(false);
+    setToast(null);
+    setOpen("test-preview");
+    if (kind === "joke") {
+      const sample = pickFallbackJoke(dataRef.current.chat.jokeRecent ?? []);
+      setTestPreview({ kind, text: sample.setup, punchline: sample.punchline, revealed: false });
+      set("waving");
+      chirp("pop");
+    } else if (kind === "stretch" || kind === "walk" || kind === "water" || kind === "bedtime") {
+      setTestPreview({ kind, text: NUDGE_TEXT[kind] });
+      set(kind === "bedtime" ? "sleeping" : kind === "water" ? "watering" : "stretching");
+      chirp(kind === "bedtime" ? "sleepy" : "pop");
+    } else if (kind === "calendar" || kind === "calendar-now") {
+      setTestPreview({ kind, text: kind === "calendar" ? '"Sample meeting" in 5 min' : '"Sample meeting" is starting now' });
+      set("meeting");
+      chirp("bell");
+    } else {
+      const text = { task: "Call a friend", missed: "Take a screen break", daily: "Daily reading break", meditation: "Meditation break", meal: "Meal break", coffee: "Tea or coffee break" }[kind];
+      setTestPreview({ kind, text, reminder: { id: "test-preview", text, timeLabel: kind === "missed" ? "10 minutes ago" : "now", missed: kind === "missed", recurring: kind === "daily" ? "daily" : undefined } });
+      set(reminderPose(text));
+      chirp("bell");
+    }
+  };
+  const finishReminderTest = (snoozed = false) => {
+    stopSpeaking();
+    setTestPreview(null);
+    setOpen("tests");
+    set("idle");
+    if (snoozed) showToast("Test only: no reminder was rescheduled.");
+  };
+  // A real alert always takes priority. Leaving a preview cancels its speech.
+  useEffect(() => {
+    if (!testPreview) {
+      if (open === "test-preview" && !firedQueue.length && !meeting && !nudge && !joke && !booking && !mail && !welcome) setOpen("tests");
+      return;
+    }
+    if (open !== "test-preview" || firedQueue.length || meeting || nudge || joke || booking || mail || welcome) {
+      setTestPreview(null);
+      return;
+    }
+    say(testPreview.revealed && testPreview.punchline ? withLaugh(testPreview.punchline)
+      : testPreview.reminder ? `${testPreview.reminder.missed ? "while you were away" : "hey! it's time"}: ${testPreview.text}`
+      : testPreview.text, { private: true });
+  }, [testPreview, open, firedQueue.length, meeting, nudge, joke, booking, mail, welcome]);
+
   // Panels: follow macOS light/dark, or (opt-in) match the app behind us.
   usePanelTheme(
     !!data.settings.matchBackdrop,
-    panelOpen || open === "menu" || showcase || firedQueue.length > 0 || !!nudge || !!joke || !!meeting,
+    panelOpen || open === "menu" || showcase || firedQueue.length > 0 || !!nudge || !!joke || !!meeting || !!testPreview,
     flip
       ? { top: stackTop, bottom: stackTop + stackSpan }
       : { top: Math.max(0, plantTopY - PLANT_GAP - stackSpan), bottom: Math.max(0, plantTopY - PLANT_GAP) },
@@ -1060,7 +1154,7 @@ export default function App() {
 
   // Refresh edge clips when UI opens — never nudge the window/plant.
   // Speech bubbles / toasts too (the window can be moved by a display change).
-  const bubbleUp = !!(firedQueue.length || meeting || welcome || booking || mail || joke || nudge || toast);
+  const bubbleUp = !!(firedQueue.length || meeting || welcome || booking || mail || joke || nudge || toast || testPreview);
   useEffect(() => {
     if (panelOpen || open === "menu" || showcase || bubbleUp) void refreshClip();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1101,13 +1195,13 @@ export default function App() {
           }}
         >
           <QuickNav
-            items={[
+            items={([
               { icon: "chat", label: "chat", active: open === "chat", onClick: () => { setOpen("chat"); if (!chatBusy) set("coffee"); } },
               { icon: "tasks", label: "tasks", active: open === "tasks", onClick: () => { setOpen("tasks"); set("noting"); } },
               { icon: "breathe", label: "breathe", active: open === "breathe", onClick: () => { if (open !== "breathe") { setOpen("breathe"); set("meditate"); } } },
               { icon: "settings", label: "settings", active: open === "settings", onClick: () => { setOpen("settings"); set("idle"); } },
               { icon: "tuck", label: "nap", onClick: () => { setOpen("none"); window.companion?.hide(); } },
-            ]}
+            ] satisfies QuickNavItem[]).filter(item => FEATURES.aiChat || item.label !== "chat")}
           />
           <div
             {...hitProps}
@@ -1127,10 +1221,13 @@ export default function App() {
                 patchSettings({ panelScale: v });
               }}
             />
+            {open === "tests" && window.companion.isPackaged === false && (
+              <ReminderTestPanel onPlay={playReminderTest} voiceOn={!!data.settings.voiceOn} soundsOn={data.settings.soundsOn}
+                onClose={() => { setOpen("settings"); set("idle"); }} />
+            )}
             {open === "breathe" && (
               <BreathingPanel
                 voiceOn={!!data.settings.voiceOn}
-                onScheduleReminder={(due, recurring) => { addTask("Meditation break", due, recurring); set("meditate"); }}
                 interrupted={chatBusy || firedQueue.length > 0 || !!meeting || !!nudge || !!booking || !!mail || dragging}
                 onActiveChange={(active) => { if (active) { stopSpeaking(); set("meditate"); } }}
                 onComplete={() => { activeMsRef.current = 0; }}
@@ -1155,38 +1252,52 @@ export default function App() {
             )}
             {open === "settings" && (
               <SettingsPanel
+                onOpenReminderTests={window.companion.isPackaged === false ? () => { setOpen("tests"); set("idle"); } : undefined}
+                onScheduleMeditation={(due, recurring) => addTask("Meditation break", due, recurring)}
                 settings={data.settings}
                 facts={data.chat.facts}
                 week={week}
                 growthStage={growthStage}
                 points={data.sprout.date === today() ? data.sprout.points : 0}
                 onPatch={patchSettings}
-                onDeleteFact={(f) =>
-                  update((d) => {
-                    d.chat.facts = d.chat.facts.filter((x) => x !== f);
-                    return d;
-                  })
-                }
+                onDeleteFact={async (f) => {
+                  const next = structuredClone(dataRef.current);
+                  next.chat.facts = next.chat.facts.filter((x) => x !== f);
+                  if (await window.companion.dataSave(next) === false) {
+                    showToast("Could not remove the saved note. Please retry.");
+                    return;
+                  }
+                  dataRef.current = next;
+                  setData(next);
+                }}
                 onClearChat={async () => {
+                  await cancelCurrentChat();
                   const next = structuredClone(dataRef.current);
                   next.chat.messages = [];
                   next.chat.summary = "";
                   dataRef.current = next;
                   setData(next);
                   setStreamText(null);
-                  await window.companion.dataSave(next);
+                  if (await window.companion.dataSave(next) === false) throw new Error("save-failed");
                 }}
-                showKeyRow={!brainViaProxy}
+                showKeyRow={FEATURES.aiChat && (!brainViaProxy || !window.companion.isPackaged)}
+                hasChatHistory={data.chat.messages.length > 0 || !!data.chat.summary}
                 aiName={aiName}
                 cloudVoice={{ available: cloudInfo.available, autoAccent: accentForLocale(cloudInfo.systemLocale) }}
                 onChangeKey={async () => {
-                  await window.companion.brainDisconnect();
+                  await cancelCurrentChat();
+                  if (await window.companion.brainDisconnect() === false) {
+                    showToast("Could not remove the key. Please try again.");
+                    return;
+                  }
                   setBrainConnected(false);
                   setOpen("chat");
                   set("coffee");
                 }}
-                onDeleteAll={() => {
-                  void window.companion.dataReset();
+                onDeleteAll={async () => {
+                  await cancelCurrentChat();
+                  const result = await window.companion.dataReset() as { ok?: boolean };
+                  if (!result?.ok) throw new Error("reset-failed");
                 }}
                 onClose={() => {
                   setOpen("none");
@@ -1194,11 +1305,11 @@ export default function App() {
                 }}
               />
             )}
-            {open === "chat" && (
+            {FEATURES.aiChat && open === "chat" && (
               <ChatPanel
-                chatOn={data.settings.chatOn}
+                privacyAccepted={data.settings.chatConsentVersion === 1}
                 aiName={aiName}
-                onEnableChat={() => patchSettings({ chatOn: true })}
+                onAcceptPrivacy={() => patchSettings({ chatConsentVersion: 1 })}
                 messages={data.chat.messages}
                 streamText={streamText}
                 busy={chatBusy}
@@ -1269,7 +1380,7 @@ export default function App() {
             setShowcase(true);
             chirp("giggle");
           }}
-          items={[
+          items={([
             { icon: "chat", label: "chat", onClick: () => { setOpen("chat"); set("coffee"); } },
             {
               icon: "tasks",
@@ -1289,8 +1400,24 @@ export default function App() {
                 window.companion?.hide();
               },
             },
-          ]}
+          ] satisfies RadialItem[]).filter(item => FEATURES.aiChat || item.label !== "chat")}
         />
+      )}
+
+      {testPreview && open === "test-preview" && !firedQueue.length && !meeting && !nudge && !joke && !booking && !mail && !welcome && (
+        testPreview.reminder ? (
+          <ReminderBubble preview fired={testPreview.reminder} onDone={() => finishReminderTest()} onSnooze={() => finishReminderTest(true)} />
+        ) : testPreview.kind === "joke" ? (
+          <JokeBubble key={testPreview.text} preview setup={testPreview.text} punchline={testPreview.punchline!} revealed={!!testPreview.revealed}
+            onReveal={() => { setTestPreview({ ...testPreview, revealed: true }); set("celebrating"); chirp("giggle"); }}
+            onDismiss={() => finishReminderTest()} />
+        ) : (
+          <NudgeBubble preview text={testPreview.revealed ? testPreview.punchline! : testPreview.text}
+            actions={testPreview.kind === "stretch" || testPreview.kind === "walk" || testPreview.kind === "water" ? [
+              { label: "Did it", primary: true, onClick: () => finishReminderTest() },
+              { label: "Not now", onClick: () => finishReminderTest() },
+            ] : [{ label: testPreview.kind === "bedtime" ? "Good night" : "Got it", primary: true, onClick: () => finishReminderTest() }]} />
+        )
       )}
 
       {firedQueue.length > 0 && (
@@ -1318,11 +1445,8 @@ export default function App() {
         />
       )}
 
-      {welcome && firedQueue.length === 0 && (
-        <NudgeBubble
-          text="hi! I'm your little desk plant 🌱 click me for chat, tasks and settings, and drag me anywhere. I grow when you take care of yourself."
-          actions={[{ label: "Let's go", primary: true, onClick: finishWelcome }]}
-        />
+      {welcome && firedQueue.length === 0 && !meeting && !nudge && !joke && (
+        <WelcomeMicBubble onFinish={finishWelcome} />
       )}
 
       {booking && firedQueue.length === 0 && !meeting && !welcome && (
@@ -1347,40 +1471,9 @@ export default function App() {
       )}
 
       {joke && firedQueue.length === 0 && !nudge && !meeting && !booking && !mail && (
-        <NudgeBubble
-          text={joke.revealed ? joke.punchline : joke.setup}
-          actions={
-            joke.revealed
-              ? [
-                  {
-                    label: "Haha",
-                    primary: true,
-                    onClick: () => {
-                      setJoke(null);
-                      set("idle");
-                    },
-                  },
-                ]
-              : [
-                  {
-                    label: "What?",
-                    primary: true,
-                    onClick: () => {
-                      setJoke({ ...joke, revealed: true });
-                      set("celebrating");
-                      chirp("giggle");
-                    },
-                  },
-                  {
-                    label: "Not now",
-                    onClick: () => {
-                      setJoke(null);
-                      set("idle");
-                    },
-                  },
-                ]
-          }
-        />
+        <JokeBubble key={joke.setup} setup={joke.setup} punchline={joke.punchline} revealed={joke.revealed}
+          onReveal={() => { setJoke({ ...joke, revealed: true }); set("celebrating"); chirp("giggle"); }}
+          onDismiss={() => { setJoke(null); set("idle"); stopSpeaking(); }} />
       )}
 
       {nudge && firedQueue.length === 0 && !meeting && !booking && !mail && (
@@ -1518,7 +1611,7 @@ export default function App() {
       <GrowthTestBar
         bottom={WIN_H - plantBottomY + 16}
         growthStage={growthStage}
-        visible={data.settings.growthTestVisible}
+        visible={data.settings.growthTestVisible && !welcome && open !== "tests" && open !== "test-preview"}
         onVisibleChange={(v) =>
           update((d) => {
             d.settings.growthTestVisible = v;
@@ -1558,8 +1651,8 @@ export default function App() {
             current={state}
             growthStage={growthStage}
             onState={set}
-            onTestNudge={(k) => triggerNudge(k)}
-            onTestJoke={() => void tellJoke()}
+            onTestNudge={playReminderTest}
+            onTestJoke={() => playReminderTest("joke")}
             soundsOn={data.settings.soundsOn}
             onToggleSounds={() => update((d) => { d.settings.soundsOn = !d.settings.soundsOn; return d; })}
             onGrowthStage={(s) =>

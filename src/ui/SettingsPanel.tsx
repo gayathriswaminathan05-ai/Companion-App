@@ -1,3 +1,4 @@
+import MeditationReminderForm from "./MeditationReminderForm";
 import { useEffect, useState } from "react";
 import {
   BellRingingIcon,
@@ -44,7 +45,7 @@ function Row({
     <Item size="sm" className="rounded-none border-0 px-3 py-2.5">
       <ItemContent className="gap-0.5">
         <ItemTitle className="text-[13px]">{label}</ItemTitle>
-        {desc && <ItemDescription className="text-xs">{desc}</ItemDescription>}
+        {desc && <ItemDescription className="line-clamp-none text-xs">{desc}</ItemDescription>}
       </ItemContent>
       {children && <ItemActions>{children}</ItemActions>}
     </Item>
@@ -107,9 +108,14 @@ export default function SettingsPanel({
   onDeleteAll,
   onClose,
   showKeyRow = true,
+  hasChatHistory = false,
   aiName = "ChatGPT",
   cloudVoice,
+  onScheduleMeditation,
+  onOpenReminderTests,
 }: {
+  onOpenReminderTests?: () => void;
+  onScheduleMeditation?: (due: Date, recurring?: "daily") => void;
   settings: Settings;
   facts: string[];
   week: WeekStats;
@@ -120,18 +126,22 @@ export default function SettingsPanel({
   onDeleteFact: (fact: string) => void;
   onClearChat: () => void | Promise<void>;
   onChangeKey: () => void;
-  onDeleteAll: () => void;
+  onDeleteAll: () => void | Promise<void>;
   onClose: () => void;
   /** Hidden for beta testers, whose chats go through the proxy (no key). */
   showKeyRow?: boolean;
-  /** "ChatGPT" or "Claude": who answers chat (from the saved key / beta build). */
+  hasChatHistory?: boolean;
+  /** "ChatGPT": who answers chat (from the saved key / beta build). */
   aiName?: string;
   /** Google voice available (online via proxy or local key) + region accent. */
   cloudVoice?: { available: boolean; autoAccent: string };
 }) {
+  const [meditationForm, setMeditationForm] = useState(false);
+  const [meditationNote, setMeditationNote] = useState("");
   const [loginItem, setLoginItem] = useState(false);
-  const [clearPhase, setClearPhase] = useState<"idle" | "clearing" | "done">("idle");
+  const [clearPhase, setClearPhase] = useState<"idle" | "clearing" | "done" | "error">("idle");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState(false);
   const [confirmKey, setConfirmKey] = useState(false);
   const [calStatus, setCalStatus] = useState<{
     hasClient: boolean;
@@ -172,7 +182,7 @@ export default function SettingsPanel({
       const lang = pick === "auto" ? cloudVoice?.autoAccent || "en-US" : pick;
       c = { languageCode: lang, voiceName: `${lang}-Chirp3-HD-${o.cloudVoice ?? settings.cloudVoice ?? "Puck"}` };
     }
-    void speak(line, { voice: o.kokoro ?? settings.voiceName ?? "af_heart", cloud: c });
+    void speak(line, { speed: (o.kokoro ?? settings.voiceName) === "af_bella" ? 1.0 : undefined, voice: o.kokoro ?? settings.voiceName ?? "af_heart", cloud: c });
   };
 
   const refreshCal = async () => {
@@ -181,7 +191,7 @@ export default function SettingsPanel({
   };
 
   const needsGoogleUpgrade =
-    calStatus.connected && (!calStatus.canCreateEvents || (FEATURES.gmailAlerts && !calStatus.gmail));
+    calStatus.connected && ((FEATURES.aiChat && !calStatus.canCreateEvents) || (FEATURES.gmailAlerts && !calStatus.gmail));
 
   const canConnect =
     calStatus.hasClient || (!!clientId.trim() && !!clientSecret.trim());
@@ -216,22 +226,26 @@ export default function SettingsPanel({
 
   const disconnectCalendar = async () => {
     setCalBusy(true);
-    await window.companion.calendarDisconnect?.();
-    setCalBusy(false);
-    setCalMsg("Disconnected");
-    await refreshCal();
+    try {
+      const result = await window.companion.calendarDisconnect?.();
+      setCalMsg(result?.ok ? "Disconnected" : "Could not remove the connection. Please retry.");
+      await refreshCal();
+    } catch {
+      setCalMsg("Could not remove the connection. Please retry.");
+    } finally { setCalBusy(false); }
   };
 
   const runClearChat = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (clearPhase !== "idle") return;
+    if (clearPhase === "clearing") return;
     setClearPhase("clearing");
     const started = Date.now();
     try {
       await onClearChat();
     } catch {
-      /* still show done; UI state is cleared in parent */
+      setClearPhase("error");
+      return;
     }
     const wait = Math.max(0, 700 - (Date.now() - started));
     if (wait) await new Promise((r) => setTimeout(r, wait));
@@ -241,11 +255,14 @@ export default function SettingsPanel({
 
   const weekQuiet = week.wellness === 0 && week.taskBonus === 0;
 
+  if (meditationForm && onScheduleMeditation) return <MeditationReminderForm onBack={() => setMeditationForm(false)} onSchedule={(due, recurring) => { onScheduleMeditation(due, recurring); setMeditationNote(recurring ? "Daily meditation reminder saved. Manage it in Tasks." : "Meditation reminder saved. Manage it in Tasks."); setMeditationForm(false); }} />;
+
   return (
     <Panel onMouseDown={(e) => e.stopPropagation()}>
       <PanelHeader title="Settings" onClose={onClose} />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+        {onOpenReminderTests && <Button variant="secondary" className="mb-3 w-full justify-start" onClick={onOpenReminderTests}><BellRingingIcon />Test reminders & jokes</Button>}
         <SectionLabel>Today</SectionLabel>
         <ListCard>
           <div className="flex flex-col gap-3 p-3">
@@ -315,20 +332,18 @@ export default function SettingsPanel({
               </HowRow>
               <HowRow icon={PersonSimpleTaiChiIcon} tone="bg-primary/12 text-primary" title="Gentle nudges">
                 {settings.breakMins > 0
-                  ? `I suggest a stretch after about ${settings.breakMins} minutes of work`
+                  ? `I suggest a movement break after about ${settings.breakMins} minutes of work`
                   : "Stretch nudges are off"}
                 {settings.waterNudge ? `, and a water break every ${settings.waterMins} minutes` : ""}. Never more than
                 four a day{settings.autoHideOnCalls ? ", and I hide while you're on a call" : ""}.
               </HowRow>
               <HowRow icon={BellRingingIcon} tone="bg-[#e8a04a]/16 text-warning" title="Reminders">
-                Type or say “call mom at 6” in Tasks{settings.chatOn ? " or in chat" : ""}, and I ring my little bell right on time
+                Type or dictate “call mom at 6” in Tasks. Check the time before saving. I can alert you while the app is running and your Mac is awake
                 {settings.calendarReminders ? ". Meetings too, from your calendar" : ""}.
               </HowRow>
-              <HowRow icon={ChatCircleDotsIcon} tone="bg-[#2f6fb3]/12 text-[#2f6fb3] dark:text-[#8db8ec]" title="Chat with me">
-                {settings.chatOn
-                  ? "Click me, then Chat. Vent, plan or ask anything. I remember little things you tell me, and you can see or delete them under “What I remember”."
-                  : "Chat is off, so nothing you type is sent anywhere. Switch it on under Privacy whenever you'd like to talk."}
-              </HowRow>
+              {FEATURES.aiChat && <HowRow icon={ChatCircleDotsIcon} tone="bg-[#2f6fb3]/12 text-[#2f6fb3] dark:text-[#8db8ec]" title="Chat with me">
+                Click me, then Chat. Vent, plan or ask anything. I use recent conversation to reply. Your task list, calendar and saved notes are not automatically shared.
+              </HowRow>}
               <HowRow icon={SmileyWinkIcon} tone="bg-[#f2a2bd]/22 text-[#c2416b] dark:text-[#f2a2bd]" title="Silly jokes">
                 {settings.jokeEvery === "off"
                   ? "Jokes are off. Switch them on below if you'd like a giggle."
@@ -423,14 +438,14 @@ export default function SettingsPanel({
           <Row label="Talk out loud" desc="Reminders, meetings, nudges and jokes">
             <Switch checked={settings.voiceOn} onCheckedChange={(v) => onPatch({ voiceOn: v })} aria-label="voice" />
           </Row>
-          <Row label="Read chat replies aloud" desc="You can also mute this from the chat">
+          {FEATURES.aiChat && <Row label="Read chat replies aloud" desc="You can also mute this from the chat">
             <Switch
               checked={settings.voiceOn && settings.voiceChat}
               disabled={!settings.voiceOn}
               onCheckedChange={(v) => onPatch({ voiceChat: v })}
               aria-label="read chat replies aloud"
             />
-          </Row>
+          </Row>}
           <Row label="How I sound">
             {cloud ? (
               <NativeSelect
@@ -460,8 +475,8 @@ export default function SettingsPanel({
                 aria-label="voice"
                 disabled={!settings.voiceOn}
               >
-                <NativeSelectOption value="af_heart">Warm</NativeSelectOption>
-                <NativeSelectOption value="af_bella">Bubbly</NativeSelectOption>
+                <NativeSelectOption value="af_heart">Warm original</NativeSelectOption>
+                <NativeSelectOption value="af_bella">Bubbly friend</NativeSelectOption>
                 <NativeSelectOption value="af_sky">Light</NativeSelectOption>
               </NativeSelect>
             )}
@@ -506,12 +521,12 @@ export default function SettingsPanel({
 
         <SectionLabel>How I care for you</SectionLabel>
         <ListCard>
-          <Row label="Stretch breaks" desc="I'll nudge you to move">
+          <Row label="Movement breaks" desc="A stretch, a short walk or a little movement">
             <NativeSelect
               size="sm"
               value={String(settings.breakMins)}
               onChange={(e) => onPatch({ breakMins: Number(e.target.value) })}
-              aria-label="stretch interval"
+              aria-label="movement interval"
             >
               <NativeSelectOption value="0">Never</NativeSelectOption>
               <NativeSelectOption value="30">Every 30 min</NativeSelectOption>
@@ -520,6 +535,12 @@ export default function SettingsPanel({
               <NativeSelectOption value="90">Every 90 min</NativeSelectOption>
             </NativeSelect>
           </Row>
+          <Row label="Movement style">
+            <NativeSelect size="sm" aria-label="movement style" value={settings.movementStyle || "mixed"} onChange={e => onPatch({ movementStyle: e.target.value as Settings["movementStyle"] })}>
+              <NativeSelectOption value="mixed">Mix it up</NativeSelectOption><NativeSelectOption value="stretch">Stretch</NativeSelectOption><NativeSelectOption value="walk">Walk or move</NativeSelectOption>
+            </NativeSelect>
+          </Row>
+          {onScheduleMeditation && <Row label="Meditation reminder" desc={meditationNote || "Make room for a quiet moment"}><Button size="sm" variant="secondary" onClick={() => setMeditationForm(true)}>Set reminder</Button></Row>}
           <Row label="Water breaks" desc="I'll remind you to sip">
             <NativeSelect
               size="sm"
@@ -590,7 +611,7 @@ export default function SettingsPanel({
                   <span className="font-medium text-success">Connected</span>
                 )
               ) : (
-                FEATURES.gmailAlerts ? "Meeting pings, booking and new-email alerts" : "Meeting pings and booking"
+                FEATURES.gmailAlerts ? "Meeting pings, booking and new-email alerts" : FEATURES.aiChat ? "Meeting pings and booking" : "Upcoming events and meeting alerts"
               )
             }
           >
@@ -626,7 +647,7 @@ export default function SettingsPanel({
                   />
                 </>
               ) : (
-                <p className="text-xs text-muted-foreground">Keys saved. Connect to sign in with Google.</p>
+                <p className="text-xs text-muted-foreground">Connect to choose your Google account.</p>
               )}
               <Button disabled={calBusy || !canConnect} onClick={() => void connectCalendar()}>
                 {calBusy && <Spinner />}
@@ -674,13 +695,14 @@ export default function SettingsPanel({
             : "Meeting titles stay in memory for a moment. They're never saved and never sent to the AI."}
         </Note>
 
-        <SectionLabel>What I remember</SectionLabel>
+        {(FEATURES.aiChat || facts.length > 0) && <>
+        <SectionLabel>{FEATURES.aiChat ? "What I remember" : "Notes from an earlier version"}</SectionLabel>
         <Collapsible>
           <ListCard>
             <CollapsibleTrigger className="group w-full text-left hover:bg-muted/40" disabled={facts.length === 0}>
               <Row
                 label="Memories of you"
-                desc={facts.length === 0 ? "Nothing yet. Talk to me more." : `${facts.length} little things`}
+                desc={facts.length === 0 ? "No saved notes on this Mac" : `${facts.length} notes, kept on this Mac`}
               >
                 {facts.length > 0 && (
                   <CaretDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
@@ -707,6 +729,9 @@ export default function SettingsPanel({
           </ListCard>
         </Collapsible>
 
+        <Note>Saved notes are not automatically shared with AI. Forgetting a note does not remove it from earlier chat messages; delete chat history separately.</Note>
+        </>}
+
         <SectionLabel>App</SectionLabel>
         <ListCard>
           <Row label="Wake up with your Mac">
@@ -719,8 +744,8 @@ export default function SettingsPanel({
               aria-label="start at login"
             />
           </Row>
-          {!showKeyRow ? null : !confirmKey ? (
-            <Row label="My brain key" desc={`Your ${aiName === "Claude" ? "Claude" : "OpenAI"} API key`}>
+          {!FEATURES.aiChat || !showKeyRow ? null : !confirmKey ? (
+            <Row label="My brain key" desc="Your OpenAI API key">
               <Button variant="secondary" size="sm" onClick={() => setConfirmKey(true)}>
                 Change key
               </Button>
@@ -741,51 +766,51 @@ export default function SettingsPanel({
 
         <SectionLabel>Privacy</SectionLabel>
         <ListCard>
-          <Row
-            label="Chat with AI"
-            desc={settings.chatOn ? `Your messages go to ${aiName} so I can reply` : "Off. Nothing you type is sent anywhere"}
-          >
-            <Switch
-              checked={settings.chatOn}
-              onCheckedChange={(v) => onPatch({ chatOn: v })}
-              aria-label="chat with AI"
-            />
-          </Row>
-          <Row label="Chat history" desc="Deletes our messages. Memories stay.">
+          {FEATURES.aiChat ? <Row label="Chat privacy" desc={`When you send, recent chat (up to 16 messages, including your new message) goes to ${aiName}, through our beta server. The provider may retain it. Tasks and saved notes are not added.`} /> : <Row label="On your Mac" desc="Tasks, reminders and settings are saved here. This beta has no AI chat. Voice typing and speaking run on your Mac." />}
+          {(FEATURES.aiChat || hasChatHistory) && <Row label={FEATURES.aiChat ? "Chat history" : "Earlier chat history"} desc="Deletes messages and summaries on this Mac. Saved notes stay.">
             {clearPhase === "idle" && (
               <Button variant="secondary" size="sm" onClick={runClearChat}>
                 Delete
               </Button>
             )}
+            {clearPhase === "error" && <Button size="sm" variant="secondary" onClick={runClearChat}>Retry delete</Button>}
             {clearPhase === "clearing" && <Spinner className="mx-3 text-muted-foreground" />}
             {clearPhase === "done" && (
               <Badge variant="secondary" className="bg-success-soft text-success">
                 Deleted
               </Badge>
             )}
-          </Row>
+          </Row>}
           {!confirmDelete ? (
-            <Row label="Everything" desc="Tasks, chats, memories, settings">
+            <Row label="Everything" desc="Local app data, personal keys and Google connection">
               <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(true)}>
                 Delete all
               </Button>
             </Row>
           ) : (
             <Confirm
-              text="This wipes everything I know and starts us fresh. There's no undo."
+              text="Deletes tasks, chats, saved notes, settings and personal keys from this Mac, disconnects Google and turns off start at login. Provider records and your Google Calendar are not deleted. There is no undo."
               cancel="No, wait"
               confirm="Forget everything"
               destructive
-              onCancel={() => setConfirmDelete(false)}
-              onConfirm={onDeleteAll}
+              onCancel={() => { setConfirmDelete(false); setDeleteError(false); }}
+              onConfirm={() => {
+                setDeleteError(false);
+                void Promise.resolve().then(onDeleteAll).catch(() => setDeleteError(true));
+              }}
             />
           )}
         </ListCard>
+        {deleteError && <p role="alert" className="px-1 pt-2 text-xs text-destructive">Could not remove all local data. Please try again.</p>}
+        {clearPhase === "error" && <p role="alert" className="px-1 pt-2 text-xs text-destructive">Could not save the deletion. Please retry.</p>}
+        {FEATURES.aiChat ? <>
         <Note>
-          Everything lives on this computer. With chat on, your messages and the little things I remember go to{" "}
-          {aiName === "Claude" ? "Claude (Anthropic's AI)" : "ChatGPT (OpenAI's AI)"} only to write a reply. They're not used to train AI and are deleted within 30
-          days. With chat off, nothing you type leaves this Mac. Your voice never leaves at all.
+          Chat is part of your plant. Only messages you send start an AI request; typing a draft does not. Deleting chat history stops the current reply, but cannot recall information already sent. Tasks, saved notes and fetched calendar events are not automatically shared. If you type those details in chat, they are sent as part of that conversation.
         </Note>
+        <Note>
+          Chat uses recent messages and local time to reply and set reminders. The beta relays it through our server without logging conversation content; a daily device counter limits use. Research can send search terms to search services. The AI provider may retain data under its policies. Deleting local data does not delete provider records. Voice recognition and speaking run on your Mac.
+        </Note>
+        </> : <Note>Google Calendar is optional. Connecting it contacts Google to fetch upcoming events for alerts. Event details stay in memory and are not saved by this app. Disconnect in Google Calendar above. No AI chat or cloud voice requests run in this beta.</Note>}
 
         <p className="pt-4 text-center text-[11px] text-muted-foreground/70">Companion 0.1.0 beta</p>
       </div>

@@ -438,15 +438,15 @@ test("seen set capped", async () => {
   w.stop();
 });
 
-test("gmail-set-enabled + stopPolling wiring", async () => {
+test("disabled Gmail stays off + disconnect wiring", async () => {
   const g = cal._internals.gmail;
   writeTokens(fresh(FULL));
   let r = await handlers["gmail-set-enabled"](null, true);
-  assert.deepStrictEqual(r, { ok: true, enabled: true, active: true });
+  assert.deepStrictEqual(r, { ok: true, enabled: true, active: false });
   cal.stopPolling(); // what main.cjs data-reset calls
   assert.strictEqual(g.isRunning(), false);
   r = await handlers["gmail-set-enabled"](null, { enabled: true });
-  assert.strictEqual(r.active, true);
+  assert.strictEqual(r.active, false);
   r = await handlers["gmail-set-enabled"](null, false);
   assert.deepStrictEqual(r, { ok: true, enabled: false, active: false });
   // enabled but no gmail scope (legacy grant) → stays off
@@ -456,7 +456,7 @@ test("gmail-set-enabled + stopPolling wiring", async () => {
   // disconnect stops it and wipes tokens
   writeTokens(fresh(FULL));
   await handlers["gmail-set-enabled"](null, true);
-  assert.strictEqual(g.isRunning(), true);
+  assert.strictEqual(g.isRunning(), false);
   await handlers["calendar-disconnect"]();
   assert.strictEqual(g.isRunning(), false);
   assert.strictEqual(fs.existsSync(tokenPath), false);

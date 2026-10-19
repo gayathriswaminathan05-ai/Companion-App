@@ -25,6 +25,7 @@ export interface Reminder {
 
 export interface Settings {
   soundsOn: boolean;
+  movementStyle: "mixed" | "stretch" | "walk";
   breakMins: number; // stretch nudge interval; 0 = off
   bedtime: string | null; // "HH:MM" 24h, null = off
   waterNudge: boolean; // off by default
@@ -35,7 +36,7 @@ export interface Settings {
   autoHideOnCalls: boolean;
   plantScale: number; // visual size of the plant (0.6–1.2); default 1
   panelScale: number; // chat/tasks/settings height+width (0.85–1.45); default 1
-  /** Meeting pings from Google Calendar (events never saved to disk / never sent to Claude). */
+  /** Meeting pings from Google Calendar (events never saved to disk / never sent to the AI). */
   calendarReminders: boolean;
   /** Minutes before a meeting to nudge (5–60). */
   calendarLeadMins: number;
@@ -44,8 +45,8 @@ export interface Settings {
   matchBackdrop: boolean;
   /** Bubble when new Primary-inbox Gmail arrives (sender + subject in RAM only). */
   gmailAlerts: boolean;
-  /** AI chat on/off. Off = nothing typed is ever sent anywhere (owner: 100% sure). */
-  chatOn: boolean;
+  /** Version of the sharing explanation the user explicitly accepted. */
+  chatConsentVersion: number;
   /** On-device voice (Kokoro): speak reminders, nudges, jokes, mail. */
   voiceOn: boolean;
   /** Also read chat replies aloud (mute button in the chat header). */
@@ -93,6 +94,7 @@ export interface AppData {
 export const defaultSettings = (): Settings => ({
   soundsOn: true,
   breakMins: 60,
+  movementStyle: "mixed",
   bedtime: "23:00",
   waterNudge: false,
   waterMins: 120,
@@ -106,7 +108,7 @@ export const defaultSettings = (): Settings => ({
   calendarLeadMins: 10,
   matchBackdrop: false,
   gmailAlerts: false,
-  chatOn: true,
+  chatConsentVersion: 0,
   welcomed: false,
   voiceOn: true,
   voiceChat: true,
@@ -156,6 +158,9 @@ export async function loadData(): Promise<AppData> {
   if (!Array.isArray(data.todos)) data.todos = [];
   if (!Array.isArray(data.reminders)) data.reminders = [];
   data.settings = { ...defaultSettings(), ...(data.settings ?? {}) };
+  // Legacy chat switches are retired; existing users see the sharing notice once.
+  delete (data.settings as Settings & { chatOn?: boolean }).chatOn;
+  if (data.settings.chatConsentVersion !== 1) data.settings.chatConsentVersion = 0;
   // Clamp plant size in case older/corrupt data has a wild value.
   const s = Number(data.settings.plantScale);
   data.settings.plantScale = Number.isFinite(s) ? Math.min(1.2, Math.max(0.6, s)) : 1;

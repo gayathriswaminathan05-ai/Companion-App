@@ -1,110 +1,67 @@
-# Companion chat proxy
+# Companion chat server
 
-A tiny "middleman" that runs on Cloudflare (free). Beta testers' apps send chat
-messages here. It adds your AI key and passes the chat on to ChatGPT (OpenAI)
-or Claude (Anthropic), whichever the app build uses.
-**Your key only ever lives on Cloudflare. It is never inside the app.**
+The app uses **OpenAI only**. Beta chat goes to this Cloudflare Worker, which
+adds the OpenAI API key and streams the reply back. The provider key belongs in
+Cloudflare secrets, never inside the installer or GitHub.
 
-It also:
-- only lets in requests from the Companion app (a shared app password),
-- only allows the models you list,
-- caps how long a reply can be,
-- limits each device to a number of chats per day (60 by default),
-- never logs or saves what anyone says. It only keeps one number per device per
-  day (how many chats they've sent), and deletes it after 2 days.
+## Current privacy boundary
 
-## One-time setup (about 10 minutes)
+Before the first chat, the app explains sharing. Only sending a message starts
+an AI request. Up to16 recent conversation messages and local time are sent;
+task lists, profile names, growth, saved notes and fetched calendar events are
+not automatically added. All speech is local in this beta.
 
-You type each command in **Terminal**, then press Enter. If Terminal asks
-"Need to install the following packages... Ok to proceed?", type `y` and press Enter.
+The Worker does not log message contents. It keeps device usage counters with
+about a two-day expiry. Provider/hosting retention is separate. OpenAI saved
+Responses retrieval is disabled with `store: false`; this is not Zero Data
+Retention. See `../site/privacy.html` and the release checklist.
 
-1. **Create a free Cloudflare account** at https://dash.cloudflare.com/sign-up
-   and confirm your email.
+A shared app token is not individual user authentication. Existing device
+counters can fail open and undercount simultaneous requests; they are not a
+reliable total spending ceiling. Stronger access/cost controls and live account
+verification remain beta launch blockers.
 
-2. **Go to this folder in Terminal:**
-   ```
-   cd ~/Desktop/"Companion app"/proxy
-   ```
+## Routes
 
-3. **Log in to Cloudflare:**
-   ```
-   npx wrangler login
-   ```
-   A browser page opens. Click **Allow**, then come back to Terminal.
+- `GET /health`: service health.
+- `POST /v1/responses`: OpenAI chat, with only web search allowed as a tool.
+- The retired `/v1/messages` chat route returns 404. No fallback provider exists.
+- `POST /v1/tts`: legacy Google speech route, not used by the current app.
 
-4. **Create the chat counter storage:**
-   ```
-   npx wrangler kv namespace create RATE
-   ```
-   It prints a line like `id = "a1b2c3..."`. If it asks whether to add it to
-   your config for you, type `y`. Otherwise open `wrangler.toml` in this folder,
-   replace `REPLACE_ME` with that id (keep the quote marks), and save.
+## Configuration and controlled rollout
 
-5. **Save your Claude API key on Cloudflare:**
-   ```
-   npx wrangler secret put ANTHROPIC_API_KEY
-   ```
-   Paste your key (from https://console.anthropic.com → API Keys) and press
-   Enter. Nothing shows while you paste. That's normal. If it asks to create
-   a Worker called `companion-proxy`, type `y`.
+Run commands from `proxy/`. Deployments and spending require Gayathri's approval.
 
-6. **Save the app password.** First make a random one:
-   ```
-   openssl rand -hex 24
-   ```
-   Copy what it prints, then run:
-   ```
-   npx wrangler secret put APP_TOKEN
-   ```
-   and paste it. **Give this same password to Claude** so it can go into the app.
+1. Sign in to Cloudflare using `npx wrangler login` if needed.
+2. Configure the `RATE` KV binding in `wrangler.toml`.
+3. Gayathri enters her key privately with `npx wrangler secret put OPENAI_API_KEY`.
+4. Set `APP_TOKEN` as a Worker secret, and use the same token in the gitignored
+   `electron/beta-config.json`. Never paste secret values into chat or GitHub.
+5. Build configuration contains `proxyUrl` and `appToken`; the app always uses
+   OpenAI. Any old provider selector is ignored.
+6. Run the offline tests with `npm test`.
+7. Only after approval, run `npx wrangler deploy` and verify the actual installed
+   app against the live server. Tests with simulated responses are not proof of
+   a successful real OpenAI request.
 
-7. **Put the proxy online:**
-   ```
-   npx wrangler deploy
-   ```
-   If it asks you to pick a `workers.dev` subdomain, choose any name. At the end
-   it prints your address, like `https://companion-proxy.yourname.workers.dev`.
-   **Give that address to Claude.**
+`OPENAI_ALLOWED_MODELS` lists permitted models; `OPENAI_OUTPUT_CAP` caps reply
+and reasoning tokens. `DAILY_LIMIT=0` pauses server-backed chat after deployment.
+Daily counters use UTC dates. Changing local settings alone does not update the
+live service. Budget alerts alone do not enforce a spending cutoff.
 
-8. **Check that it works:** open `https://companion-proxy.yourname.workers.dev/health`
-   (with your address) in a browser. You should see `{"ok":true}`.
+## Key removal
 
-9. **Strongly recommended:** in https://console.anthropic.com go to
-   **Settings → Limits** and set a monthly spend limit. The daily chat limit
-   protects you from normal overuse. The spend limit is your real safety net.
+Delete an obsolete Worker secret with `npx wrangler secret delete SECRET_NAME`,
+only when the owner has authorized that specific deletion. This changes the live
+Worker's secret binding. Removing a secret is not the same as revoking the key
+at its provider. Do not revoke company credentials used by other projects.
 
-## Everyday changes
+Personal development keys are stored in the app's private data folder; only
+OpenAI keys are accepted. No environment fallback to another provider exists.
 
-**Change the daily chat limit:** open `wrangler.toml`, change the number in
-`DAILY_LIMIT = "60"`, save, then run `npx wrangler deploy`. Setting it to `"0"`
-pauses chat for everyone (an emergency off switch). Limits reset at midnight
-UTC (5:30 AM in India).
+## Tests
 
-**Allow a different model / longer replies:** edit `ALLOWED_MODELS` or
-`MAX_TOKENS_CAP` in `wrangler.toml` the same way, then `npx wrangler deploy`.
-
-**Use ChatGPT (your own OpenAI account):**
-1. At https://platform.openai.com sign in, add a card under Billing, then
-   API keys → Create new secret key. (A ChatGPT Plus plan doesn't include this.)
-2. Run `npx wrangler secret put OPENAI_API_KEY` and paste the key.
-3. Run `npx wrangler deploy` (only needed once, to load the ChatGPT route).
-4. Tell Claude: the next app build then talks to ChatGPT. Replies are never
-   stored at OpenAI (the proxy forces `store: false`) and only web search is
-   allowed as a tool. Models: `OPENAI_ALLOWED_MODELS` in `wrangler.toml`.
-
-**Replace your Claude API key** (if it leaks, or just to be safe):
-1. Make a new key at https://console.anthropic.com → API Keys.
-2. Run `npx wrangler secret put ANTHROPIC_API_KEY` and paste the new key.
-   It takes effect straight away. Testers don't need to update anything.
-3. Delete the old key in the Anthropic console.
-
-**Change the app password (`APP_TOKEN`):** only do this together with an app
-update, because old copies of the app will stop being able to chat.
-
-## Good to know
-
-- The free Cloudflare plan allows about 1,000 counter updates a day, which is
-  about 1,000 chat messages a day across all testers. If you go over, chat
-  keeps working, but the daily limits stop being counted until the next day.
-  The $5/month Workers plan removes this limit.
-- To run the automatic tests (no account needed): `npm test` in this folder.
+`npm test` runs31 offline tests: authentication, models/tools, retention settings,
+limits, headers, errors, streaming/citations, real OpenAI SDK compatibility with
+simulated replies, rejection of the retired route, and legacy speech-route
+checks. No paid API requests are made.

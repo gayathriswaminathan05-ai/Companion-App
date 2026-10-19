@@ -1,12 +1,12 @@
 // Personality check for the chat brain: runs ~20 everyday chats through the
-// SAME request the app sends (electron/main.cjs chatOpenAI / chatClaude) and
+// SAME request the app sends (electron/main.cjs chatOpenAI) and
 // checks what matters: short replies, the loud-friend voice, no bot phrases,
 // and the hidden <task>/<complete>/<remember>/<meeting> tags that make
 // reminders and memories actually work.
 //
 // usage: node scripts/chat-eval.mjs [only-these-ids...]
-//   key:      userData/brain.key (sk-ant-… = Claude, else OpenAI) or
-//             OPENAI_API_KEY / ANTHROPIC_API_KEY in the environment
+//   key:      userData/brain.key (OpenAI only) or
+//             OPENAI_API_KEY in the environment
 //   MODEL=gpt-6-luna   try another model
 //   OUT=<file>         report path (default: chat-eval-<model>.md in cwd)
 // The key is never printed. Costs a few cents per run (plus web searches).
@@ -37,48 +37,36 @@ const { buildSystem, buildMessages, extractOutputs, emptyData } = await import(p
 function readKey() {
   try {
     const k = fs.readFileSync(path.join(os.homedir(), "Library/Application Support/companion-app/brain.key"), "utf8").trim();
-    if (k) return k;
+    if (k && !k.startsWith("sk-ant-")) return k;
   } catch {}
-  return process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || "";
+  return process.env.OPENAI_API_KEY || "";
 }
-const key = readKey();
+const candidate = readKey();
+const key = candidate.startsWith("sk-ant-") ? "" : candidate;
 if (!key && !process.env.DRY) {
   console.error("No key found (paste one in the app, or set OPENAI_API_KEY).");
   process.exit(1);
 }
-const provider = key.startsWith("sk-ant-") ? "anthropic" : "openai";
-const MODEL = process.env.MODEL || (provider === "openai" ? "gpt-6.1-sol" : "claude-sonnet-5");
+const provider = "openai";
+const MODEL = process.env.MODEL || "gpt-6.1-sol";
 
 // --- one chat turn, exactly like the app ---
 async function ask(system, messages) {
-  if (provider === "openai") {
-    const OpenAI = require("openai").default;
-    const client = new OpenAI({ apiKey: key });
-    // keep in sync with chatOpenAI in electron/main.cjs
-    const res = await client.responses.create({
-      model: MODEL,
-      instructions: system.map((b) => b.text).join("\n\n"),
-      input: messages.map((m) => ({ role: m.role, content: m.content })),
-      tools: [{ type: "web_search", user_location: { type: "approximate", country: "IN", timezone: "Asia/Kolkata" } }],
-      reasoning: { effort: "low" },
-      max_output_tokens: 4096,
-      store: false,
-      prompt_cache_key: "companion-chat",
-    });
-    const searches = (res.output || []).filter((o) => o.type === "web_search_call").length;
-    return { text: res.output_text || "", searches, usage: res.usage };
-  }
-  const Anthropic = require("@anthropic-ai/sdk");
-  const client = new Anthropic({ apiKey: key });
-  const res = await client.messages.create({
+  const OpenAI = require("openai").default;
+  const client = new OpenAI({ apiKey: key });
+  // keep in sync with chatOpenAI in electron/main.cjs
+  const res = await client.responses.create({
     model: MODEL,
-    max_tokens: 2048,
-    system,
-    messages,
-    tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8, allowed_callers: ["direct"] }],
+    instructions: system.map((b) => b.text).join("\n\n"),
+    input: messages.map((m) => ({ role: m.role, content: m.content })),
+    tools: [{ type: "web_search" }],
+    reasoning: { effort: "low" },
+    max_output_tokens: 4096,
+    store: false,
+    prompt_cache_key: "companion-chat",
   });
-  const text = res.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-  return { text, searches: res.usage?.server_tool_use?.web_search_requests || 0, usage: res.usage };
+  const searches = (res.output || []).filter((o) => o.type === "web_search_call").length;
+  return { text: res.output_text || "", searches, usage: res.usage };
 }
 
 // --- the chats ---
@@ -102,9 +90,9 @@ const CASES = [
   { id: "remind-tomorrow", say: "add 'send invoice to Meera' for tomorrow 10am", expect: { task: { due: D(10, 0, 1) } } },
   { id: "task-no-time", say: "add buy dog food to my list", expect: { task: { noDue: true } } },
   { id: "ambiguous", say: "remind me to pay rent later", expect: { askInsteadOfTask: true } },
-  { id: "complete", open: ["finish the quarterly report"], say: "done with the quarterly report finally!!", expect: { complete: "quarterly report" } },
-  { id: "remember", say: "my sister priya is getting married in december, i'm so excited", expect: { remember: /priya/i } },
-  { id: "follow-up", facts: ["exam on Friday (organic chemistry)"], say: "hiii what's up", expect: { short: true, mentions: /exam|chem/i } },
+  { id: "complete", open: ["finish the quarterly report"], say: "mark finish the quarterly report as done please!!", expect: { complete: "quarterly report" } },
+  { id: "remember", say: "remember that my sister priya is getting married in december", expect: { remember: /priya/i } },
+  { id: "follow-up", history: ["I have an organic chemistry exam on Friday", "Friday exam, got it! What part are you working on?"], say: "hiii what's up", expect: { short: true, mentions: /exam|chem/i } },
   {
     id: "meeting",
     canBook: true,
@@ -177,7 +165,7 @@ for (const c of CASES) {
   data.settings.companionName = "Blob";
   for (const t of c.open || []) data.todos.push({ id: t, text: t, done: false, createdAt: new Date().toISOString() });
   data.chat.facts = c.facts || [];
-  data.chat.messages = [{ role: "user", text: c.say, at: new Date().toISOString() }];
+  data.chat.messages = [...(c.history || []).map((text,i)=>({role:i%2 ? "assistant" : "user",text,at:new Date().toISOString()})), { role: "user", text: c.say, at: new Date().toISOString() }];
   const system = buildSystem(data, { canBookMeetings: !!c.canBook });
   let reply = "";
   let searches = 0;

@@ -1,7 +1,7 @@
 // Unit tests for the Companion proxy. Run from proxy/: `npm test`
 // (or `node --test test/worker.test.mjs`). No network, no Cloudflare account:
 // the Worker is called directly with a fake env, a Map-backed fake KV, and a
-// stubbed global fetch standing in for api.anthropic.com.
+// stubbed global fetch standing in for api.openai.com.
 
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -10,7 +10,7 @@ import worker from "../worker.js";
 
 const DEVICE = "3f1c2b9a-6d4e-4f7a-9b2c-1e5d8a7c6b40";
 const APP_TOKEN = "test-app-token-0123456789";
-const SECRET_KEY = "sk-ant-test-SECRET";
+const SECRET_KEY = "sk-proj-test-SECRET";
 const BASE = "https://companion-proxy.example.workers.dev";
 const today = () => new Date().toISOString().slice(0, 10);
 const counterKey = (device = DEVICE) => `d:${device}:${today()}`;
@@ -35,10 +35,10 @@ function fakeKV() {
 
 function fakeEnv(overrides = {}) {
   return {
-    ANTHROPIC_API_KEY: SECRET_KEY,
+    OPENAI_API_KEY: SECRET_KEY,
     APP_TOKEN,
-    ALLOWED_MODELS: "claude-sonnet-5,claude-haiku-5-5",
-    MAX_TOKENS_CAP: "2048",
+    OPENAI_ALLOWED_MODELS: "gpt-6.1-sol,gpt-6-luna",
+    OPENAI_OUTPUT_CAP: "4096",
     DAILY_LIMIT: "60",
     RATE: fakeKV(),
     ...overrides,
@@ -57,7 +57,7 @@ function fakeCtx() {
   };
 }
 
-// Stub for api.anthropic.com: records calls, replies from a queue (or a default).
+// Stub for api.openai.com: records calls, replies from a queue (or a default).
 const realFetch = globalThis.fetch;
 let upstreamCalls;
 let upstreamQueue;
@@ -79,18 +79,7 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
-function okMessage(stop_reason = "end_turn") {
-  return {
-    id: "msg_test",
-    type: "message",
-    role: "assistant",
-    model: "claude-sonnet-5",
-    content: [{ type: "text", text: "Hi bestie!" }],
-    stop_reason,
-    stop_sequence: null,
-    usage: { input_tokens: 10, output_tokens: 4 },
-  };
-}
+function okMessage() { return { id: "resp_test", object: "response", status: "completed", output: [] }; }
 
 function jsonUpstream(status, obj, extra = {}) {
   return new Response(JSON.stringify(obj), {
@@ -99,64 +88,13 @@ function jsonUpstream(status, obj, extra = {}) {
   });
 }
 
-function sseText(text, stop_reason = "end_turn") {
-  const ev = (type, data) => `event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`;
-  return (
-    ev("message_start", {
-      message: {
-        id: "msg_sse",
-        type: "message",
-        role: "assistant",
-        model: "claude-sonnet-5",
-        content: [],
-        stop_reason: null,
-        stop_sequence: null,
-        usage: { input_tokens: 10, output_tokens: 1 },
-      },
-    }) +
-    ev("content_block_start", { index: 0, content_block: { type: "text", text: "" } }) +
-    ev("content_block_delta", { index: 0, delta: { type: "text_delta", text: text.slice(0, 3) } }) +
-    ev("content_block_delta", { index: 0, delta: { type: "text_delta", text: text.slice(3) } }) +
-    ev("content_block_stop", { index: 0 }) +
-    ev("message_delta", { delta: { stop_reason, stop_sequence: null }, usage: { output_tokens: 5 } }) +
-    ev("message_stop", {})
-  );
-}
-
-// Upstream SSE response delivered in awkward chunk sizes.
-function sseUpstream(text, stop_reason) {
-  const bytes = new TextEncoder().encode(sseText(text, stop_reason));
-  const stream = new ReadableStream({
-    start(controller) {
-      for (let i = 0; i < bytes.length; i += 37) controller.enqueue(bytes.slice(i, i + 37));
-      controller.close();
-    },
-  });
-  return new Response(stream, {
-    status: 200,
-    headers: { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache", "request-id": "req_sse" },
-  });
-}
-
-// ---------- helpers ----------
-
 const userTurn = (text = "hello") => ({
-  model: "claude-sonnet-5",
-  max_tokens: 1024,
-  system: [{ type: "text", text: "You are Blob.", cache_control: { type: "ephemeral" } }],
-  messages: [{ role: "user", content: text }],
-  tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8 }],
+  model: "gpt-6.1-sol", instructions: "You are Blob.",
+  input: [{role:"user",content:text}], tools:[{type:"web_search"}],
+  max_output_tokens: 1024, store:false,
 });
 
-const continuation = () => ({
-  ...userTurn(),
-  messages: [
-    { role: "user", content: "research cozy cafes" },
-    { role: "assistant", content: [{ type: "text", text: "Searching..." }] },
-  ],
-});
-
-function call(body, { env, ctx, headers = {}, method = "POST", path = "/v1/messages" } = {}) {
+function call(body, { env, ctx, headers = {}, method = "POST", path = "/v1/responses" } = {}) {
   const h = {
     "content-type": "application/json",
     "x-api-key": "unused",
@@ -194,7 +132,7 @@ test("unknown path is 404 and wrong method is 405", async () => {
 });
 
 test("missing secrets -> 500 proxy_not_configured, nothing forwarded", async () => {
-  const res = await call(userTurn(), { env: fakeEnv({ ANTHROPIC_API_KEY: undefined }) });
+  const res = await call(userTurn(), { env: fakeEnv({ OPENAI_API_KEY: undefined }) });
   assert.equal(res.status, 500);
   assert.equal((await errorBody(res)).message, "proxy_not_configured");
   assert.equal(upstreamCalls.length, 0);
@@ -238,14 +176,14 @@ test("invalid JSON body -> 400", async () => {
 
 test("model not on allow-list -> 400", async () => {
   const env = fakeEnv();
-  for (const model of ["claude-opus-5-5", "claude-fable-5-1", undefined, 42]) {
+  for (const model of ["claude-sonnet-5", "gpt-6-astra", undefined, 42]) {
     const res = await call({ ...userTurn(), model }, { env });
     assert.equal(res.status, 400, `model ${model}`);
     assert.deepEqual(await errorBody(res), { type: "invalid_request_error", message: "model_not_allowed" });
   }
   assert.equal(upstreamCalls.length, 0);
   // Allowed models go through.
-  assert.equal((await call({ ...userTurn(), model: "claude-haiku-5-5" }, { env })).status, 200);
+  assert.equal((await call({ ...userTurn(), model: "gpt-6-luna" }, { env })).status, 200);
 });
 
 test("forwarding: secret key added, client credentials and companion headers stripped", async () => {
@@ -256,34 +194,34 @@ test("forwarding: secret key added, client credentials and companion headers str
   assert.equal(res.status, 200);
   assert.equal(upstreamCalls.length, 1);
   const up = upstreamCalls[0];
-  assert.equal(up.url, "https://api.anthropic.com/v1/messages");
+  assert.equal(up.url, "https://api.openai.com/v1/responses");
   assert.equal(up.method, "POST");
-  assert.equal(up.headers.get("x-api-key"), SECRET_KEY);
-  assert.equal(up.headers.get("anthropic-version"), "2023-06-01");
-  assert.equal(up.headers.get("anthropic-beta"), "some-beta-2026-01-01");
+  assert.equal(up.headers.get("x-api-key"), null);
+  assert.equal(up.headers.get("anthropic-version"), null);
+  assert.equal(up.headers.get("anthropic-beta"), null);
   assert.equal(up.headers.get("content-type"), "application/json");
-  assert.equal(up.headers.get("authorization"), null);
+  assert.equal(up.headers.get("authorization"), `Bearer ${SECRET_KEY}`);
   assert.equal(up.headers.get("x-companion-app"), null);
   assert.equal(up.headers.get("x-companion-device"), null);
   // Body passes through unchanged when no clamping is needed.
   assert.deepEqual(JSON.parse(up.body), userTurn());
 });
 
-test("max_tokens above the cap is clamped; everything else untouched", async () => {
+test("max_output_tokens above the cap is clamped; everything else untouched", async () => {
   const env = fakeEnv();
-  await call({ ...userTurn(), max_tokens: 64000 }, { env });
+  await call({ ...userTurn(), max_output_tokens: 64000 }, { env });
   const sent = JSON.parse(upstreamCalls[0].body);
-  assert.equal(sent.max_tokens, 2048);
-  assert.deepEqual({ ...sent, max_tokens: 1024 }, userTurn());
+  assert.equal(sent.max_output_tokens, 4096);
+  assert.deepEqual({ ...sent, max_output_tokens: 1024 }, userTurn());
 
-  await call({ ...userTurn(), max_tokens: 300 }, { env });
-  assert.equal(JSON.parse(upstreamCalls[1].body).max_tokens, 300);
+  await call({ ...userTurn(), max_output_tokens: 300 }, { env });
+  assert.equal(JSON.parse(upstreamCalls[1].body).max_output_tokens, 300);
 
-  await call({ ...userTurn(), max_tokens: 5000 }, { env: fakeEnv({ MAX_TOKENS_CAP: "4096" }) });
-  assert.equal(JSON.parse(upstreamCalls[2].body).max_tokens, 4096);
+  await call({ ...userTurn(), max_output_tokens: 5000 }, { env: fakeEnv({ OPENAI_OUTPUT_CAP: "4096" }) });
+  assert.equal(JSON.parse(upstreamCalls[2].body).max_output_tokens, 4096);
 });
 
-test("daily limit: user turns count, assistant-ending continuations do not", async () => {
+test("daily limit: user turns count and blocked turns never reach the provider", async () => {
   const env = fakeEnv({ DAILY_LIMIT: "2" });
   const ctx = fakeCtx();
   const count = async () => {
@@ -293,9 +231,6 @@ test("daily limit: user turns count, assistant-ending continuations do not", asy
 
   assert.equal((await call(userTurn(), { env, ctx })).status, 200);
   assert.equal(await count(), "1");
-
-  assert.equal((await call(continuation(), { env, ctx })).status, 200);
-  assert.equal(await count(), "1", "pause_turn continuation must not count");
 
   assert.equal((await call(userTurn(), { env, ctx })).status, 200);
   assert.equal(await count(), "2");
@@ -308,11 +243,8 @@ test("daily limit: user turns count, assistant-ending continuations do not", asy
     type: "error",
     error: { type: "rate_limit_error", message: "daily_limit" },
   });
-  assert.equal(upstreamCalls.length, callsBefore, "blocked turn must not reach Anthropic");
+  assert.equal(upstreamCalls.length, callsBefore, "blocked turn must not reach OpenAI");
   assert.equal(await count(), "2");
-
-  // A continuation of an answer already in progress still finishes.
-  assert.equal((await call(continuation(), { env, ctx })).status, 200);
 
   // Counter key format + TTL; only numbers are ever stored.
   for (const p of env.RATE.puts) {
@@ -351,23 +283,23 @@ test("failed upstream requests do not use up the daily allowance", async () => {
 });
 
 test("streaming: SSE body, status and content-type pass through unchanged", async () => {
-  upstreamQueue.push(() => sseUpstream("Hello friend!"));
+  upstreamQueue.push(() => responsesSse(["Hello friend!"]));
   const res = await call({ ...userTurn(), stream: true }, { env: fakeEnv() });
   assert.equal(res.status, 200);
   assert.equal(res.headers.get("content-type"), "text/event-stream; charset=utf-8");
-  assert.equal(res.headers.get("request-id"), "req_sse");
-  assert.equal(await res.text(), sseText("Hello friend!"));
+  assert.equal(res.headers.get("x-request-id"), "req_oa");
+  assert.equal(await res.text(), await responsesSse(["Hello friend!"]).text());
   assert.equal(JSON.parse(upstreamCalls[0].body).stream, true);
 });
 
 test("upstream error passes through (status, body, content-type, request-id)", async () => {
   const errBody = { type: "error", error: { type: "invalid_request_error", message: "messages: bad" } };
-  upstreamQueue.push(() => jsonUpstream(400, errBody, { "anthropic-organization-id": "org-secret" }));
+  upstreamQueue.push(() => jsonUpstream(400, errBody, { "openai-organization": "org-secret" }));
   const res = await call(userTurn(), { env: fakeEnv() });
   assert.equal(res.status, 400);
   assert.equal(res.headers.get("content-type"), "application/json");
   assert.equal(res.headers.get("request-id"), "req_upstream_1");
-  assert.equal(res.headers.get("anthropic-organization-id"), null, "org id is not leaked");
+  assert.equal(res.headers.get("openai-organization"), null, "org id is not leaked");
   assert.deepEqual(await res.json(), errBody);
 
   upstreamQueue.push(() =>
@@ -391,93 +323,6 @@ test("upstream unreachable -> 502 api_error (retryable)", async () => {
 test("privacy: worker source never logs", async () => {
   const src = await readFile(new URL("../worker.js", import.meta.url), "utf8");
   assert.ok(!/console\.\w+\s*\(/.test(src), "worker.js must not call console.*()");
-});
-
-// ---------- end-to-end through the real Anthropic SDK (the app's code path) ----------
-
-let Anthropic = null;
-try {
-  Anthropic = (await import("@anthropic-ai/sdk")).default;
-} catch {
-  // SDK not installed next to the repo: skip these.
-}
-
-function sdkClient(env, ctx, seen) {
-  return new Anthropic({
-    apiKey: "unused",
-    baseURL: BASE,
-    defaultHeaders: { "x-companion-device": DEVICE, "x-companion-app": APP_TOKEN },
-    maxRetries: 2,
-    fetch: async (url, init) => {
-      seen.push(String(url));
-      return worker.fetch(new Request(url, init), env, ctx);
-    },
-  });
-}
-
-test("SDK: streaming chat with pause_turn loop counts as ONE turn", { skip: !Anthropic }, async () => {
-  const env = fakeEnv();
-  const ctx = fakeCtx();
-  const seen = [];
-  const client = sdkClient(env, ctx, seen);
-  upstreamQueue.push(() => sseUpstream("Let me look...", "pause_turn"));
-  upstreamQueue.push(() => sseUpstream("Found it!", "end_turn"));
-
-  // Same loop shape as electron/main.cjs "chat-send".
-  let msgs = [{ role: "user", content: "find me a cafe" }];
-  let full = "";
-  for (let hop = 0; hop < 4; hop++) {
-    const stream = client.messages.stream({
-      model: "claude-sonnet-5",
-      max_tokens: 2048,
-      system: [{ type: "text", text: "You are Blob.", cache_control: { type: "ephemeral" } }],
-      messages: msgs,
-      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8 }],
-    });
-    stream.on("text", (t) => (full += t));
-    const final = await stream.finalMessage();
-    if (final.stop_reason === "pause_turn") {
-      msgs = [...msgs, { role: "assistant", content: final.content }];
-      continue;
-    }
-    break;
-  }
-  assert.equal(full, "Let me look...Found it!");
-  assert.equal(upstreamCalls.length, 2);
-  assert.equal(upstreamCalls[0].headers.get("x-api-key"), SECRET_KEY);
-  assert.ok(seen.every((u) => u.startsWith(BASE + "/v1/messages")));
-  await ctx.flush();
-  assert.equal(env.RATE.map.get(counterKey()), "1");
-});
-
-test("SDK: daily limit surfaces as RateLimitError, no retries", { skip: !Anthropic }, async () => {
-  const env = fakeEnv({ DAILY_LIMIT: "0" });
-  const seen = [];
-  const client = sdkClient(env, fakeCtx(), seen);
-  await assert.rejects(
-    client.messages.create({ model: "claude-sonnet-5", max_tokens: 300, messages: [{ role: "user", content: "joke pls" }] }),
-    (err) => {
-      assert.ok(err instanceof Anthropic.RateLimitError);
-      assert.equal(err.status, 429);
-      assert.equal(err.error?.error?.message, "daily_limit");
-      assert.ok(err.message.includes("daily_limit"));
-      console.log("    SDK err.message for daily limit:", err.message);
-      return true;
-    },
-  );
-  assert.equal(seen.length, 1, "SDK must not retry the daily-limit 429");
-  assert.equal(upstreamCalls.length, 0);
-});
-
-test("SDK: bad app token surfaces as AuthenticationError", { skip: !Anthropic }, async () => {
-  const env = fakeEnv({ APP_TOKEN: "a-different-token" });
-  const seen = [];
-  const client = sdkClient(env, fakeCtx(), seen);
-  await assert.rejects(
-    client.messages.create({ model: "claude-sonnet-5", max_tokens: 300, messages: [{ role: "user", content: "hi" }] }),
-    (err) => err instanceof Anthropic.AuthenticationError && err.status === 401,
-  );
-  assert.equal(seen.length, 1);
 });
 
 // ---------------------------------------------------------------------------
@@ -548,7 +393,7 @@ const oaTurn = (text = "hello") => ({
   model: "gpt-6.1-sol",
   instructions: "You are Blob.",
   input: [{ role: "user", content: text }],
-  tools: [{ type: "web_search", user_location: { type: "approximate", country: "IN" } }],
+  tools: [{ type: "web_search" }],
   reasoning: { effort: "low" },
   max_output_tokens: 4096,
   store: false,
@@ -576,8 +421,8 @@ test("openai: forwards to OpenAI with the server key; client credentials strippe
 });
 
 test("openai: guards (secret, model, tools, stored state)", async () => {
-  // Only the Claude key configured: the ChatGPT route is not set up.
-  let res = await oaCall(oaTurn(), { env: fakeEnv() });
+  // Missing OpenAI key: no request may be forwarded.
+  let res = await oaCall(oaTurn(), { env: fakeEnv({ OPENAI_API_KEY: undefined }) });
   assert.equal(res.status, 500);
   assert.equal((await errorBody(res)).message, "proxy_not_configured");
 
@@ -599,7 +444,7 @@ test("openai: guards (secret, model, tools, stored state)", async () => {
   assert.equal(upstreamCalls.length, 0);
 });
 
-test("openai: daily limit is shared with Claude and failed calls are free", async () => {
+test("openai: daily limit applies to repeated requests and failed calls are free", async () => {
   const env = oaEnv({ DAILY_LIMIT: "2" });
   const ctx = fakeCtx();
   upstreamQueue.push(() => jsonUpstream(500, { error: { message: "boom", type: "server_error" } }));
@@ -607,7 +452,7 @@ test("openai: daily limit is shared with Claude and failed calls are free", asyn
   await ctx.flush();
   assert.equal(env.RATE.map.get(counterKey()), undefined);
   assert.equal((await oaCall(oaTurn(), { env, ctx })).status, 200);
-  assert.equal((await call(userTurn(), { env, ctx })).status, 200); // a Claude turn counts too
+  assert.equal((await call(userTurn(), { env, ctx })).status, 200);
   await ctx.flush();
   const res = await oaCall(oaTurn(), { env, ctx });
   assert.equal(res.status, 429);
@@ -616,12 +461,7 @@ test("openai: daily limit is shared with Claude and failed calls are free", asyn
 
 // ---------- end-to-end through the real OpenAI SDK (the app's ChatGPT path) ----------
 
-let OpenAI = null;
-try {
-  OpenAI = (await import("openai")).default;
-} catch {
-  // SDK not installed next to the repo: skip these.
-}
+const OpenAI = (await import("openai")).default;
 
 function responsesSse(pieces, citation) {
   let seq = 0;
@@ -678,7 +518,7 @@ function openaiClient(env, ctx, seen) {
   });
 }
 
-test("SDK openai: streaming chat with web search, text + sources (main.cjs chatOpenAI shape)", { skip: !OpenAI }, async () => {
+test("SDK openai: streaming chat with web search, text + sources (main.cjs chatOpenAI shape)", async () => {
   const env = oaEnv();
   const ctx = fakeCtx();
   const seen = [];
@@ -705,7 +545,7 @@ test("SDK openai: streaming chat with web search, text + sources (main.cjs chatO
   assert.equal(env.RATE.map.get(counterKey()), "1");
 });
 
-test("SDK openai: daily limit surfaces with 'daily_limit' in the message, no retries", { skip: !OpenAI }, async () => {
+test("SDK openai: daily limit surfaces with 'daily_limit' in the message, no retries", async () => {
   const env = oaEnv({ DAILY_LIMIT: "0" });
   const seen = [];
   const client = openaiClient(env, fakeCtx(), seen);
@@ -717,7 +557,7 @@ test("SDK openai: daily limit surfaces with 'daily_limit' in the message, no ret
   assert.equal(seen.length, 1, "SDK must not retry the daily-limit 429");
 });
 
-test("SDK openai: out-of-credit error reaches the app with OpenAI's wording", { skip: !OpenAI }, async () => {
+test("SDK openai: out-of-credit error reaches the app with OpenAI's wording", async () => {
   const env = oaEnv();
   const client = openaiClient(env, fakeCtx(), []);
   upstreamDefault = () =>
@@ -732,4 +572,27 @@ test("SDK openai: out-of-credit error reaches the app with OpenAI's wording", { 
     assert.ok(/quota/.test(err.message), err.message);
     return true;
   });
+});
+
+
+test("removed provider route is rejected even if an old secret remains", async () => {
+  const env = fakeEnv({ANTHROPIC_API_KEY:"sk-ant-synthetic"});
+  for (const method of ["POST","GET"]) {
+    const res = await call(method === "POST" ? {model:"claude-sonnet-5"} : undefined, {env,method,path:"/v1/messages"});
+    assert.equal(res.status,404);
+  }
+  assert.equal(upstreamCalls.length,0);
+});
+
+test("SDK OpenAI: bad app token raises AuthenticationError without retries", async () => {
+  const seen=[];const client=openaiClient(oaEnv({APP_TOKEN:"different"}),fakeCtx(),seen);
+  await assert.rejects(client.responses.create(oaTurn()),e=>e instanceof OpenAI.AuthenticationError && e.status===401);
+  assert.equal(seen.length,1);assert.equal(upstreamCalls.length,0);
+});
+
+test("OpenAI string input counts toward the daily limit", async () => {
+  const env=oaEnv({DAILY_LIMIT:"1"}),ctx=fakeCtx();
+  assert.equal((await oaCall({...oaTurn(),input:"hello"},{env,ctx})).status,200);
+  await ctx.flush();
+  assert.equal((await oaCall({...oaTurn(),input:"hello again"},{env,ctx})).status,429);
 });
