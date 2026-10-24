@@ -1,8 +1,8 @@
 # Guided welcome update · beta.3
 
 - Prepared and tested on 24 October 2026 for beta 0.1.1-beta.3.
-- The existing GitHub download, version 0.1.1-beta.2, does not include this flow yet.
-- Gayathri approved publishing the new installer and matching ui-refresh-shadcn code on 24 October. Release preparation is in progress.
+- Published as [beta 0.1.1-beta.3](https://github.com/gayathriswaminathan05-ai/Companion-App/releases/tag/v0.1.1-beta.3). The previous beta.2 remains available.
+- Gayathri approved publication on 24 October. Matching source is on ui-refresh-shadcn; main is unchanged.
 
 ## What people will see
 
@@ -43,9 +43,9 @@
 ## Release checks
 
 - Gayathri reviewed the desktop update and approved release.
-- Beta.3 installer, matching guide and release notes are prepared and automated package checks passed.
+- Beta.3 installer, matching guide and privacy document are published; automated package checks and uploaded file checksum verification passed.
 - Still needs tester confirmation on another Mac, including real microphone permissions and Google sign-in.
-- Publication and branch upload are approved; retain the previous beta and verify the final download.
+- Public download returned HTTP200. The previous beta is retained.
 
 ## Shorter, character-led option B (24 October)
 
