@@ -759,8 +759,7 @@ export default function App() {
     try {
       const current = dataRef.current;
       const draft = skip ? { ...newSetup(current), name: setupFor(current).name } : setupFor(current);
-      const completed = completeSetup(current, draft);
-      const next = skip ? completeTour(completed) : completed;
+      const next = completeSetup(current, draft);
       if (await window.companion.dataSave(next) === false) throw new Error("save failed");
       quietUntil.current = Date.now() + 30_000;
       activeMsRef.current = 0; waterMsRef.current = 0;

@@ -1,6 +1,6 @@
-# Guided welcome update · beta.3
+# Guided welcome update · beta.4
 
-- Prepared and tested on 24 October 2026 for beta 0.1.1-beta.3.
+- Beta.4 correction prepared and tested on 24 October 2026: the tour also starts automatically after repeated or skipped care setup.
 - Published as [beta 0.1.1-beta.3](https://github.com/gayathriswaminathan05-ai/Companion-App/releases/tag/v0.1.1-beta.3). The previous beta.2 remains available.
 - Gayathri approved publication on 24 October. Matching source is on ui-refresh-shadcn; main is unchanged.
 
@@ -57,9 +57,9 @@
 
 ## Guided navigation after setup
 
-- After choosing their routine, people see a five-step, skippable tour: Tasks and reminders, voice input, Breathe, jokes, and Settings/Nap.
+- After every completed or skipped care setup, including a later replay, people automatically see a five-step, skippable tour: Tasks and reminders, voice input, Breathe, jokes, and Settings/Nap.
 - The real menu icons are shown in the tour. Selecting one finishes the tour and opens that feature. “Make a reminder” on the final screen opens Tasks; it does not create a reminder automatically.
 - The reminder example is clearly marked. The sample joke can reveal its punchline without changing saved joke history or earning growth points. No microphone access, voice playback, breathing session or Google connection starts automatically.
 - Unfinished tours resume at the last step. Completion and skipping are remembered. Settings → How I work → Show me around replays the tour without rerunning care setup.
-- Automatic reminders stay quiet through the tour and for30seconds after it finishes. Existing tasks remain intact. Skipping the whole care setup also skips the tour.
+- Automatic reminders stay quiet through the tour and for30seconds after it finishes. Existing tasks remain intact. Skipping care choices still opens the tour. The tour has its own Skip button.
 - The original “A quick guide to me” stays collapsed until opened.

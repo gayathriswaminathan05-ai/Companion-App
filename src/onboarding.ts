@@ -65,6 +65,7 @@ export function completeSetup(data: AppData, draft: SetupProgress, now = new Dat
     waterNudge: draft.waterMins > 0, waterMins: draft.waterMins || 120,
     breakMins: draft.movementMins, movementStyle: draft.movementStyle,
     bedtime: draft.bedtime, welcomed: true, onboardingVersion: ONBOARDING_VERSION,
+    navigationTourVersion: 0,
   };
   // Only the setup's own reminders are replaced on a later review of setup.
   next.todos = next.todos.filter(t => !t.wellnessKind || t.done);
@@ -77,6 +78,8 @@ export function completeSetup(data: AppData, draft: SetupProgress, now = new Dat
     const [h, m] = draft.bedtime.split(":").map(Number);
     if (now.getHours() * 60 + now.getMinutes() >= h * 60 + m) next.wellness.bedtimeDate = next.wellness.date;
   }
+  // Every completed care setup leads into the tour, including a later replay.
+  next.navigationTourStep = "tasks";
   delete next.setup;
   return next;
 }

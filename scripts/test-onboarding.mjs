@@ -28,9 +28,13 @@ assert.equal(done.wellness.bedtimeDate,done.wellness.date,'no immediate late-eve
 for(const t of done.todos.filter(t=>t.wellnessKind)) {assert.ok(new Date(t.due)>now);assert.equal(t.recurring,'daily');}
 assert.equal(new Date(done.todos.find(t=>t.wellnessKind==='meditation').due).getDate(),25);
 assert.equal(new Date(done.todos.find(t=>t.wellnessKind==='coffee').due).getDate(),24);
+done.settings.navigationTourVersion=1;done.navigationTourStep="settings";
 const again=completeSetup(done,{...newSetup(done),times:{meditation:'18:00',meal:null,coffee:null}},now);
 assert.equal(again.todos.filter(t=>t.wellnessKind).length,1,'review replaces only setup-owned active reminders, without duplicates');
 assert.deepEqual(again.todos[0],fresh.todos[0]);
+assert.equal(again.settings.navigationTourVersion,0,'repeated care setup starts the tour again');
+assert.equal(again.navigationTourStep,'tasks','automatic tour starts at its first step');
+assert.equal(done.settings.navigationTourVersion,1,'completion does not mutate the previous state');
 assert.ok(nextDailyTime('18:00',now)>now,'equal time starts tomorrow');
 assert.equal(nextDailyTime('10:00',new Date(2026,11,31,23)).getFullYear(),2027);
 assert.throws(()=>nextDailyTime('24:00',now));assert.throws(()=>nextDailyTime('',now));

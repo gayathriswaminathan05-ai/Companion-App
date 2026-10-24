@@ -124,10 +124,17 @@ app.whenReady().then(async()=>{
   await click('Show me around');assert.equal(await tourStep(),'tasks');
   await click('tasks');assert.equal(await tourStep(),undefined);assert.ok(await js(`!!document.querySelector('[aria-label="add task"]')`),'menu shortcut opens actual Tasks');
   await click('settings');await click('Show me around');await click('Skip tour');assert.equal(await tourStep(),undefined);assert.equal(data.settings.navigationTourVersion,1);
-  console.log('PASS replay from Settings, quick guide closed, real menu destination, skip.');
+  // Repeating onboarding must open the tour even when it was completed earlier.
+  await js(`document.querySelector('[data-char-hit]').dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0}));document.querySelector('[data-char-hit]').dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0}));void 0`);await wait(400);
+  await click('settings');await click('Set up my care routine');await waitForStep('name');
+  for(let i=0;i<7;i++)await click('Next');
+  await click('Continue with typing');await click("Let's begin");
+  assert.equal(await tourStep(),'tasks','repeated onboarding automatically starts the tour');
+  await click('Skip tour');
+  console.log('PASS repeated onboarding automatically opens tour; Settings replay, quick guide closed, real menu destination, skip.');
   // A truly fresh user can skip without silently enabling care nudges.
   data=null;await win.loadFile(path.resolve('dist/index.html'));await waitForStep('name');assert.equal(await step(),'name');
-  await click('Skip setup');assert.equal(await step(),undefined);assert.equal(data.settings.breakMins,0);assert.equal(data.settings.bedtime,null);assert.equal(data.settings.waterNudge,false);assert.equal(data.todos.length,0);assert.equal(await tourStep(),undefined);assert.equal(data.settings.navigationTourVersion,1);
+  await click('Skip setup');assert.equal(await step(),undefined);assert.equal(data.settings.breakMins,0);assert.equal(data.settings.bedtime,null);assert.equal(data.settings.waterNudge,false);assert.equal(data.todos.length,0);assert.equal(await tourStep(),'tasks','skipping care choices still introduces features');await click('Skip tour');assert.equal(await tourStep(),undefined);assert.equal(data.settings.navigationTourVersion,1);
   assert.equal(micRequests,1,'skip never requests another permission');
   console.log('PASS daily catch-up once, persistent completion, fresh-install skip leaves reminders off.');
   app.exit(0);
