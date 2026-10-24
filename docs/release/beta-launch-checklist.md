@@ -1,5 +1,7 @@
 # Private beta launch checklist
 
+> **24 October beta.4 correction:** Every completed or skipped care setup now opens the guided tour automatically, including replayed setup. Published beta.4 is linked in Companion Product Studio. Full setup regression and packaged-app checks passed; independent tester-Mac validation remains pending.
+
 > **24 October beta.3 update:** Owner approved the new onboarding and guided tour release on ui-refresh-shadcn. Installer, guide and privacy document are published in GitHub release v0.1.1-beta.3; same-Mac automated package checks and remote checksum verification passed. Independent tester-Mac permissions/Calendar checks remain pending. Publication result is recorded in CLAUDE.md.
 
 **Current status note · 24 October 2026:** This file preserves earlier planning and superseded status updates. The public GitHub beta **0.1.1-beta.2 was published on 19 October** after explicit approval to include the Google Desktop registration. The earlier upload block below is resolved. Current beta has **no AI chat**, local voice and optional read-only Calendar; Google verification remains unsubmitted in the latest recorded check. For the consolidated current state and remaining work, read [the collaboration handover](../collaboration/2026-10-24/Companion-Project-Handover.md). Earlier chat gates and “no release exists” passages are historical.

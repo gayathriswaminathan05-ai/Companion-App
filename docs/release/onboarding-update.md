@@ -1,7 +1,7 @@
 # Guided welcome update · beta.4
 
 - Beta.4 correction prepared and tested on 24 October 2026: the tour also starts automatically after repeated or skipped care setup.
-- Published as [beta 0.1.1-beta.3](https://github.com/gayathriswaminathan05-ai/Companion-App/releases/tag/v0.1.1-beta.3). The previous beta.2 remains available.
+- Published as [beta 0.1.1-beta.4](https://github.com/gayathriswaminathan05-ai/Companion-App/releases/tag/v0.1.1-beta.4). The previous betas remain available.
 - Gayathri approved publication on 24 October. Matching source is on ui-refresh-shadcn; main is unchanged.
 
 ## What people will see
@@ -43,7 +43,7 @@
 ## Release checks
 
 - Gayathri reviewed the desktop update and approved release.
-- Beta.3 installer, matching guide and privacy document are published; automated package checks and uploaded file checksum verification passed.
+- Beta.4 installer, matching guide and privacy document are published; automated package checks and uploaded file checksum verification passed.
 - Still needs tester confirmation on another Mac, including real microphone permissions and Google sign-in.
 - Public download returned HTTP200. The previous beta is retained.
 
