@@ -1,12 +1,12 @@
 const fs=require('fs'),path=require('path'),assert=require('assert/strict'),crypto=require('crypto');
 const asar=require('@electron/asar');
-const resources=path.resolve(process.argv[2]||'release/0.1.1-beta.2/mac-arm64/Companion.app/Contents/Resources');
+const resources=path.resolve(process.argv[2]||'release/0.1.1-beta.3/mac-arm64/Companion.app/Contents/Resources');
 const archive=path.join(resources,'app.asar'),files=asar.listPackage(archive);
 const {execFileSync}=require('child_process');
 const minimum=execFileSync('/usr/libexec/PlistBuddy',['-c','Print :LSMinimumSystemVersion',path.join(resources,'..','Info.plist')],{encoding:'utf8'}).trim();
 assert.equal(minimum,'14.0','dictation runtime requires macOS14');
 const read=p=>asar.extractFile(archive,p).toString();
-assert.equal(JSON.parse(read('package.json')).version,'0.1.1-beta.2');
+assert.equal(JSON.parse(read('package.json')).version,'0.1.1-beta.3');
 assert.equal(JSON.parse(read('electron/features.json')).aiChat,false);
 const disallowed=files.filter(f=>/\.key$|\/\.env(?:\.|$)|beta-config\.json|companion-data\.json|google-calendar.*\.json|window-state\.json|\/device-id$|\/test-[^/]+\.cjs$|\/\.git\//i.test(f));
 assert.deepEqual(disallowed,[],'private/test files must not ship');
@@ -30,5 +30,5 @@ for(const d of ['', '-3m','-5m'])assert.ok(files.includes(`/dist/audio/meditatio
 const js=files.filter(f=>/^\/dist\/assets\/.*\.js$/.test(f)).map(f=>read(f.slice(1))).join('\n');
 const refs=[...js.matchAll(/\.\/character\/[\w/-]+\.webp/g)].map(m=>'/dist/'+m[0].slice(2));
 assert.ok(refs.length>6000);assert.deepEqual(refs.filter(f=>!files.includes(f)),[]);
-const report={version:'0.1.1-beta.2',files:files.length,spriteReferences:refs.length,aiChat:false,voiceRemoteFallback:false,privateFiles:0,googleClient:'clientId/clientSecret only; no user tokens; Console registration type requires verification',models:'bundled Whisper and Kokoro',appAsarSha256:crypto.createHash('sha256').update(fs.readFileSync(archive)).digest('hex')};
-const out=path.resolve('docs/qa/2026-10-19/release-0.1.1-beta.2');fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,'package-audit.json'),JSON.stringify(report,null,2)+'\n');console.log('PASS',JSON.stringify(report));
+const report={version:'0.1.1-beta.3',files:files.length,spriteReferences:refs.length,aiChat:false,voiceRemoteFallback:false,privateFiles:0,googleClient:'clientId/clientSecret only; no user tokens; Console registration type requires verification',models:'bundled Whisper and Kokoro',appAsarSha256:crypto.createHash('sha256').update(fs.readFileSync(archive)).digest('hex')};
+const out=path.resolve('docs/qa/2026-10-24/release-0.1.1-beta.3');fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,'package-audit.json'),JSON.stringify(report,null,2)+'\n');console.log('PASS',JSON.stringify(report));

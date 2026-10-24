@@ -19,7 +19,10 @@ import ClayConfetti from "../character/ClayConfetti";
 import Blob from "../character/Blob";
 import ReminderBubble from "../ui/ReminderBubble";
 import NudgeBubble from "../ui/NudgeBubble";
-import { defaultSettings, type Todo } from "../store";
+import OnboardingPanel, { SETUP_POSES } from "../ui/OnboardingPanel";
+import OnboardingPanelV1 from "../ui/OnboardingPanelV1";
+import { newSetup } from "../onboarding";
+import { defaultSettings, emptyData, type Todo } from "../store";
 import type { ChatMsg } from "../brain";
 
 const noop = () => {};
@@ -104,6 +107,17 @@ function Frame({ label, w = 372, h = 310, children }: { label: string; w?: numbe
   );
 }
 
+function SetupPreview({ original = false }: { original?: boolean }) {
+  const [progress, setProgress] = useState(() => newSetup(emptyData()));
+  const Setup = original ? OnboardingPanelV1 : OnboardingPanel;
+  return <div>
+    <div style={{ height: original ? 390 : 360 }}><Setup progress={progress} onChange={setProgress}
+      onFinish={() => setProgress(newSetup(emptyData()))} onSkip={() => setProgress(newSetup(emptyData()))}
+      busy={false} error="" onListen={noop} onStop={noop} /></div>
+    <div style={{ width: 204, height: 240, margin: "8px auto 0" }}><Blob state={original ? "waving" : SETUP_POSES[progress.step]} growthStage={1} /></div>
+  </div>;
+}
+
 function Gallery() {
   const [todos, setTodos] = useState(TODOS);
   const [settings, setSettings] = useState({ ...defaultSettings(), userName: "Gayathri" });
@@ -125,6 +139,8 @@ function Gallery() {
       }}
     >
       <ThemeSwitcher backdrop={backdrop} setBackdrop={setBackdrop} />
+      <Frame label="Setup A: original explanation-led option" h={650}><SetupPreview original /></Frame>
+      <Frame label="Setup B: little questions + matching plant clips" h={650}><SetupPreview /></Frame>
       <Frame label="Breathe: soft ribbons"><BreathingPanelV2 onClose={noop} onActiveChange={noop} onComplete={noop} /></Frame>
       <Frame label="Breathe: lavender mesh"><BreathingPanelV3 onClose={noop} onActiveChange={noop} onComplete={noop} /></Frame>
       <Frame label="Breathe: colour waves (original slow motion)"><BreathingPanel waveSpeed="slow" onClose={noop} onActiveChange={noop} onComplete={noop} /></Frame>

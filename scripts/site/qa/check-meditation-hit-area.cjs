@@ -24,7 +24,7 @@ contextBridge.exposeInMainWorld('companion',{
  onCalendarMeeting:subscribe,onGmailNew:subscribe,onGoogleAuthExpired:subscribe,onChatEvent:subscribe,
 });`);
 let scale=0.7, win;
-ipcMain.handle('test-data',()=>({settings:{plantScale:scale,panelScale:1.45,welcomed:true,soundsOn:false,voiceOn:true,chatOn:false,breakMins:0,waterNudge:false,bedtime:null,jokeEvery:'off',matchBackdrop:false}}));
+ipcMain.handle('test-data',()=>({settings:{plantScale:scale,panelScale:1.45,welcomed:true,onboardingVersion:1,navigationTourVersion:1,soundsOn:false,voiceOn:true,chatOn:false,breakMins:0,waterNudge:false,bedtime:null,jokeEvery:'off',matchBackdrop:false}}));
 ipcMain.handle('test-size',(_e,s)=>win.setContentSize(s.width,s.height));
 app.whenReady().then(async()=>{
  app.dock?.hide();

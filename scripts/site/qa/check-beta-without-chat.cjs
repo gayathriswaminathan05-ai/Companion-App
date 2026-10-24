@@ -19,7 +19,7 @@ idleSeconds:async()=>0,setCallAutohide:noop,voiceCloudInfo:async()=>({available:
 brainStatus:async()=>({connected:true,viaProxy:true,provider:'openai'}),calendarStatus:async()=>({hasClient:true,connected:true,canCreateEvents:false}),getLoginItem:async()=>false,
 voiceWarmup:async()=>{},voiceStatus:async()=>({ready:false}),voiceCancel:noop,ensureMic:async()=>true,transcribe:b=>ipcRenderer.invoke('test-transcribe',b),onCalendarMeeting:fn=>{ipcRenderer.on('test-meeting',(_e,d)=>fn(d));return noop},onGmailNew:sub,onGoogleAuthExpired:sub,
 });`);
-let data={settings:{chatOn:true,plantScale:.7,panelScale:1,welcomed:true,soundsOn:false,voiceOn:false,breakMins:0,waterNudge:false,bedtime:null,jokeEvery:'off',matchBackdrop:false},
+let data={settings:{chatOn:true,plantScale:.7,panelScale:1,welcomed:true,onboardingVersion:1,navigationTourVersion:1,soundsOn:false,voiceOn:false,breakMins:0,waterNudge:false,bedtime:null,jokeEvery:'off',matchBackdrop:false},
 todos:[{id:'private-task',text:'PRIVATE_TASK',done:false,createdAt:new Date().toISOString()}],chat:{messages:[],facts:['PRIVATE_NOTE'],summary:'PRIVATE_SUMMARY'}};
 let win,requests=[],cancels=0,failSave=false,transcriptions=0;
 ipcMain.handle("test-transcribe",(_e,b)=>{assert.ok(b.byteLength>0);transcriptions++;return "call mom tomorrow at 6 pm"});
@@ -51,6 +51,9 @@ app.whenReady().then(async()=>{
   await shot('beta-without-chat-tasks.png');
   // Exercise recording -> local transcription result -> editable draft -> reminder.
   await js(`document.querySelector('[aria-label="hold to talk"]').dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0}));void 0`);
+  // Device startup is asynchronous; hold for a real recording interval.
+  for(let i=0;i<100;i++){if(await js(`document.querySelector('[aria-label="hold to talk"]').getAttribute('aria-pressed')==='true'`))break;await wait(100)}
+  assert.equal(await js(`document.querySelector('[aria-label="hold to talk"]').getAttribute('aria-pressed')`),'true','fake microphone must start: '+await js(`document.querySelector('[role="alert"]')?.textContent || ''`));
   await wait(2200);
   await js(`document.querySelector('[aria-label="hold to talk"]').dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0}));void 0`);
   for(let i=0;i<40 && !transcriptions;i++)await wait(150);

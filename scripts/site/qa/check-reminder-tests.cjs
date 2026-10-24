@@ -20,11 +20,11 @@ brainStatus:async()=>({connected:true,viaProxy:true,provider:'openai'}),calendar
 voiceWarmup:async()=>{},voiceStatus:async()=>({ready:false}),voiceCancel:noop,ensureMic:()=>ipcRenderer.invoke('test-mic'),transcribe:b=>ipcRenderer.invoke('test-transcribe',b),onCalendarMeeting:fn=>{ipcRenderer.on('test-meeting',(_e,d)=>fn(d));return noop},onGmailNew:sub,onGoogleAuthExpired:sub,
 });`);
 
-let data={settings:{growthTestVisible:true,plantScale:.7,panelScale:1,welcomed:true,soundsOn:false,voiceOn:false,breakMins:0,waterNudge:false,bedtime:null,jokeEvery:'off',matchBackdrop:false},sprout:{date:new Date().toLocaleDateString('en-CA'),points:0},todos:[]};
+let data={settings:{growthTestVisible:true,plantScale:.7,panelScale:1,welcomed:true,onboardingVersion:1,navigationTourVersion:1,soundsOn:false,voiceOn:false,breakMins:0,waterNudge:false,bedtime:null,jokeEvery:'off',matchBackdrop:false},sprout:{date:new Date().toLocaleDateString('en-CA'),points:0},todos:[]};
 let win;let transcriptions=0,micRequests=0;
 ipcMain.handle('test-mic',()=>{micRequests++;return process.env.TEST_WELCOME!=='denied'});
 ipcMain.handle('test-transcribe',()=>{transcriptions++;return 'a plant in disguise'});
-if(process.env.TEST_WELCOME) data.settings.welcomed=false;
+if(process.env.TEST_WELCOME) { data.settings.welcomed=false; data.settings.onboardingVersion=0; }
 if(process.env.TEST_STAGE) {data.sprout.points=(Number(process.env.TEST_STAGE)-1)*2;data.sprout.date=new Date(Date.now()-4*60*60*1000).toLocaleDateString('en-CA')}
 if(process.env.TEST_DUE) data.todos=['Meditation break','Tea or coffee break','Meal break','Call a friend'].map((text,i)=>({id:'due-'+i,text,done:false,due:new Date(Date.now()-10_000).toISOString(),createdAt:new Date().toISOString(),firedAt:null}));
 ipcMain.handle('test-load',()=>structuredClone(data));
@@ -40,19 +40,21 @@ app.whenReady().then(async()=>{
   await win.loadFile(path.resolve('dist/index.html'));await wait(1000);
   const click=label=>js(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>(b.getAttribute('aria-label')||b.textContent).trim()===${JSON.stringify(label)});if(!b)throw new Error('Missing button '+${JSON.stringify(label)});b.click()})()`);
   if(process.env.TEST_WELCOME) {
-   for(let n=0;n<60;n++){if(await js(`document.body.textContent.includes('Enable microphone')`))break;await wait(100)}
+   await wait(300);
+   for(let n=0;n<7;n++) { await click('Next'); await wait(80); }
    assert.ok(await js(`document.body.textContent.includes('Enable microphone')`));
    assert.equal(micRequests,0,'permission must wait for a deliberate click');
    await wait(350);
    fs.writeFileSync(path.join(out,'welcome.png'),(await win.webContents.capturePage()).toPNG());
-   if(process.env.TEST_WELCOME==='skip') await click('Not now');
+   if(process.env.TEST_WELCOME==='skip') await click('Continue with typing');
    else {
     await click('Enable microphone');await wait(100);assert.equal(micRequests,1);
     if(process.env.TEST_WELCOME==='denied') {
      assert.ok(await js(`document.body.textContent.includes('Microphone access is off')`));
      await click('Continue with typing');
-    }
+    } else await click('Next');
    }
+   await wait(80); await click("Let's begin");
    await wait(100);assert.equal(data.settings.welcomed,true);
    assert.equal(transcriptions,0,'permission never starts recording');
    await win.reload();await wait(1800);

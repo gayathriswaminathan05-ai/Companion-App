@@ -1,6 +1,8 @@
 // App data: shape + load/save through the main process (one JSON file on disk).
 
 import { ensureWeek, emptyWeekStats, type WeekStats } from "./growth";
+import type { SetupProgress, ScheduledCare } from "./onboarding";
+import type { TourStep } from "./navigationTour";
 
 export interface Todo {
   id: string;
@@ -8,6 +10,8 @@ export interface Todo {
   done: boolean;
   createdAt: string;
   completedAt?: string;
+  /** Set only for daily care reminders created in the guided setup. */
+  wellnessKind?: ScheduledCare;
   // Optional time: a task with `due` also fires a reminder bubble.
   due?: string | null;
   recurring?: "daily";
@@ -59,6 +63,9 @@ export interface Settings {
   voiceAccent: string;
   /** First-run hello bubble has been shown. */
   welcomed: boolean;
+  /** Version of the completed care setup; old hello bubbles do not count. */
+  onboardingVersion: number;
+  navigationTourVersion: number;
   /** Dev growth test strip beside the plant (hide when not testing). */
   growthTestVisible: boolean;
 }
@@ -80,6 +87,8 @@ export interface ChatState {
 }
 
 export interface AppData {
+  navigationTourStep?: TourStep;
+  setup?: SetupProgress;
   todos: Todo[];
   reminders: Reminder[];
   // Growth for TODAY. Only ever grows; resets fresh each morning. Cap in growth.ts.
@@ -110,6 +119,8 @@ export const defaultSettings = (): Settings => ({
   gmailAlerts: false,
   chatConsentVersion: 0,
   welcomed: false,
+  onboardingVersion: 0,
+  navigationTourVersion: 0,
   voiceOn: true,
   voiceChat: true,
   voiceName: "af_heart",

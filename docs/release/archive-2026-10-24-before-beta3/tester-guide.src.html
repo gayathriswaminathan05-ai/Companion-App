@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Companion Beta Guide · 0.1.1-beta.2</title><style>
+  /* Layout: one calm reading column, a small hero with the plant, steps as a real ordered sequence. */
+  :root {
+    --bg: #f3f3f3;
+    --card: #ffffff;
+    --ink: #201d2f;
+    --soft: #6c6977;
+    --line: rgba(32, 29, 47, 0.1);
+    --accent: #6a53e7;
+    --accent-soft: #f5f3ff;
+    --bubble: #e7e3ff;
+    --bubble-ink: #190681;
+    --leaf: #1a7a4c;
+    --font: "Figtree", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1e1c26; --card: #27242f; --ink: #eceaf4; --soft: #a7a3b5; --line: rgba(255,255,255,0.09);
+      --accent: #8b78f2; --accent-soft: #2f2948; --bubble: #352c66; --bubble-ink: #e4ddff; --leaf: #46b86a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1e1c26; --card: #27242f; --ink: #eceaf4; --soft: #a7a3b5; --line: rgba(255,255,255,0.09);
+    --accent: #8b78f2; --accent-soft: #2f2948; --bubble: #352c66; --bubble-ink: #e4ddff; --leaf: #46b86a;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 720px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 72px; display: flex; flex-direction: column; gap: 28px; }
+
+  .hero { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: end; }
+  .hero img { width: 150px; height: auto; display: block; filter: drop-shadow(0 10px 18px rgba(32,29,47,0.18)); }
+  .speech { position: relative; background: var(--card); border-radius: 20px; padding: 18px 20px; box-shadow: 0 0 0 1px var(--line), 0 8px 24px -10px rgba(32,29,47,0.25); margin-bottom: 70px; }
+  .speech::after { content: ""; position: absolute; left: -7px; bottom: 26px; width: 14px; height: 14px; background: var(--card); transform: rotate(45deg); box-shadow: -1px 1px 0 var(--line); }
+  .kicker { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin: 0 0 4px; }
+  h1 { font-size: clamp(30px, 6vw, 42px); line-height: 1.08; letter-spacing: -0.02em; font-weight: 800; margin: 0; text-wrap: balance; }
+  .lede { margin: 8px 0 0; color: var(--soft); max-width: 46ch; }
+
+  section { background: var(--card); border-radius: 16px; box-shadow: 0 0 0 1px var(--line); padding: 22px 22px 24px; display: flex; flex-direction: column; gap: 12px; }
+  h2 { font-size: 20px; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+  p { margin: 0; max-width: 65ch; }
+  .muted { color: var(--soft); }
+
+  ol.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; display: flex; flex-direction: column; gap: 14px; }
+  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start; }
+  ol.steps li::before { content: counter(s); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+  ol.steps li > div { min-width: 0; padding-top: 3px; }
+  .path { display: inline-block; background: var(--bubble); color: var(--bubble-ink); border-radius: 8px; padding: 1px 8px; font-weight: 600; font-size: 14px; }
+  .download { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 14px 16px; border-radius: 12px; background: var(--accent-soft); }
+  .download strong { color: var(--accent); }
+
+  ul.things { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+  ul.things li { border-radius: 12px; padding: 12px 14px; box-shadow: inset 0 0 0 1px var(--line); min-width: 0; }
+  ul.things b { display: block; margin-bottom: 2px; }
+  ul.things span { color: var(--soft); font-size: 14px; line-height: 1.5; }
+
+  ul.privacy { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; max-width: 65ch; }
+  ul.privacy li::marker { color: var(--leaf); }
+  .questions { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+  .note { font-size: 14px; color: var(--soft); }
+
+  @media (max-width: 520px) {
+    .hero { grid-template-columns: 1fr; justify-items: start; }
+    .hero img { width: 120px; order: 2; }
+    .speech { margin-bottom: 0; }
+    .speech::after { left: 34px; bottom: -7px; box-shadow: 1px 1px 0 var(--line); }
+  }
+</style></head><body>
+<div class="wrap">
+<header class="hero"><img src="data:image/png;base64,__BLOB_IMG__" alt="A smiling terracotta plant with pink flowers"><div class="speech"><p class="kicker">Companion · 0.1.1-beta.2</p><h1>A little company for your workday.</h1><p class="lede">Tasks, gentle breaks, guided breathing and silly jokes. This beta does not include AI chat or email alerts.</p></div></header>
+<section><h2>Before you install</h2><p>For Macs with an Apple chip (M1 or newer), running macOS 14 (Sonoma) or later. Intel Macs, Windows and phones are not supported by this installer. Older supported macOS versions have not all been tested yet.</p><p>Use <b>Companion-0.1.1-beta.2-arm64.dmg</b> from the beta download shared with you. It includes local speech models, so the download is large. No AI subscription, paid credits or separate model installation is needed.</p><p class="note">This is an early beta, not Apple-notarized software. Only proceed if you trust the source. Use ordinary Mac security controls; do not disable security globally.</p></section>
+<section><h2>Install and say hello</h2><ol class="steps">
+<li><div>Open the downloaded DMG and drag <b>Companion</b> into <b>Applications</b>. Open it from there.</div></li>
+<li><div>If macOS blocks it because the developer cannot be verified, close the warning. Go to <span class="path">System Settings → Privacy &amp; Security</span> and use <b>Open Anyway</b> for Companion, if available. On older macOS, look in System Preferences → Security &amp; Privacy. If it says damaged, or no safe opening option appears, stop and ask your beta inviter for help.</div></li>
+<li><div>On first open, choose <b>Enable microphone</b> and answer the macOS permission prompt, or choose <b>Not now</b> to use typing. Permission does not start a recording.</div></li>
+<li><div>Click the plant to open its menu. Try <b>Tasks</b>, <b>Breathe</b> and <b>Settings</b>. Drag the plant to a comfortable spot.</div></li></ol></section>
+<section><h2>Try your first reminder</h2><p>In Tasks, type “call mom tomorrow at 6pm”, or hold the microphone button while saying it. Release the microphone, review the words and the interpreted time, then add the task. You can correct the text before saving.</p><p>Try a reminder two minutes from now. Keep the app open and your Mac awake. When the alert appears, choose Done or Snooze. Tasks and settings should still be there after you quit and reopen.</p><p class="note">A sleeping Mac or closed app cannot deliver a live alert on time. Missed reminders are shown after the app resumes. Do not rely on this beta for medication, emergencies or other critical alarms. Dictation currently uses an English model and may need corrections; its first use can take a moment.</p></section>
+<section><h2>Make yourself comfortable</h2><ul class="things">
+<li><b>Take a breath</b><span>Open Breathe, choose 1, 3 or 5 minutes and press Start. Choose My own pace, voice and music as you prefer. Pause or stop any time. Breathe comfortably; there is no need to force the pace.</span></li>
+<li><b>Plan your breaks</b><span>Settings controls movement, water, bedtime and jokes. Movement can mix stretching and walking. Set a meditation reminder in Settings. For a meal or coffee break, add a timed task named “Meal break” or “Coffee break”.</span></li>
+<li><b>Answer a joke</b><span>Type or hold the microphone for your guess, review it, then choose Answer. What? reveals the punchline immediately. Guesses are not saved; the punchline is written in advance.</span></li>
+<li><b>Watch it grow</b><span>Care breaks and completed timed tasks help the plant grow through seven stages. Growth starts fresh each morning; unfinished tasks stay.</span></li>
+<li><b>Take some quiet</b><span>Turn off voice or sounds in Settings. The moon button hides the plant; click its Dock icon to bring it back. Quit from the Dock when you want the app to stop.</span></li>
+<li><b>Explore the animations</b><span>The small ✦ at the left of the menu opens the beta animation showcase. Some less-used poses still use an earlier growth-stage appearance, including the meal picnic.</span></li></ul></section>
+<section><h2>Optional Google Calendar</h2><p>Use Settings → Google Calendar for upcoming meeting alerts. This beta requests read-only event access; it cannot book meetings or read email. Your ordinary tasks do not become Google events.</p><p>If the Google project is still in testing mode, your Google account must be invited separately and you may need to reconnect after seven days. Ask your beta inviter if Google blocks access. You do not need to share an email address to use local reminders or breathing.</p><p>Only continue through Google sign-in if the app identity and requested access match what you expect. You can skip Calendar or disconnect in Settings at any time.</p></section>
+<section><h2>Your privacy, in plain words</h2><ul class="privacy">
+<li>Tasks, settings and growth are stored on your Mac. Dictation and speech run on your Mac; audio is not uploaded for transcription or speaking.</li>
+<li>AI chat, cloud voice and Gmail alerts are disabled in this beta. No API key is needed.</li>
+<li>Optional Calendar contacts Google. Fetched event details stay in memory for alerts, not in the task database or an AI service. Connection credentials are saved locally.</li>
+<li>No advertising trackers, analytics or automatic support uploads. Optional screen-brightness matching and call hiding process their information locally.</li>
+<li>Saved app files are restricted to your Mac account, not separately encrypted by Companion. Your Mac security and backups still matter.</li>
+<li>Settings → Privacy → Delete all removes local app records and connection credentials and turns off start at login. It does not erase backups, Google events or data sent by older versions. Uninstalling alone keeps local data.</li></ul></section>
+<section><h2>Updates and getting help</h2><p>Updates are manual for this beta. Quit Companion, download the newer installer from the same beta download page, then replace Companion in Applications. Do not use Delete all while updating. Your saved tasks and settings use the same local folder. Keep the previous installer until the update works; ask before reverting to an older version.</p><p>If the plant freezes or sound stops, quit and reopen it. If it still fails, reply to the person who invited you. Include <b>0.1.1-beta.2</b>, your Mac model, macOS version, what you did and what happened. Do not send your app-data folder, keys or recordings. Remove private details from screenshots.</p><p class="note">Some behavior still needs testing on other Macs, especially first-install permissions, Calendar sign-in and sleep/wake. A failed optional permission should not prevent typing tasks or using breathing.</p></section>
+<section><h2>After a few days</h2><ol class="questions"><li>Were your reminders reliable?</li><li>Did any nudge feel annoying?</li><li>Was guided breathing useful?</li><li>What was confusing, and what would you miss?</li></ol><p>Share feedback with your beta inviter. We do not collect your activity automatically.</p></section>
+</div>
+</body></html>

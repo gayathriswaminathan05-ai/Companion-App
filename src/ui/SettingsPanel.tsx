@@ -1,3 +1,4 @@
+import { version as appVersion } from "../../package.json";
 import MeditationReminderForm from "./MeditationReminderForm";
 import { useEffect, useState } from "react";
 import {
@@ -113,7 +114,11 @@ export default function SettingsPanel({
   cloudVoice,
   onScheduleMeditation,
   onOpenReminderTests,
+  onOpenSetup,
+  onOpenTour,
 }: {
+  onOpenTour?: () => void;
+  onOpenSetup?: () => void;
   onOpenReminderTests?: () => void;
   onScheduleMeditation?: (due: Date, recurring?: "daily") => void;
   settings: Settings;
@@ -318,7 +323,8 @@ export default function SettingsPanel({
         </ListCard>
 
         <SectionLabel>How I work</SectionLabel>
-        <Collapsible defaultOpen>
+        {onOpenTour && <Button variant="outline" className="mb-2 w-full" onClick={onOpenTour}>Show me around</Button>}
+        <Collapsible>
           <ListCard>
             <CollapsibleTrigger className="group w-full text-left hover:bg-muted/40">
               <Row label="A quick guide to me" desc="What I do, and how I grow with you">
@@ -520,6 +526,7 @@ export default function SettingsPanel({
         </Note>
 
         <SectionLabel>How I care for you</SectionLabel>
+        {onOpenSetup && <Button variant="secondary" className="mb-2 w-full justify-start" onClick={onOpenSetup}><PlantIcon />Set up my care routine</Button>}
         <ListCard>
           <Row label="Movement breaks" desc="A stretch, a short walk or a little movement">
             <NativeSelect
@@ -812,7 +819,7 @@ export default function SettingsPanel({
         </Note>
         </> : <Note>Google Calendar is optional. Connecting it contacts Google to fetch upcoming events for alerts. Event details stay in memory and are not saved by this app. Disconnect in Google Calendar above. No AI chat or cloud voice requests run in this beta.</Note>}
 
-        <p className="pt-4 text-center text-[11px] text-muted-foreground/70">Companion 0.1.0 beta</p>
+        <p className="pt-4 text-center text-[11px] text-muted-foreground/70">Companion {appVersion}</p>
       </div>
     </Panel>
   );

@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { CharacterState, SproutStage } from "./types";
 import { growthStageBand, type GrowthStage } from "../growth";
 import { SPRITES, SpriteAnim as SpriteAnimDef } from "../generated/sprites";
 import { GROW_HANDOFF_SCALE } from "../generated/growHandoff";
 import ClayConfetti from "./ClayConfetti";
+
+// Setup can pause its preview without changing normal character behaviour.
+export const CharacterMotionPaused = createContext(false);
 
 function growthToLegacy(g: GrowthStage): SproutStage {
   if (g >= 6) return "bloom";
@@ -131,6 +134,7 @@ function SpriteAnim({
   const [shown, setShown] = useState(anim.frames[0] ?? "");
   const dirRef = useRef(1);
   const scale = scaleOverride ?? spriteScale(anim);
+  const paused = useContext(CharacterMotionPaused);
 
   useEffect(() => {
     warmAllSprites();
@@ -140,6 +144,10 @@ function SpriteAnim({
     dirRef.current = 1;
     const first = anim.frames[0] ?? "";
     if (first) setShown(first);
+  }, [anim]);
+
+  useEffect(() => {
+    if (paused) return;
     const timer = window.setInterval(() => {
       setIdx((i) => {
         let next = i + dirRef.current;
@@ -161,7 +169,7 @@ function SpriteAnim({
       });
     }, 1000 / anim.fps);
     return () => clearInterval(timer);
-  }, [anim]);
+  }, [anim, paused]);
 
   // Only swap the visible src once the next frame is decoded — avoids a
   // one-frame blank (reads as a screen flash) when jumping clips/states.

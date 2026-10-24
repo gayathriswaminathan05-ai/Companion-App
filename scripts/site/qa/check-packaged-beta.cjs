@@ -4,7 +4,7 @@
 const electron = require('electron');
 const { app, BrowserWindow, session } = electron;
 const fs = require('fs'), path = require('path'), os = require('os'), assert = require('assert/strict');
-const resources = path.resolve(process.argv[2] || 'release/0.1.1-beta.2/mac-arm64/Companion.app/Contents/Resources');
+const resources = path.resolve(process.argv[2] || 'release/0.1.1-beta.3/mac-arm64/Companion.app/Contents/Resources');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'companion-packaged-beta-'));
 app.setPath('appData', temp);
 app.setPath('userData', path.join(temp, 'companion-app'));
@@ -23,7 +23,7 @@ electron.BrowserWindow = QuietWindow;
 const dataFile = path.join(app.getPath('userData'), 'companion-data.json');
 fs.writeFileSync(dataFile, JSON.stringify({settings:{welcomed:false,voiceOn:false,soundsOn:false,autoHideOnCalls:false,matchBackdrop:false,breakMins:0,waterNudge:false,bedtime:null,jokeEvery:'off'},todos:[]}));
 const wait = ms => new Promise(r => setTimeout(r, ms));
-const out = path.resolve('docs/qa/2026-10-19/release-0.1.1-beta.2');
+const out = path.resolve('docs/qa/2026-10-24/release-0.1.1-beta.3');
 fs.mkdirSync(out,{recursive:true});
 app.whenReady().then(() => { app.dock?.hide(); session.defaultSession.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*']},(_d,cb)=>{network++;cb({cancel:true});}); });
 require(path.join(resources,'app.asar','electron','main.cjs'));
@@ -36,10 +36,23 @@ app.whenReady().then(async () => {
   const press = async label => {await js(`[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(label)}).click()`);await wait(150)};
   const nav = async label => {await js(`document.querySelector('button[aria-label="${label}"]').click()`);await wait(200)};
   const menu = async () => {await js(`document.querySelector('[data-char-hit]').dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0}));document.querySelector('[data-char-hit]').dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0}));void 0`);await wait(250)};
-  await until(()=>js(`document.body.textContent.includes('Enable microphone')`),'first-open welcome');
-  await press('Not now');
+  await until(()=>js(`document.querySelector('[data-onboarding-step="name"]')`),'first-open plant naming');
+  for(let i=0;i<7;i++) await press('Next');
+  await until(()=>js(`document.body.textContent.includes('Enable microphone')`),'optional microphone step');
+  await press('Continue with typing');
+  await press("Let's begin");
+  await until(()=>js(`document.querySelector('[data-tour-step="tasks"]')`),'guided navigation');
+  for (const step of ['tasks','voice','breathe','jokes','settings']) {
+   assert.ok(await js(`document.querySelector('[data-tour-step="${step}"]')`));
+   fs.writeFileSync(path.join(out,`packaged-tour-${step}.png`),(await win.webContents.capturePage()).toPNG());
+   if(step !== 'settings') await press('Next');
+  }
+  await press('Make a reminder');
+  await until(()=>js(`document.querySelector('[aria-label="add task"]')`),'tour opens real reminder entry');
+  assert.equal(JSON.parse(fs.readFileSync(dataFile)).todos.length,0,'tour creates no sample task');
+  assert.equal(JSON.parse(fs.readFileSync(dataFile)).settings.navigationTourVersion,1);
+
   assert.equal(JSON.parse(fs.readFileSync(dataFile)).settings.welcomed,true);
-  await menu();
   assert.equal(await js(`!!document.querySelector('button[aria-label="chat"]')`),false);
   await nav('tasks');
   // Browser native input event through actual preload and persistence handlers.
@@ -67,7 +80,7 @@ app.whenReady().then(async () => {
   fs.writeFileSync(path.join(out,'packaged-breathe.png'),(await win.webContents.capturePage()).toPNG());
   await press('Stop');
   assert.equal(network,0,'no external requests');
-  const report={version:'0.1.1-beta.2',resources: path.relative(process.cwd(),resources),passed:['first-open skip without mic access','native text insertion and timed task save','task persists across reload','chat/key/dev-test controls absent','real bundled Kokoro synthesis','real bundled Whisper transcription','meditation audio and clock','zero intercepted external requests'],transcription,limitations:['Same Mac and Electron runtime, isolated data; not another clean Mac or real microphone','Google sign-in and downloaded-app Gatekeeper not exercised'],network};
+  const report={version:'0.1.1-beta.3',resources: path.relative(process.cwd(),resources),passed:['first-open naming and care setup with typing choice','all five guided tour steps and real reminder entry','native text insertion and timed task save','task persists across reload','chat/key/dev-test controls absent','real bundled Kokoro synthesis','real bundled Whisper transcription','meditation audio and clock','zero intercepted external requests'],transcription,limitations:['Same Mac and Electron runtime, isolated data; not another clean Mac or real microphone','Google sign-in and downloaded-app Gatekeeper not exercised'],network};
   fs.writeFileSync(path.join(out,'packaged-report.json'),JSON.stringify(report,null,2)+'\n');console.log('PASS',JSON.stringify(report));
   app.quit();
  } catch(e) {console.error(e);process.exitCode=1;app.quit();}

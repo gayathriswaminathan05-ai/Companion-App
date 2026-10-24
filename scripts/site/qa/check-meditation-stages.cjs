@@ -20,7 +20,7 @@ brainStatus:async()=>({connected:true,viaProxy:true,provider:'openai'}),calendar
 voiceWarmup:async()=>{},voiceStatus:async()=>({ready:false}),voiceCancel:noop,ensureMic:async()=>true,transcribe:b=>ipcRenderer.invoke('test-transcribe',b),onCalendarMeeting:fn=>{ipcRenderer.on('test-meeting',(_e,d)=>fn(d));return noop},onGmailNew:sub,onGoogleAuthExpired:sub,
 });`);
 
-let data={settings:{growthTestVisible:true,plantScale:.7,panelScale:1,welcomed:true,soundsOn:false,voiceOn:false,breakMins:0,waterNudge:false,bedtime:null,jokeEvery:'off',matchBackdrop:false},sprout:{date:new Date().toLocaleDateString('en-CA'),points:0},todos:[]};
+let data={settings:{growthTestVisible:true,plantScale:.7,panelScale:1,welcomed:true,onboardingVersion:1,navigationTourVersion:1,soundsOn:false,voiceOn:false,breakMins:0,waterNudge:false,bedtime:null,jokeEvery:'off',matchBackdrop:false},sprout:{date:new Date().toLocaleDateString('en-CA'),points:0},todos:[]};
 let win;
 ipcMain.handle('test-load',()=>structuredClone(data));
 ipcMain.handle('test-save',(_e,d)=>{data=structuredClone(d);return true});

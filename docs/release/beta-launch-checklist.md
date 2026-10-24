@@ -1,5 +1,9 @@
 # Private beta launch checklist
 
+> **24 October beta.3 update:** Owner approved the new onboarding and guided tour release on ui-refresh-shadcn. Installer and guide are prepared; same-Mac automated package checks passed. Independent tester-Mac permissions/Calendar checks remain pending. Publication result is recorded in CLAUDE.md.
+
+**Current status note · 24 October 2026:** This file preserves earlier planning and superseded status updates. The public GitHub beta **0.1.1-beta.2 was published on 19 October** after explicit approval to include the Google Desktop registration. The earlier upload block below is resolved. Current beta has **no AI chat**, local voice and optional read-only Calendar; Google verification remains unsubmitted in the latest recorded check. For the consolidated current state and remaining work, read [the collaboration handover](../collaboration/2026-10-24/Companion-Project-Handover.md). Earlier chat gates and “no release exists” passages are historical.
+
 Prepared for Gayathri · 17 October 2026 · Branch: ui-refresh-shadcn
 
 This checklist is for a small, invited Mac beta, not a public launch. It records requirements, not a fresh test report. An unchecked box means we still need evidence or a decision; it does not automatically mean the feature is broken. I handle the code and checks; Gayathri approves product choices, costs and distribution.

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import Blob from "./character/Blob";
+import Blob, { CharacterMotionPaused } from "./character/Blob";
 import DebugMenu from "./DebugMenu";
 import RadialMenu, { type RadialItem } from "./ui/RadialMenu";
 import TaskPanel from "./ui/TaskPanel";
@@ -12,7 +12,10 @@ import Showcase from "./ui/Showcase";
 import GrowthTestBar from "./ui/GrowthTestBar";
 import ReminderTestPanel, { type ReminderTestKind } from "./ui/ReminderTestPanel";
 import JokeBubble from "./ui/JokeBubble";
-import WelcomeMicBubble from "./ui/WelcomeMicBubble";
+import OnboardingPanel, { SETUP_POSES } from "./ui/OnboardingPanel";
+import NavigationTour from "./ui/NavigationTour";
+import { completeTour, needsTour, tourStepFor, TOUR_POSES, type TourStep, type TourDestination } from "./navigationTour";
+import { completeSetup, needsSetup, newSetup, setupFor, nextDailyTime, type SetupProgress } from "./onboarding";
 import { reminderPose } from "./reminderPose";
 import SettingsPanel from "./ui/SettingsPanel";
 import PanelResizeHandles from "./ui/PanelResizeHandles";
@@ -131,6 +134,24 @@ function formatBooking(start: string): string {
 export default function App() {
   const { state, set } = useCharacter();
   const [data, setData] = useState<AppData>(emptyData());
+  const [loaded, setLoaded] = useState(false);
+  const careSetup = loaded && needsSetup(data);
+  const touring = loaded && !careSetup && needsTour(data);
+  const welcome = careSetup || touring;
+  const [setupBusy, setSetupBusy] = useState(false);
+  const [setupMotionPaused, setSetupMotionPaused] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const change = () => setSetupMotionPaused(media.matches);
+    media.addEventListener("change", change);
+    return () => media.removeEventListener("change", change);
+  }, []);
+  const [setupError, setSetupError] = useState("");
+  const setupSaving = useRef(false);
+  const readyForAlerts = useRef(false);
+  const quietUntil = useRef(0);
+  readyForAlerts.current = loaded && !welcome;
+  const alertsAllowed = () => readyForAlerts.current && Date.now() >= quietUntil.current;
   const [open, setOpen] = useState<"none" | "menu" | "tasks" | "chat" | "settings" | "breathe" | "tests" | "test-preview">("none");
   const [testPreview, setTestPreview] = useState<{
     kind: ReminderTestKind; text: string; punchline?: string; revealed?: boolean; reminder?: FiredReminder;
@@ -207,15 +228,12 @@ export default function App() {
 
   useEffect(() => {
     loadData().then((d) => {
+      dataRef.current = d;
       setData(d);
+      setLoaded(true);
       setSoundsEnabled(d.settings.soundsOn);
       setTimeout(() => chirp("hello"), 600);
-      if (!d.settings.welcomed) {
-        setTimeout(() => {
-          setWelcome(true);
-          set("waving");
-        }, 1200);
-      }
+      if (needsSetup(d)) set("waving");
     });
     window.companion?.setClickThrough(true);
     void refreshClip();
@@ -343,8 +361,8 @@ export default function App() {
   useEffect(() => {
     dataRef.current = data;
     setSoundsEnabled(data.settings.soundsOn);
-    window.companion.setCallAutohide?.(data.settings.autoHideOnCalls);
-  }, [data]);
+    window.companion.setCallAutohide?.(loaded && !welcome && data.settings.autoHideOnCalls);
+  }, [data, loaded, welcome]);
   const stateRef = useRef(state);
   useEffect(() => {
     stateRef.current = state;
@@ -371,6 +389,7 @@ export default function App() {
   useEffect(() => {
     const REST_POSES: CharacterState[] = ["hammock", "lying", "meditate", "picnic", "groove", "hula"];
     const id = window.setInterval(() => {
+      if (!alertsAllowed()) return;
       const s = stateRef.current;
       const resting = REST_POSES.includes(s);
       if (openRef.current !== "none" || nudgeRef.current || firedQueueRef.current.length) {
@@ -428,12 +447,14 @@ export default function App() {
     const TICK = 30_000;
     const check = async () => {
       try {
+        if (!alertsAllowed()) return;
         // Suppressed while hidden (focus mode), mid-interaction, or already nudging.
         if (document.visibilityState === "hidden") return;
         if (nudgeRef.current || openRef.current !== "none") return;
         if (stateRef.current === "sleeping" || stateRef.current === "dragged") return;
 
         const idle = (await window.companion.idleSeconds()) as number;
+        if (!alertsAllowed()) return;
         if (idle < 60) {
           activeMsRef.current += TICK;
           waterMsRef.current += TICK;
@@ -713,6 +734,7 @@ export default function App() {
   useEffect(() => {
     if (!window.companion?.onCalendarMeeting) return;
     return window.companion.onCalendarMeeting((m) => {
+      if (!alertsAllowed()) return;
       if (!dataRef.current.settings.calendarReminders) return;
       if (document.visibilityState === "hidden") return;
       if (stateRef.current === "sleeping" || stateRef.current === "dragged") return;
@@ -722,15 +744,69 @@ export default function App() {
     });
   }, []);
 
-  // First launch: a short hello so testers know what to do.
-  const [welcome, setWelcome] = useState(false);
-  const finishWelcome = () => {
-    setWelcome(false);
-    update((d) => {
-      d.settings.welcomed = true;
-      return d;
-    });
-    set("idle");
+  // Draft choices survive a restart, but cannot ring until setup is saved.
+  const changeSetup = (draft: SetupProgress) => {
+    setSetupError("");
+    const next = { ...dataRef.current, setup: draft };
+    dataRef.current = next;
+    setData(next);
+    void window.companion.dataSave(next);
+  };
+  const finishSetup = async (skip = false) => {
+    if (setupSaving.current) return;
+    setupSaving.current = true;
+    setSetupBusy(true); setSetupError(""); stopSpeaking();
+    try {
+      const current = dataRef.current;
+      const draft = skip ? { ...newSetup(current), name: setupFor(current).name } : setupFor(current);
+      const completed = completeSetup(current, draft);
+      const next = skip ? completeTour(completed) : completed;
+      if (await window.companion.dataSave(next) === false) throw new Error("save failed");
+      quietUntil.current = Date.now() + 30_000;
+      activeMsRef.current = 0; waterMsRef.current = 0;
+      nextRestAt.current = Date.now() + 12 * 60_000;
+      dataRef.current = next;
+      setData(next); setOpen("none"); set("waving");
+    } catch {
+      setSetupError("I couldn't save that yet. Please try again. Your setup is still here.");
+    } finally { setupSaving.current = false; setSetupBusy(false); }
+  };
+  const reopenSetup = () => {
+    stopSpeaking(); setOpen("none"); set("waving");
+    const next = structuredClone(dataRef.current);
+    next.setup = newSetup(next);
+    next.settings.onboardingVersion = 0;
+    readyForAlerts.current = false;
+    dataRef.current = next; setData(next); void window.companion.dataSave(next);
+  };
+
+  const changeTour = (step: TourStep) => {
+    setSetupError(""); stopSpeaking();
+    const next = { ...dataRef.current, navigationTourStep: step };
+    dataRef.current = next; setData(next); void window.companion.dataSave(next);
+  };
+  const reopenTour = () => {
+    stopSpeaking(); setSetupError(""); setOpen("none"); set("waving");
+    const next = { ...dataRef.current, navigationTourStep: "tasks" as const,
+      settings: { ...dataRef.current.settings, navigationTourVersion: 0 } };
+    readyForAlerts.current = false;
+    dataRef.current = next; setData(next); void window.companion.dataSave(next);
+  };
+  const finishTour = async (destination: TourDestination) => {
+    if (setupSaving.current) return;
+    setupSaving.current = true; setSetupBusy(true); setSetupError(""); stopSpeaking();
+    try {
+      const next = completeTour(dataRef.current);
+      if (await window.companion.dataSave(next) === false) throw new Error("save failed");
+      quietUntil.current = Date.now() + 30_000;
+      activeMsRef.current = 0; waterMsRef.current = 0;
+      nextRestAt.current = Date.now() + 12 * 60_000;
+      dataRef.current = next; setData(next);
+      setOpen(destination === "nap" ? "none" : destination);
+      set(destination === "breathe" ? "meditate" : "waving");
+      if (destination === "nap") window.companion?.hide();
+    } catch { setSetupError("I couldn't save that yet. Please try again."); }
+    finally { setupSaving.current = false; setSetupBusy(false); }
   };
 
   // Calendar booking Blob drafted in chat: waits for a one-tap Add.
@@ -759,6 +835,7 @@ export default function App() {
   }, [data.settings.gmailAlerts]);
   useEffect(() => {
     const offMail = window.companion.onGmailNew?.((m) => {
+      if (!alertsAllowed()) return;
       if (!FEATURES.gmailAlerts || !dataRef.current.settings.gmailAlerts) return;
       if (document.visibilityState === "hidden") return;
       if (stateRef.current === "sleeping" || stateRef.current === "dragged") return;
@@ -766,6 +843,7 @@ export default function App() {
       chirp("pop");
     });
     const offExpired = window.companion.onGoogleAuthExpired?.(() => {
+      if (!alertsAllowed()) return;
       showToast("Google needs a quick reconnect in Settings");
     });
     return () => {
@@ -795,6 +873,7 @@ export default function App() {
 
   useEffect(() => {
     const check = () => {
+      if (!alertsAllowed()) return;
       if (document.visibilityState === "hidden") return;
       if (jokeRef.current || nudgeRef.current || openRef.current !== "none") return;
       if (stateRef.current === "sleeping" || stateRef.current === "dragged") return;
@@ -813,6 +892,7 @@ export default function App() {
 
   useEffect(() => {
     const check = () => {
+      if (!alertsAllowed()) return;
       const now = Date.now();
       for (const t of dataRef.current.todos) {
         if (!t.due || t.done || t.firedAt || new Date(t.due).getTime() > now) continue;
@@ -828,8 +908,8 @@ export default function App() {
           const x = d.todos.find((y) => y.id === t.id);
           if (!x) return d;
           if (x.recurring === "daily") {
-            const next = new Date(x.due!);
-            next.setDate(next.getDate() + 1);
+            const old = new Date(x.due!);
+            const next = nextDailyTime(`${String(old.getHours()).padStart(2, "0")}:${String(old.getMinutes()).padStart(2, "0")}`);
             x.due = next.toISOString();
             x.firedAt = null;
           } else {
@@ -977,7 +1057,7 @@ export default function App() {
   const savedPanelScale = Math.min(1.45, Math.max(0.85, data.settings.panelScale ?? 1));
   const panelScale = livePanelScale ?? savedPanelScale;
   const WIN_W = Math.round(BASE_W * (1 + (panelScale - 1) * 0.55));
-  const PANEL_H = Math.round(BASE_PANEL_H * panelScale);
+  const PANEL_H = welcome ? 360 : Math.round(BASE_PANEL_H * panelScale);
   const plantH = CHAR_H * plantScale;
   // FLIP_PAD: room above the plant when it sits at the window top (the hop and
   // poses drawn taller than the plant box).
@@ -1026,11 +1106,11 @@ export default function App() {
 
   const firedNow = firedQueue[0];
   useEffect(() => {
-    if (!firedNow) return;
+    if (welcome || !firedNow) return;
     set(reminderPose(firedNow.text));
     say(firedNow.missed ? `while you were away: ${firedNow.text}` : `hey! it's time: ${firedNow.text}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firedNow?.id]);
+  }, [firedNow?.id, welcome]);
   useEffect(() => {
     if (!meeting) return;
     say(
@@ -1061,10 +1141,6 @@ export default function App() {
     if (mail) say(mail.count ? `you've got ${mail.count} new emails` : `new email from ${mail.from || "someone"}`, { private: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mail]);
-  useEffect(() => {
-    if (welcome) say("hi! I'm your little desk plant. Tap me for tasks, breathing and settings. You can enable the microphone to dictate tasks and answer my jokes.");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [welcome]);
   useEffect(() => {
     if (open !== "chat") stopSpeaking();
   }, [open]);
@@ -1126,7 +1202,7 @@ export default function App() {
   // Panels: follow macOS light/dark, or (opt-in) match the app behind us.
   usePanelTheme(
     !!data.settings.matchBackdrop,
-    panelOpen || open === "menu" || showcase || firedQueue.length > 0 || !!nudge || !!joke || !!meeting || !!testPreview,
+    welcome || panelOpen || open === "menu" || showcase || firedQueue.length > 0 || !!nudge || !!joke || !!meeting || !!testPreview,
     flip
       ? { top: stackTop, bottom: stackTop + stackSpan }
       : { top: Math.max(0, plantTopY - PLANT_GAP - stackSpan), bottom: Math.max(0, plantTopY - PLANT_GAP) },
@@ -1178,7 +1254,17 @@ export default function App() {
       }
       className={flip ? "ui-flip" : undefined}
     >
-      {panelOpen && (
+      {careSetup && <div data-hit="1" style={{ position: "absolute", left: panelLeft, width: panelW, height: PANEL_H, ...stackPos, pointerEvents: "auto", zIndex: 25 }}>
+        <OnboardingPanel progress={setupFor(data)} onChange={changeSetup}
+          motionPaused={setupMotionPaused} onToggleMotion={() => setSetupMotionPaused(p => !p)}
+          onFinish={() => void finishSetup()} onSkip={() => void finishSetup(true)} busy={setupBusy} error={setupError}
+          onListen={text => { stopSpeaking(); void speak(text, { ...voiceOpts(true), cloud: null }); }} onStop={stopSpeaking} />
+      </div>}
+      {touring && <div data-hit="1" style={{ position: "absolute", left: panelLeft, width: panelW, height: PANEL_H, ...stackPos, pointerEvents: "auto", zIndex: 25 }}>
+        <NavigationTour step={tourStepFor(data)} onStep={changeTour} onFinish={destination => void finishTour(destination)}
+          busy={setupBusy} error={setupError} motionPaused={setupMotionPaused} onToggleMotion={() => setSetupMotionPaused(p => !p)} />
+      </div>}
+      {!welcome && panelOpen && (
         <div
           style={{
             position: "absolute",
@@ -1252,6 +1338,8 @@ export default function App() {
             )}
             {open === "settings" && (
               <SettingsPanel
+                onOpenTour={reopenTour}
+                onOpenSetup={reopenSetup}
                 onOpenReminderTests={window.companion.isPackaged === false ? () => { setOpen("tests"); set("idle"); } : undefined}
                 onScheduleMeditation={(due, recurring) => addTask("Meditation break", due, recurring)}
                 settings={data.settings}
@@ -1338,7 +1426,7 @@ export default function App() {
         </div>
       )}
 
-      {showcase && (
+      {!welcome && showcase && (
         <div
           style={{
             position: "absolute",
@@ -1361,7 +1449,7 @@ export default function App() {
         </div>
       )}
 
-      {open === "menu" && (
+      {!welcome && open === "menu" && (
         <RadialMenu
           winW={WIN_W}
           plantTop={plantTopY}
@@ -1420,7 +1508,7 @@ export default function App() {
         )
       )}
 
-      {firedQueue.length > 0 && (
+      {!welcome && firedQueue.length > 0 && (
         <ReminderBubble
           fired={firedQueue[0]}
           onDone={() => dismissFired(firedQueue[0].id, true)}
@@ -1428,7 +1516,7 @@ export default function App() {
         />
       )}
 
-      {meeting && firedQueue.length === 0 && (
+      {!welcome && meeting && firedQueue.length === 0 && (
         <NudgeBubble
           text={
             meeting.minutesUntil <= 0
@@ -1445,10 +1533,6 @@ export default function App() {
         />
       )}
 
-      {welcome && firedQueue.length === 0 && !meeting && !nudge && !joke && (
-        <WelcomeMicBubble onFinish={finishWelcome} />
-      )}
-
       {booking && firedQueue.length === 0 && !meeting && !welcome && (
         <NudgeBubble
           text={`Add "${booking.title}" on ${formatBooking(booking.start)} to your Google Calendar?`}
@@ -1459,7 +1543,7 @@ export default function App() {
         />
       )}
 
-      {mail && firedQueue.length === 0 && !meeting && !booking && (
+      {!welcome && mail && firedQueue.length === 0 && !meeting && !booking && (
         <NudgeBubble
           text={
             mail.count
@@ -1470,13 +1554,13 @@ export default function App() {
         />
       )}
 
-      {joke && firedQueue.length === 0 && !nudge && !meeting && !booking && !mail && (
+      {!welcome && joke && firedQueue.length === 0 && !nudge && !meeting && !booking && !mail && (
         <JokeBubble key={joke.setup} setup={joke.setup} punchline={joke.punchline} revealed={joke.revealed}
           onReveal={() => { setJoke({ ...joke, revealed: true }); set("celebrating"); chirp("giggle"); }}
           onDismiss={() => { setJoke(null); set("idle"); stopSpeaking(); }} />
       )}
 
-      {nudge && firedQueue.length === 0 && !meeting && !booking && !mail && (
+      {!welcome && nudge && firedQueue.length === 0 && !meeting && !booking && !mail && (
         <NudgeBubble
           text={NUDGE_TEXT[nudge]}
           actions={
@@ -1548,7 +1632,11 @@ export default function App() {
             pointerEvents: "none",
           }}
         >
-          <Blob state={state} growthStage={growthStage} scribbling={scribbling} />
+          <CharacterMotionPaused.Provider value={welcome && setupMotionPaused}>
+            <div data-setup-pose={careSetup ? SETUP_POSES[setupFor(data).step] : touring ? TOUR_POSES[tourStepFor(data)] : undefined} className="contents">
+              <Blob state={welcome && state !== "dragged" ? (careSetup ? SETUP_POSES[setupFor(data).step] : TOUR_POSES[tourStepFor(data)]) : state} growthStage={growthStage} scribbling={scribbling} />
+            </div>
+          </CharacterMotionPaused.Provider>
         {/* Scale the hit layer with the artwork. An unscaled 240px layer
             overlaps panel footers when the owner chooses a smaller plant.
             Receives drag/click only while click-through is off
@@ -1572,6 +1660,7 @@ export default function App() {
             }
           }}
           onMouseUp={async () => {
+            if (welcome) { mouseDownAt.current = null; return; }
             if (!dragging && mouseDownAt.current) {
               if (state === "sleeping") {
                 set("waking");

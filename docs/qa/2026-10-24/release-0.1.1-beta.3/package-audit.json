@@ -1,0 +1,11 @@
+{
+  "version": "0.1.1-beta.3",
+  "files": 11861,
+  "spriteReferences": 6088,
+  "aiChat": false,
+  "voiceRemoteFallback": false,
+  "privateFiles": 0,
+  "googleClient": "clientId/clientSecret only; no user tokens; Console registration type requires verification",
+  "models": "bundled Whisper and Kokoro",
+  "appAsarSha256": "51c7c7005ae5e144a2966d7ef5ed058777f837c84563879ee69c564669c4ce73"
+}

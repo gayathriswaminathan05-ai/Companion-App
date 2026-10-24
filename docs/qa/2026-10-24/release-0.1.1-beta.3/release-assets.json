@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Companion-0.1.1-beta.3-arm64.dmg",
+    "bytes": 606848615,
+    "sha256": "f688b6e7ff33b98ca070c03d9ef1b9a9c6a9f7db186f72b22ceaaf7121aecbc9"
+  },
+  {
+    "name": "Companion-Beta-Guide.html",
+    "bytes": 46011,
+    "sha256": "337bb77e81d10ea47e9ad0eb7e986b11a4ac54e53e8b0cc6f20fea69240a7548"
+  },
+  {
+    "name": "Companion-Privacy.html",
+    "bytes": 4794,
+    "sha256": "e9cf6c73eac551eb3d25485e5dfa4368517e831090084d352ddc64d8fd6c2dac"
+  }
+]

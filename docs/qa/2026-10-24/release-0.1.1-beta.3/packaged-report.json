@@ -1,0 +1,21 @@
+{
+  "version": "0.1.1-beta.3",
+  "resources": "release/0.1.1-beta.3/mac-arm64/Companion.app/Contents/Resources",
+  "passed": [
+    "first-open naming and care setup with typing choice",
+    "all five guided tour steps and real reminder entry",
+    "native text insertion and timed task save",
+    "task persists across reload",
+    "chat/key/dev-test controls absent",
+    "real bundled Kokoro synthesis",
+    "real bundled Whisper transcription",
+    "meditation audio and clock",
+    "zero intercepted external requests"
+  ],
+  "transcription": " settle in, let your shoulders soften. Breathe in gently.",
+  "limitations": [
+    "Same Mac and Electron runtime, isolated data; not another clean Mac or real microphone",
+    "Google sign-in and downloaded-app Gatekeeper not exercised"
+  ],
+  "network": 0
+}

@@ -17,7 +17,7 @@ idleSeconds:async()=>0,setCallAutohide:noop,voiceCloudInfo:async()=>({available:
 brainStatus:async()=>({connected:true,viaProxy:true,provider:'openai'}),calendarStatus:async()=>({connected:false}),getLoginItem:async()=>false,
 voiceWarmup:async()=>{},voiceStatus:async()=>({ready:false}),voiceCancel:noop,onCalendarMeeting:sub,onGmailNew:sub,onGoogleAuthExpired:sub,
 });`);
-let data={settings:{chatOn:true,plantScale:.7,panelScale:1,welcomed:true,soundsOn:false,voiceOn:false,breakMins:0,waterNudge:false,bedtime:null,jokeEvery:'off',matchBackdrop:false},
+let data={settings:{chatOn:true,plantScale:.7,panelScale:1,welcomed:true,onboardingVersion:1,navigationTourVersion:1,soundsOn:false,voiceOn:false,breakMins:0,waterNudge:false,bedtime:null,jokeEvery:'off',matchBackdrop:false},
 todos:[{id:'private-task',text:'PRIVATE_TASK',done:false,createdAt:new Date().toISOString()}],chat:{messages:[],facts:['PRIVATE_NOTE'],summary:'PRIVATE_SUMMARY'}};
 let win,requests=[],cancels=0,failSave=false;
 ipcMain.handle('test-load',()=>structuredClone(data));
